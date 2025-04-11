@@ -18,6 +18,7 @@ export default function Home() {
   const [imageUrl, setImageUrl] = useState('')
   const [characters, setCharacters] = useState<Character[]>([])
   const [editIndex, setEditIndex] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const router = useRouter()
 
@@ -73,68 +74,86 @@ export default function Home() {
     setEditIndex(index)
   }
 
-  const [loading, setLoading] = useState(false); // 로딩 상태 추가
-
-const generateCharacterImage = async () => {
-  if (!name || !personality || !description) {
-    alert('이름, 성격, 특징을 입력해야 그림을 생성할 수 있어!');
-    return;
-  }
-
-  setLoading(true); // 생성 시작할 때 로딩 시작
-
-  const prompt = `${personality} 성격과 ${description} 특징을 가진 ${name} 캐릭터의 고퀄리티 일본 애니메이션 스타일 일러스트를 그려줘. 강렬한 선, 만화적 표현 들어가야 돼. 현실적인 웹툰풍으로 그려줘. 캐릭터는 한 명만 나와야 돼. 캐릭터 하나를 부각시켜줘`;
-
-  try {
-    const res = await fetch('/api/generate-image', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    const data = await res.json();
-    if (data.imageUrl) {
-      setImageUrl(data.imageUrl);
-      alert('캐릭터 그림 생성 완료! ✨');
-    } else {
-      alert('그림 생성 실패...ㅠㅠ');
+  const generateCharacterImage = async () => {
+    if (!name || !personality || !description) {
+      alert('이름, 성격, 특징을 입력해야 그림을 생성할 수 있어!');
+      return;
     }
-  } catch (error) {
-    console.error(error);
-    alert('에러 발생!');
-  } finally {
-    setLoading(false); // 끝날 때 로딩 종료
-  }
-};
 
-  
+    setLoading(true)
+
+    const prompt = `${personality} 성격과 ${description} 특징을 가진 ${name} 캐릭터의 고퀄리티 일본 애니메이션 스타일 일러스트를 그려줘. 강렬한 선, 만화적 표현 들어가야 돼. 현실적인 웹툰풍으로 그려줘. 캐릭터는 한 명만 나와야 돼. 캐릭터 하나를 부각시켜줘`
+
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      })
+      const data = await res.json()
+      if (data.imageUrl) {
+        setImageUrl(data.imageUrl)
+        alert('캐릭터 그림 생성 완료! ✨')
+      } else {
+        alert('그림 생성 실패...ㅠㅠ')
+      }
+    } catch (error) {
+      console.error(error)
+      alert('에러 발생!')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ✨ 여기 추가: 파일 첨부로 이미지 업로드
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const localUrl = URL.createObjectURL(file)
+      setImageUrl(localUrl)
+    }
+  }
+
   return (
     <>
       <Head>
         <title>캐릭터 목록</title>
       </Head>
       <main style={{ padding: '2rem', maxWidth: 800, margin: 'auto', backgroundColor: '#111', color: '#eee', minHeight: '100vh' }}>
-      <h1 style={{ marginBottom: '2rem' }}>내 캐릭터 목록</h1>
+        <h1 style={{ marginBottom: '2rem' }}>내 캐릭터 목록</h1>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
           <input placeholder="이름" value={name} onChange={e => setName(e.target.value)} style={inputStyle} />
           <input placeholder="성격" value={personality} onChange={e => setPersonality(e.target.value)} style={inputStyle} />
           <input placeholder="특징" value={description} onChange={e => setDescription(e.target.value)} style={inputStyle} />
           <input placeholder="상황 (선택)" value={situation} onChange={e => setSituation(e.target.value)} style={inputStyle} />
-          <input placeholder="이미지 URL (선택)" value={imageUrl} onChange={e => setImageUrl(e.target.value)} style={inputStyle} />
+          
+          {/* ✨ 이미지 파일 업로드 input */}
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            style={inputStyle}
+          />
+
+          {/* ✨ 이미지 미리보기 */}
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt="업로드된 이미지 미리보기"
+              style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, marginTop: '1rem' }}
+            />
+          )}
 
           {loading && (
-  <p style={{ color: 'orange', textAlign: 'center', marginBottom: '1rem' }}>
-    그림 생성 중입니다... 잠시만 기다려주세요! 🖌️
-  </p>
-)}
+            <p style={{ color: 'orange', textAlign: 'center', marginBottom: '1rem' }}>
+              그림 생성 중입니다... 잠시만 기다려주세요! 🖌️
+            </p>
+          )}
 
-
-          <button
-            onClick={generateCharacterImage}
-            style={{ padding: '0.6rem', borderRadius: 8, backgroundColor: '#f59e0b', color: 'white', border: 'none', cursor: 'pointer' }}
->
-  캐릭터 그림 생성
-            </button>
+          <button onClick={generateCharacterImage} style={generateButton}>
+            캐릭터 그림 생성
+          </button>
 
           <button onClick={addOrEditCharacter} style={buttonStyle}>
             {editIndex !== null ? '캐릭터 수정' : '캐릭터 추가'}
@@ -166,8 +185,10 @@ const generateCharacterImage = async () => {
   )
 }
 
+// 스타일 정리
 const inputStyle = { padding: '0.6rem', borderRadius: 8, border: '1px solid #444', backgroundColor: '#222', color: '#eee', fontSize: '1rem' }
 const buttonStyle = { padding: '0.6rem', borderRadius: 8, backgroundColor: '#4f46e5', color: 'white', border: 'none', cursor: 'pointer' }
+const generateButton = { padding: '0.6rem', borderRadius: 8, backgroundColor: '#f59e0b', color: 'white', border: 'none', cursor: 'pointer' }
 const deleteButton = { backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: 6 }
 const chatButton = { backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: 6 }
 const editButton = { backgroundColor: '#10b981', color: 'white', border: 'none', padding: '0.4rem 0.8rem', borderRadius: 6 }
