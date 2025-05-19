@@ -1,6 +1,7 @@
 // pages/api/generate-image.ts
 
 import { NextApiRequest, NextApiResponse } from 'next'
+
 console.log('✅ 현재 서버가 읽은 API 키:', process.env.OPENAI_API_KEY)
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

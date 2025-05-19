@@ -99,7 +99,7 @@ export default function HomePage() {
 
       {activeTab === 'recommend' && (
         <>
-          <h2 className="text-xl font-bold mb-4 ml-1">추천 </h2>
+          <h2 className="text-xl font-bold mb-4">추천 캐릭터</h2>
           <div className="flex gap-4 overflow-x-auto pb-2">
             {characters.slice(0, 10).map((char) => (
               <div
