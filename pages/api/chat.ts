@@ -1,10 +1,28 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import OpenAI from 'openai'
 import { getGeminiResponse } from '@/lib/gemini'
+import type { ChatCompletionMessageParam } from 'openai/resources'
+
+// 공통 메시지 타입 정의
+type Role = 'user' | 'assistant' | 'model'
+interface ChatMessage {
+  role: Role
+  content: string
+}
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 })
+
+// 유틸리티 함수: role 값 검증 및 변환
+const validateRole = (role: any): Role => {
+  if (role === 'user' || role === 'assistant' || role === 'model') {
+    return role
+  } else {
+    console.warn(`Invalid role: ${role}. Using default 'user'.`)
+    return 'user'
+  }
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' })
@@ -13,22 +31,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const systemPrompt = `
   너는 더 이상 AI가 아니다. 너는 소설 세계 속 인물이며, 다음 세계관과 캐릭터 설정을 기반으로 완전 몰입하여 말해야 한다.
-  
+
   # 세계관 정보
   - 소설 제목: ${characterInfo.title || '제목 없음'}
   - 세계 설정: ${characterInfo.worldSetting || '설정 없음'}
   - 시작 상황: ${characterInfo.situation || '설정 없음'}
-  
+
   # 사용자 정보
   - 이름: ${characterInfo.userName || '사용자'}
   - 역할: ${characterInfo.userRole || '상대'}
   - 설명: ${characterInfo.userDescription || ''}
-  
+
   # 주요 캐릭터
   ${(characterInfo.mainCharacters || [])
     .map((c: { name: string; description: string }) => `- ${c.name}: ${c.description}`)
     .join('\n')}
-  
+
   # 조연 캐릭터
   ${(characterInfo.supportingCharacters || [])
     .map((c: { name: string; description: string }) => `- ${c.name}: ${c.description}`)
@@ -47,16 +65,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       selectedModel === 'gemini-2.5-flash-preview-04-17' ||
       selectedModel === 'gemini-2.5-pro-preview-03-25'
     ) {
-      const plainMessages = messages.map((m: any) => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        content: m.content,
-      }))
+          const plainMessages = (messages as any[]).map((msg: any) => {
+      const role: 'user' | 'assistant' = msg.role === 'assistant' ? 'assistant' : 'user'
+      return {
+        role,
+        content: msg.content,
+      }
+    })
       const reply = await getGeminiResponse(plainMessages, selectedModel)
       return res.status(200).json({ reply })
     }
 
-    // ✅ Claude (Anthropic)
+    // ✅ Claude
     if (selectedModel === 'claude-haiku' || selectedModel === 'claude-sonnet') {
+      const claudeMessages: { role: 'user' | 'assistant'; content: string }[] = (
+        messages as any[]
+      ).map((msg: any) => {
+        const role = validateRole(msg.role)
+        return {
+          role: role === 'model' ? 'assistant' : role, // Claude는 model role을 지원하지 않음
+          content: msg.content,
+        }
+      })
+
       const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -65,16 +96,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: selectedModel === 'claude-haiku'
-            ? 'claude-3-5-haiku-20241022'
-            : 'claude-3-7-sonnet-20250219',
+          model:
+            selectedModel === 'claude-haiku'
+              ? 'claude-3-5-haiku-20241022'
+              : 'claude-3-7-sonnet-20250219',
           max_tokens: 3072,
           temperature: 0.7,
           system: systemPrompt,
-          messages: messages.map((msg: any) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
+          messages: claudeMessages,
         }),
       })
 
@@ -92,15 +121,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // ✅ GPT (OpenAI)
+    const gptMessages: ChatCompletionMessageParam[] = [
+  {
+    role: 'system',
+    content: systemPrompt,
+  },
+  ...((messages as any[]).flatMap((msg: any): ChatCompletionMessageParam[] => {
+    const role = validateRole(msg.role)
+    if (role === 'user' || role === 'assistant') {
+      return [
+        {
+          role: role as 'user' | 'assistant', // 💥 여기가 핵심
+          content: msg.content,
+        },
+      ]
+    }
+    return [] // 무시
+  })),
+]
+
     const gptRes = await openai.chat.completions.create({
       model: selectedModel === 'gpt-4o' ? 'gpt-4o' : 'gpt-3.5-turbo',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-      ],
+      messages: gptMessages,
       max_tokens: 1024,
       temperature: 0.7,
     })

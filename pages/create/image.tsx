@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import { v4 as uuidv4 } from 'uuid'
 import supabase from '@/lib/supabaseClient'
-
+import Image from 'next/image'
 import TopNav from '@/components/TopNav'
 import CreateStepTab from '@/components/CreateStepTab'
 
@@ -184,23 +184,34 @@ export default function EmotionImagePage() {
             <input id="file-upload" type="file" accept="image/*" onChange={handleUpload} className="hidden" />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {images.map((img) => (
-              <div key={img.id} className="bg-[#1c1c1e] rounded-lg p-3 relative">
-                <img src={img.imageUrl} alt="감정 이미지" className="rounded mb-3 w-full h-56 object-cover" />
-                <textarea
-                  value={img.label}
-                  onChange={(e) => handleLabelChange(img.id, e.target.value)}
-                  placeholder="이 이미지가 출력될 상황 또는 감정"
-                  className="w-full p-2 text-sm bg-[#2c2c2e] text-white rounded resize-none placeholder-gray-400"
-                />
-                <button onClick={() => handleDelete(img.id)} className="absolute top-2 right-2 text-sm text-gray-400 hover:text-red-400">✕</button>
-              </div>
-            ))}
-          </div>
-        </div>
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+  {images.map((img) => (
+    <div key={img.id} className="bg-[#1c1c1e] rounded-lg p-3 relative">
+      <div className="relative w-full h-56 rounded mb-3 overflow-hidden">
+        <Image
+          src={img.imageUrl}
+          alt="감정 이미지"
+          layout="fill"
+          objectFit="cover"
+        />
       </div>
-
+      <textarea
+        value={img.label}
+        onChange={(e) => handleLabelChange(img.id, e.target.value)}
+        placeholder="이 이미지가 출력될 상황 또는 감정"
+        className="w-full p-2 text-sm bg-[#2c2c2e] text-white rounded resize-none placeholder-gray-400"
+      />
+      <button
+        onClick={() => handleDelete(img.id)}
+        className="absolute top-2 right-2 text-sm text-gray-400 hover:text-red-400"
+      >
+        ✕
+      </button>
+    </div>
+  ))}
+</div>
+  </div>
+    </div>
       <div className="fixed bottom-0 left-0 w-full bg-black py-4 px-6 border-t border-[#333]">
         <div className="max-w-3xl mx-auto text-right">
           <button onClick={handleSaveCharacter} className="px-6 py-3 rounded border border-white text-white hover:bg-white hover:text-black font-semibold transition">

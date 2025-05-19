@@ -1,9 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
-import { FiArrowLeft } from 'react-icons/fi'
 import { createClient } from '@supabase/supabase-js'
-import { useUser } from '@supabase/auth-helpers-react'
+import Image from 'next/image'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,7 +47,6 @@ const models = [
 ]
 
 export default function ChatPage() {
-  const user = useUser()
   const [userId, setUserId] = useState<string | null>(null)
   const router = useRouter()
   const { id, mode } = router.query
@@ -104,7 +102,12 @@ if (mode === 'continue' && userId && data.id) {
 })
 
 const result = await res.json()
-const cleanMessages: Message[] = result.messages.map((m: any) => ({
+const cleanMessages: Message[] = result.messages.map((m: {
+  id: string
+  role: Role
+  content: string
+  created_at: string
+}) => ({
   id: m.id,
   role: m.role,
   content: m.content,
@@ -309,7 +312,15 @@ if (userId && characterInfo?.id) {
       </button>
 
           {characterInfo.imageUrl && (
-            <img src={characterInfo.imageUrl} alt="profile" className="w-10 h-10 rounded-full object-cover" />
+            <div className="relative w-10 h-10">
+  <Image
+    src={characterInfo.imageUrl}
+    alt="profile"
+    fill
+    className="rounded-full object-cover"
+  />
+</div>
+
           )}
           <div>
             <div className="font-semibold text-white">{characterInfo.name}</div>
@@ -331,13 +342,15 @@ if (userId && characterInfo?.id) {
   <div className="w-1/2 max-w-[50%] bg-[#0d0d0d] flex flex-col items-center justify-start px-6 pt-[4.5rem] pb-20">
     {characterInfo?.emotionImages && displayedImage && (
       <>
-        <div className="w-full aspect-square max-w-sm">
-          <img
+        <div className="relative w-full h-full">
+          <Image
             src={displayedImage}
             alt="감정 이미지"
-            className="w-full h-full object-cover rounded-xl"
+            fill
+            className="object-cover rounded-xl"
           />
         </div>
+
         <div className="mt-4 text-sm text-gray-300 bg-[#1e1e1e] px-4 py-2 rounded-xl max-w-sm w-full text-center">
           {
             characterInfo.emotionImages.find(img => img.imageUrl === displayedImage)?.label

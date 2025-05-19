@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 
@@ -32,11 +33,14 @@ export default function MyPage() {
         {/* 프로필 카드 */}
         <div className="bg-[#2a2a2a] rounded-lg p-4 flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            <img
+            <div className="relative w-12 h-12">
+            <Image
               src="/default-profile.png"
               alt="프로필"
-              className="w-12 h-12 rounded-full object-cover"
+              fill
+              className="rounded-full object-cover"
             />
+          </div>
             <p className="text-lg font-semibold">사려깊은노린재802</p>
           </div>
           <button className="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600">

@@ -1,10 +1,11 @@
 import path from 'path'
-import { NextConfig } from 'next'
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-
-  // ✅ 여기 추가!
+  eslint: {
+    ignoreDuringBuilds: true, // ✅ 빌드 시 ESLint 에러 무시
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),

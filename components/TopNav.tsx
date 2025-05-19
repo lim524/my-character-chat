@@ -1,6 +1,6 @@
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/router'
 import { FiSearch, FiBell, FiMenu } from 'react-icons/fi'
 import SideMenu from './SideMenu'
 import LoginModal from './LoginModal'
@@ -10,7 +10,6 @@ export default function TopNav() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const router = useRouter()
 
   useEffect(() => {
     const getSession = async () => {

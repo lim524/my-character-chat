@@ -1,6 +1,7 @@
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { Flame, BarChart2, Eye, Heart } from 'lucide-react'
+import { Eye, Heart } from 'lucide-react'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
 import { createClient } from '@supabase/supabase-js'
 
@@ -99,7 +100,7 @@ export default function HomePage() {
 
       {activeTab === 'recommend' && (
         <>
-          <h2 className="text-xl font-bold mb-4 ml-1">추천 </h2>
+          <h2 className="text-xl font-bold mb-4">추천 캐릭터</h2>
           <div className="flex gap-4 overflow-x-auto pb-2">
             {characters.slice(0, 10).map((char) => (
               <div
@@ -107,12 +108,15 @@ export default function HomePage() {
                 onClick={() => openProfile(char)}
                 className="w-48 shrink-0 rounded-2xl overflow-hidden bg-zinc-900 cursor-pointer hover:bg-zinc-800"
               >
-                <img
-                  src={char.imageUrl}
-                  alt={char.name}
-                  className="w-full h-[200px] object-cover bg-black"
-                />
-                <div className="p-3">
+                <div className="relative w-full h-[200px] bg-black">
+                    <Image
+                      src={char.imageUrl}
+                      alt={char.name}
+                      fill
+                      className="object-cover rounded-none"
+                    />
+                  </div>
+                  <div className="p-3">
                   <h3 className="text-white font-semibold text-sm">{char.name}</h3>
                   <p className="text-xs text-gray-400">{char.description}</p>
                   <div className="flex justify-between text-xs text-gray-400 mt-2">
@@ -145,11 +149,14 @@ export default function HomePage() {
                   className="bg-white/10 backdrop-blur-md p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-white/20"
                 >
                   <span className="text-lg font-bold w-6">{i + 1}</span>
-                  <img
-                    src={char.imageUrl}
-                    alt={char.name}
-                    className="w-14 h-14 rounded-full object-cover"
-                  />
+                  <div className="relative w-14 h-14">
+                    <Image
+                      src={char.imageUrl}
+                      alt={char.name}
+                      fill
+                      className="rounded-full object-cover"
+                    />
+                  </div>
                   <div>
                     <h3 className="font-semibold text-white text-sm">{char.name}</h3>
                     <p className="text-xs text-gray-400">{char.description}</p>
@@ -179,10 +186,4 @@ export default function HomePage() {
       )}
     </main>
   )
-}
-
-export async function getServerSideProps() {
-  return {
-    props: {},
-  };
 }

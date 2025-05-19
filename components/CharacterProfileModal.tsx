@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import React from 'react'
 import { useRouter } from 'next/router'
 
@@ -28,9 +29,16 @@ const handleStartChat = (mode: 'new' | 'continue') => {
     <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-[#111] text-white p-6 rounded-2xl w-[90%] max-w-md shadow-xl relative">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
-<div className="flex flex-col items-center space-y-4">
-  <img src={character.imageUrl} alt={character.name} className="w-32 h-32 rounded-full object-cover border border-white" />
-  <h2 className="text-2xl font-bold">{character.name}</h2>
+    <div className="flex flex-col items-center space-y-4">
+      <div className="relative w-32 h-32">
+      <Image
+        src={character.imageUrl}
+        alt={character.name}
+        fill
+        className="rounded-full object-cover border border-white"
+      />
+    </div>
+<h2 className="text-2xl font-bold">{character.name}</h2>
   <p className="text-sm text-gray-400">{character.description}</p>
   <div className="bg-[#1c1c1e] border border-[#333] rounded p-3 text-sm w-full whitespace-pre-wrap">
     {character.situation}
