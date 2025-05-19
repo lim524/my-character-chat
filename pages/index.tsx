@@ -180,3 +180,9 @@ export default function HomePage() {
     </main>
   )
 }
+
+export async function getServerSideProps() {
+  return {
+    props: {},
+  };
+}
