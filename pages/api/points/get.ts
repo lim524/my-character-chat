@@ -1,19 +1,26 @@
-import { createClient } from '@supabase/supabase-js'
+// /pages/api/points/get.ts
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // ✅ 중요! service_role key 필요
 )
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { userId } = req.query
+  const userId = req.query.userId as string
+  if (!userId) return res.status(400).json({ error: 'userId is required' })
+
   const { data, error } = await supabase
-    .from('user_points')
-    .select('points')
-    .eq('user_id', userId)
+    .from('users') // ✅ 실제 포인트가 저장된 테이블 이름
+    .select('point')
+    .eq('id', userId)
     .single()
 
-  if (error) return res.status(500).json({ error: error.message })
-  res.status(200).json({ points: data?.points ?? 0 })
+  if (error) {
+    console.error('❌ Supabase 쿼리 실패:', error)
+    return res.status(500).json({ error: 'Database error' })
+  }
+
+  res.status(200).json({ points: data?.point ?? 0 })
 }
