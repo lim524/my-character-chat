@@ -209,7 +209,7 @@ setMessages(cleanMessages)
   const deductPoint = async (amount: number) => {
   if (!userId) return false
   try {
-    const res = await fetch('/api/point/deduct', {
+    const res = await fetch('/api/points/deduct', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, amount }),
