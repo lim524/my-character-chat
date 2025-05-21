@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // ✅ 중요! service_role key 필요
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // 반드시 service_role 키 필요
 )
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -12,9 +12,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!userId) return res.status(400).json({ error: 'userId is required' })
 
   const { data, error } = await supabase
-    .from('users') // ✅ 실제 포인트가 저장된 테이블 이름
-    .select('point')
-    .eq('id', userId)
+    .from('user_points') // ← 여기 주의!
+    .select('points')
+    .eq('user_id', userId)
     .single()
 
   if (error) {
@@ -22,5 +22,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Database error' })
   }
 
-  res.status(200).json({ points: data?.point ?? 0 })
+  return res.status(200).json({ points: data?.points ?? 0 })
 }
