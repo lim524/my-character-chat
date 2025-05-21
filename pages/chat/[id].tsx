@@ -51,6 +51,7 @@ export default function ChatPage() {
   const router = useRouter()
   const { id, mode } = router.query
 
+  const [sessionId, setSessionId] = useState<string>('') // ✅ 초기엔 비워둠
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [characterInfo, setCharacterInfo] = useState<Character | null>(null)
@@ -64,11 +65,51 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null) 
 
 useEffect(() => {
-  if (!userId || !id) return
+  const getSession = async () => {
+    const { data } = await supabase.auth.getSession()
+    setUserId(data.session?.user?.id ?? null)
+  }
+  getSession()
+}, [])
+
+// ✅ 2. sessionId 결정 (userId, id, mode가 준비된 후 실행)
+useEffect(() => {
+  const resolveSessionId = async () => {
+    if (typeof id !== 'string' || !userId) return
+
+    if (mode === 'continue') {
+      const { data: latestSession, error } = await supabase
+        .from('chat_messages')
+        .select('session_id')
+        .eq('user_id', userId)
+        .eq('character_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (error) {
+        console.error('❌ 세션 ID 조회 실패:', error)
+        return
+      }
+
+      const lastSessionId = latestSession?.[0]?.session_id
+      if (lastSessionId) {
+        setSessionId(lastSessionId)
+        return
+      }
+    }
+
+    // 새로 대화 시작인 경우
+    setSessionId(crypto.randomUUID())
+  }
+
+  resolveSessionId()
+}, [id, mode, userId])
+
+// ✅ 3. 캐릭터 & 메시지 불러오기 (sessionId까지 준비된 후 실행)
+useEffect(() => {
+  if (!userId || !id || !sessionId) return
 
   const fetchCharacter = async () => {
-    if (!id || typeof id !== 'string') return
-
     const { data, error } = await supabase
       .from('characters')
       .select('*')
@@ -85,76 +126,47 @@ useEffect(() => {
       emotionImages: Array.isArray(data.emotion_images) ? data.emotion_images : [],
     }
 
-setCharacterInfo(formattedCharacter)
+    setCharacterInfo(formattedCharacter)
 
-if (formattedCharacter.emotionImages.length > 0) {
-  setDisplayedImage(formattedCharacter.emotionImages[0].imageUrl)
-}
+    // 👉 이어서 대화: 해당 세션의 메시지만 불러오기
+    if (mode === 'continue') {
+      const { data: sessionMessages, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('character_id', id)
+        .eq('session_id', sessionId)
+        .order('created_at')
 
-if (mode === 'continue' && userId && data.id) {
- const res = await fetch('/api/load-messages', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    userId,
-    characterId: data.id,
-  }),
-})
+      if (error || !sessionMessages) {
+        console.error('❌ 세션 메시지 불러오기 실패:', error)
+        return
+      }
 
-const result = await res.json()
-const cleanMessages: Message[] = result.messages.map((m: {
-  id: string
-  role: Role
-  content: string
-  created_at: string
-}) => ({
-  id: m.id,
-  role: m.role,
-  content: m.content,
-  created_at: m.created_at,
-}))
+      const cleanMessages: Message[] = sessionMessages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        created_at: m.created_at,
+      }))
 
-// 상황 설명이 빠져있다면 첫 줄에 삽입
-if (
-  formattedCharacter.situation &&
-  !cleanMessages.some((m) => m.content?.includes(formattedCharacter.situation))
-) {
-  cleanMessages.unshift({
-    id: crypto.randomUUID(),
-    role: 'user',
-    content: `{${formattedCharacter.situation}}`,
-    created_at: new Date().toISOString(),
-  })
-}
+      setMessages(cleanMessages)
+      return
+    }
 
-setMessages(cleanMessages)
-  return
-}
-
-    // 👉 새로 시작인 경우: localStorage 또는 초기 상황 사용
+    // 👉 새 대화 시작: localStorage or 초기 상황 사용
     const savedMessages = localStorage.getItem(`chat-${id}`)
     const initialMessages: Message[] = savedMessages
       ? JSON.parse(savedMessages)
       : formattedCharacter.situation
         ? [
-        {
-          id: crypto.randomUUID(),
-          role: 'user',
-          content: `{${formattedCharacter.situation}}`,
-        },
-        ...(formattedCharacter.userDescription
-              ? [{
-              id: crypto.randomUUID(),
-              role: 'user',
-              content: `{${formattedCharacter.userDescription}}`,
-              }]
+            { id: crypto.randomUUID(), role: 'user', content: `{${formattedCharacter.situation}}` },
+            ...(formattedCharacter.userDescription
+              ? [{ id: crypto.randomUUID(), role: 'user', content: `{${formattedCharacter.userDescription}}` }]
               : []),
             ...(formattedCharacter.firstLine
-            ? [{ id: crypto.randomUUID(),
-                  role: 'assistant',
-                  content: formattedCharacter.firstLine,
-                 }]
-               : []),
+              ? [{ id: crypto.randomUUID(), role: 'assistant', content: formattedCharacter.firstLine }]
+              : [])
           ]
         : []
 
@@ -163,9 +175,9 @@ setMessages(cleanMessages)
       !initialMessages.some((m) => m.content.includes(formattedCharacter.situation))
     ) {
       initialMessages.unshift({
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: `{${formattedCharacter.situation}}`
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: `{${formattedCharacter.situation}}`,
       })
     }
 
@@ -178,16 +190,7 @@ setMessages(cleanMessages)
   }
 
   fetchCharacter()
-}, [id, mode, userId])
-
-  useEffect(() => {
-    
-  const getSession = async () => {
-    const { data } = await supabase.auth.getSession()
-    setUserId(data.session?.user?.id ?? null)
-  }
-  getSession()
-}, [])
+}, [id, mode, userId, sessionId])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && id) {
@@ -299,6 +302,7 @@ const sendMessage = async () => {
         id: crypto.randomUUID(),
         user_id: userId,
         character_id: characterInfo.id,
+        session_id: sessionId,
         role: 'user',
         content: input,
         created_at: new Date().toISOString(),
@@ -307,6 +311,7 @@ const sendMessage = async () => {
         id: m.id,
         user_id: userId,
         character_id: characterInfo.id,
+        session_id: sessionId,
         role: m.role,
         content: m.content,
         created_at: new Date().toISOString(),
