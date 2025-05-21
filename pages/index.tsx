@@ -1,3 +1,4 @@
+import PointBadge from '@/components/PointBadge'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
@@ -184,6 +185,8 @@ export default function HomePage() {
           onStartChat={() => goToChat(selectedCharacter.id)}
         />
       )}
+    <PointBadge />
     </main>
+
   )
 }
