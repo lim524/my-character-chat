@@ -25,22 +25,21 @@ export default function PointBadge() {
   return (
     <div style={{
       position: 'fixed',
-      bottom: '1.5rem',         // ✅ 살짝 위로 띄움
-      right: '1.5rem',          // ✅ 오른쪽 하단
+      bottom: '1rem',
+      left: '1rem',
       backgroundColor: '#2a2a2a',
-      padding: '10px 16px',     // ✅ 패딩 확대
+      padding: '6px 12px',
       borderRadius: '9999px',
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
-      fontSize: '1rem',         // ✅ 글씨 약간 키움
+      gap: '6px',
+      fontSize: '0.8rem',
       fontWeight: 'bold',
       color: '#ffd700',
       zIndex: 100,
-      boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
     }}>
-      <Coins size={20} />        {/* ✅ 아이콘도 키움 */}
-      {points}P
+      <Coins size={16} /> {points}P
     </div>
   )
 }
+
