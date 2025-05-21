@@ -12,15 +12,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { messages } = req.body
+  const { messages, mode, characterId } = req.body
 
-  if (!Array.isArray(messages)) {
-    return res.status(400).json({ error: 'Invalid request body: messages must be array' })
+  if (!Array.isArray(messages) || !messages.length) {
+    return res.status(400).json({ error: 'Invalid messages format' })
   }
 
+  const userId = messages[0]?.user_id
+
+  if (!userId || !characterId) {
+    return res.status(400).json({ error: 'Missing userId or characterId' })
+  }
+
+  // ✅ 새로 대화 모드면 기존 메시지 삭제
+  if (mode === 'new') {
+    await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('user_id', userId)
+      .eq('character_id', characterId)
+  }
+
+  // ✅ 새 메시지 저장
   const { error } = await supabase
     .from('chat_messages')
-    .insert(messages)  // ✅ 배열로 한 번에 insert (row마다 필드 포함됨)
+    .insert(messages)
 
   if (error) {
     console.error('❌ 메시지 저장 실패:', error)

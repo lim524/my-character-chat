@@ -87,6 +87,10 @@ useEffect(() => {
 
 setCharacterInfo(formattedCharacter)
 
+if (mode === 'new' && id) {
+  localStorage.removeItem(`chat-${id}`)
+}
+
 if (formattedCharacter.emotionImages.length > 0) {
   setDisplayedImage(formattedCharacter.emotionImages[0].imageUrl)
 }
@@ -313,11 +317,15 @@ const sendMessage = async () => {
       })),
     ]
 
-    await fetch('/api/save-message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: rowsToInsert }),
-    })
+await fetch('/api/save-message', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messages: rowsToInsert,
+    mode, // ← 새로 대화 / 이어서 대화 모드 전달
+    characterId: characterInfo.id, // ← 어떤 캐릭터인지 전달
+  }),
+})
   }
 }
 
