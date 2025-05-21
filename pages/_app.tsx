@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import BottomNav from '../components/BottomNav'
 import TopNav from '../components/TopNav'
 import '../styles/globals.css'
+import PointBadge from '../components/PointBadge'
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter()
@@ -13,6 +14,7 @@ export default function App({ Component, pageProps }: AppProps) {
       {!isChatPage && <TopNav />}
       <Component {...pageProps} />
       {!isChatPage && <BottomNav />}
+      <PointBadge /> 
     </>
   )
 }

@@ -206,7 +206,26 @@ setMessages(cleanMessages)
     if (matched) setDisplayedImage(matched.imageUrl)
   }, [messages, characterInfo])
 
+  const deductPoint = async (amount: number) => {
+  if (!userId) return false
+  try {
+    const res = await fetch('/api/point/deduct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, amount }),
+    })
+    const result = await res.json()
+    if (!res.ok) throw new Error(result.error)
+    return true
+  } catch (err) {
+    console.error('❌ 포인트 차감 실패:', err)
+    alert('포인트가 부족하거나 오류가 발생했습니다.')
+    return false
+  }
+} 
+
   const sendToAI = async (message: string, characterInfo: Character): Promise<string[]> => {
+  
     try {
             const contextMessages = [
         ...messages,
@@ -241,56 +260,66 @@ setMessages(cleanMessages)
     }
   }
 
-  const sendMessage = async () => {
+const sendMessage = async () => {
+  if (!input.trim() || !characterInfo) return
 
-    if (!input.trim() || !characterInfo) return
+  // 🔥 포인트 차감 로직 추가
+  const model = models.find((m) => m.id === selectedModel)
+  const cost = model?.point ?? 0
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: input,
-      created_at: new Date().toISOString(),
-    }
+  const success = await deductPoint(cost)
+  if (!success) return  // 차감 실패 시 메시지 전송 중단
 
-    const newMessages = [...messages, userMessage]
-    setMessages(newMessages)
+  // 💬 메시지 생성 및 전송
+  const userMessage: Message = {
+    id: crypto.randomUUID(),
+    role: 'user',
+    content: input,
+    created_at: new Date().toISOString(),
+  }
 
-    setInput('')
+  const newMessages = [...messages, userMessage]
+  setMessages(newMessages)
+  setInput('')
 
-    const replies = await sendToAI(input, characterInfo)
-    const replyMessages: Message[] = replies.map((line): Message => ({
+  const replies = await sendToAI(input, characterInfo)
+  const replyMessages: Message[] = replies.map((line): Message => ({
     id: crypto.randomUUID(),
     role: 'assistant',
     content: line,
-    }))
-    setMessages([...newMessages, ...replyMessages])
-if (userId && characterInfo?.id) {
-  const rowsToInsert = [
-    {
-      id: crypto.randomUUID(),
-      user_id: userId,
-      character_id: characterInfo.id,
-      role: 'user',
-      content: input,
-      created_at: new Date().toISOString(),
-    },
-    ...replyMessages.map((m) => ({
-    id: m.id,
-    user_id: userId,
-    character_id: characterInfo.id,
-    role: m.role,
-    content: m.content,
-    created_at: new Date().toISOString(),
-    })),
-  ];
+  }))
 
-  await fetch('/api/save-message', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages: rowsToInsert }),
-  });
+  setMessages([...newMessages, ...replyMessages])
+
+  // 저장 로직은 그대로 유지
+  if (userId && characterInfo?.id) {
+    const rowsToInsert = [
+      {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        character_id: characterInfo.id,
+        role: 'user',
+        content: input,
+        created_at: new Date().toISOString(),
+      },
+      ...replyMessages.map((m) => ({
+        id: m.id,
+        user_id: userId,
+        character_id: characterInfo.id,
+        role: m.role,
+        content: m.content,
+        created_at: new Date().toISOString(),
+      })),
+    ]
+
+    await fetch('/api/save-message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: rowsToInsert }),
+    })
+  }
 }
-}
+
 
   return (
     <div className="bg-[#0d0d0d] text-white min-h-screen flex flex-col">  
