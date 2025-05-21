@@ -269,7 +269,8 @@ const sendMessage = async () => {
 
   const success = await deductPoint(cost)
   if (!success) return  // 차감 실패 시 메시지 전송 중단
-
+  window.dispatchEvent(new Event('point-update'))
+  
   // 💬 메시지 생성 및 전송
   const userMessage: Message = {
     id: crypto.randomUUID(),

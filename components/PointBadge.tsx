@@ -18,7 +18,9 @@ export default function PointBadge() {
     }
 
     fetchPoints()
-  }, [])
+    window.addEventListener('point-update', fetchPoints)
+  return () => window.removeEventListener('point-update', fetchPoints)
+}, [])
 
   if (points === null) return null
 
