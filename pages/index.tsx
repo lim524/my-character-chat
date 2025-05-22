@@ -120,7 +120,7 @@ export default function HomePage() {
                   </div>
                   <div className="p-3">
                     <h3 className="text-white font-semibold text-sm">{char.name}</h3>
-                    <p className="text-xs text-gray-400">{char.description}</p>
+                    <p className="text-xs text-gray-400 line-clamp-fallback">{char.description}</p>
                     <div className="flex justify-between text-xs text-gray-400 mt-2">
                       <span className="flex items-center gap-1">
                         <Heart className="w-4 h-4 text-red-500" />
