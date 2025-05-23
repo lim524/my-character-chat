@@ -32,7 +32,7 @@ const handleStartChat = (mode: 'new' | 'continue') => {
     <div className="flex flex-col items-center space-y-4">
       <div className="relative w-32 h-32">
       <Image
-        src={character.imageUrl}
+        src={character.imageUrl || '/default-profile.png'}
         alt={character.name}
         fill
         className="rounded-full object-cover border border-white"

@@ -33,13 +33,16 @@ export default function CharacterList() {
     const fetchCharacters = async () => {
       const { data, error } = await supabase
         .from('characters')
-        .select('*')
-        .order('created_at', { ascending: false })
+        .select('id, name, description, created_at, user_id, personality, situation, image_url')
 
       if (error) {
         console.error('❌ 캐릭터 불러오기 실패:', error)
       } else {
-        setCharacters(data || [])
+        const formatted = (data || []).map((char: any) => ({
+          ...char,
+          imageUrl: char.image_url || '/default-profile.png',
+        }))
+        setCharacters(formatted)
       }
     }
 
@@ -144,7 +147,7 @@ export default function CharacterList() {
                 className="flex items-start gap-4 bg-[#1c1c1e] rounded-lg p-4 cursor-pointer hover:bg-[#2a2a2a]"
               >
                 <img
-                  src={char.imageUrl && char.imageUrl !== '' ? char.imageUrl : '/default-profile.png'}
+                  src={char.imageUrl}
                   alt={char.name}
                   className="w-14 h-14 rounded-full object-cover border border-[#333]"
                 />
