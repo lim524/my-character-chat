@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import supabase from '@/lib/supabaseClient'
+import CharacterProfileModal from '@/components/CharacterProfileModal'
 
 interface Character {
   id: string
@@ -9,14 +10,15 @@ interface Character {
   imageUrl: string
   createdAt: string
   user_id?: string
-  isPublic?: boolean
-  isCensored?: boolean
+  personality: string
+  situation: string
 }
 
 export default function CharacterList() {
   const [characters, setCharacters] = useState<Character[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -138,10 +140,11 @@ export default function CharacterList() {
             {filteredCharacters.map((char) => (
               <li
                 key={char.id}
-                className="flex items-start gap-4 bg-[#1c1c1e] rounded-lg p-4"
+                onClick={() => setSelectedCharacter(char)}
+                className="flex items-start gap-4 bg-[#1c1c1e] rounded-lg p-4 cursor-pointer hover:bg-[#2a2a2a]"
               >
                 <img
-                  src={char.imageUrl || '/default-profile.png'}
+                  src={char.imageUrl && char.imageUrl !== '' ? char.imageUrl : '/default-profile.png'}
                   alt={char.name}
                   className="w-14 h-14 rounded-full object-cover border border-[#333]"
                 />
@@ -157,13 +160,13 @@ export default function CharacterList() {
                   {char.user_id === userId && (
                     <div className="mt-3 flex gap-2">
                       <button
-                        onClick={() => handleEdit(char.id)}
+                        onClick={(e) => { e.stopPropagation(); handleEdit(char.id) }}
                         className="text-sm px-4 py-1 rounded-full bg-white text-black hover:bg-gray-300 transition"
                       >
                         수정
                       </button>
                       <button
-                        onClick={() => handleDelete(char.id)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(char.id) }}
                         className="text-sm px-4 py-1 rounded-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
                       >
                         삭제
@@ -174,6 +177,17 @@ export default function CharacterList() {
               </li>
             ))}
           </ul>
+        )}
+
+        {selectedCharacter && (
+          <CharacterProfileModal
+            character={selectedCharacter}
+            onClose={() => setSelectedCharacter(null)}
+            onStartChat={() => {
+              setSelectedCharacter(null)
+              router.push(`/chat/${selectedCharacter.name}`)
+            }}
+          />
         )}
       </div>
     </div>
