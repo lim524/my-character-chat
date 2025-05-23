@@ -8,6 +8,7 @@ interface Character {
   description: string
   imageUrl: string
   createdAt: string
+  user_id?: string
   isPublic?: boolean
   isCensored?: boolean
 }
@@ -15,7 +16,16 @@ interface Character {
 export default function CharacterList() {
   const [characters, setCharacters] = useState<Character[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [userId, setUserId] = useState<string | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser()
+      setUserId(data?.user?.id || null)
+    }
+    getUser()
+  }, [])
 
   useEffect(() => {
     const fetchCharacters = async () => {
@@ -131,7 +141,7 @@ export default function CharacterList() {
                 className="flex items-start gap-4 bg-[#1c1c1e] rounded-lg p-4"
               >
                 <img
-                  src={char.imageUrl || '/default-profile.png'}  // ✅ fallback 이미지 처리
+                  src={char.imageUrl || '/default-profile.png'}
                   alt={char.name}
                   className="w-14 h-14 rounded-full object-cover border border-[#333]"
                 />
@@ -144,20 +154,22 @@ export default function CharacterList() {
                     생성일: {new Date(char.createdAt).toLocaleDateString()}
                   </p>
 
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => handleEdit(char.id)}
-                      className="text-sm px-4 py-1 rounded-full bg-white text-black hover:bg-gray-300 transition"
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => handleDelete(char.id)}
-                      className="text-sm px-4 py-1 rounded-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
-                    >
-                      삭제
-                    </button>
-                  </div>
+                  {char.user_id === userId && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => handleEdit(char.id)}
+                        className="text-sm px-4 py-1 rounded-full bg-white text-black hover:bg-gray-300 transition"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => handleDelete(char.id)}
+                        className="text-sm px-4 py-1 rounded-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  )}
                 </div>
               </li>
             ))}
