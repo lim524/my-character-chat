@@ -37,16 +37,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'recommend' | 'ranking'>('recommend')
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
 
-  useEffect(() => {
-  // 진입 시 body 고정
-  document.body.style.overflow = 'hidden'
-
-  return () => {
-    // 이탈 시 원복
-    document.body.style.overflow = 'auto'
-  }
-}, [])
-
+  
   useEffect(() => {
     const fetchCharacters = async () => {
       const { data, error } = await supabase

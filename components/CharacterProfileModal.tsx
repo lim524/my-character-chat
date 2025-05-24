@@ -21,8 +21,7 @@ export default function CharacterProfileModal({ character, onClose, onStartChat 
   const router = useRouter()
 
 const handleStartChat = (mode: 'new' | 'continue') => {
-  router.push(`/chat/${character.id}?mode=${mode}`)
-  if (onStartChat) onStartChat()
+  router.replace(`/chat/${character.id}?mode=${mode}`)
 }
 
   return (
