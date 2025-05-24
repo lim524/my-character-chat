@@ -382,7 +382,7 @@ const sendMessage = async () => {
     
 <div className="flex h-screen overflow-hidden"> 
   {/* 좌측: 고정 이미지 영역 */}
-  <div className="w-1/2 max-w-[50%] h-full overflow-y-auto px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light">
+  <div className="w-1/2 max-w-[50%] h-full px-6 pt-[4.5rem] pb-20 flex flex-col items-center justify-start">
     {characterInfo?.emotionImages && displayedImage && (
       <>
         <div className="relative w-full h-full">
