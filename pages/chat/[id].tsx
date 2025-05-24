@@ -566,6 +566,7 @@ const sendMessage = async () => {
           point={point}
           lore={lore}
           onLoreChange={setLore}
+          onClose={() => setMenuOpen(false)}
         />
       </div>
     )}
