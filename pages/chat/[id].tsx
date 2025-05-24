@@ -375,8 +375,8 @@ const sendMessage = async () => {
     
 <div className="flex h-screen"> 
   {/* 좌측: 고정 이미지 영역 */}
-  <div className="w-1/2 max-w-[50%] bg-[#0d0d0d] flex flex-col items-center justify-start px-6 pt-[4.5rem] pb-20">
-    {characterInfo?.emotionImages && displayedImage && (
+<div className="w-1/2 max-w-[50%] h-full overflow-hidden bg-[#0d0d0d] relative hidden md:flex items-center justify-center px-6"> 
+   {characterInfo?.emotionImages && displayedImage && (
       <>
         <div className="relative w-full h-full">
           <Image
