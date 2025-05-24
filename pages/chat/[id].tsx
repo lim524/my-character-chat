@@ -40,8 +40,8 @@ type Character = {
 const models = [
   { id: 'gpt-3.5', label: 'GPT-3.5 Turbo', description: '빠른 속도의 AI 모델', point: 20 },
   { id: 'gpt-4o', label: 'GPT-4o', description: '고성능 몰입형 AI', point: 40 },
-  { id: 'claude-haiku', label: 'Claude 3.5 Haiku', description: '가볍고 빠른 답변용 AI', point: 20 },
-  { id: 'claude-sonnet', label: 'Claude 3.5 Sonnet', description: '고퀄리티 감정 몰입 대화 AI', point: 40 },
+  { id: 'claude-haiku', label: 'Claude 3.7 Haiku', description: '가볍고 빠른 답변용 AI', point: 20 },
+  { id: 'claude-sonnet', label: 'Claude 3.7 Sonnet', description: '고퀄리티 감정 몰입 대화 AI', point: 40 },
   { id: 'gemini-flash', label: 'Gemini 2.5 Flash', description: '빠르고 경제적인 구글 AI', point: 20 },
   { id: 'gemini-pro', label: 'Gemini 2.5 Pro', description: '고급 지능과 묘사를 가진 구글 AI', point: 40 },
 ]
@@ -409,7 +409,7 @@ const sendMessage = async () => {
     const emotion = match?.[3]?.trim()
 
     return (
-      <div key={msg.id} className="relative group whitespace-pre-wrap text-blue-300 italic font-semibold">
+      <div key={msg.id} className="relative group whitespace-pre-wrap text-gray-400 italic">
         {isEditing ? (
           <div className="flex gap-2 items-center">
             <input
@@ -443,7 +443,7 @@ const sendMessage = async () => {
 
             <button
               onClick={() => setMenuTargetId(showMenu ? null : msg.id)}
-              className="absolute top-1 right-1 text-gray-400 hover:text-white text-xl"
+              className="absolute -top-6 right-0 text-gray-400 hover:text-white text-xl"
             >
               ⋮
             </button>
@@ -502,7 +502,7 @@ const sendMessage = async () => {
   </div>
 </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-[#111] border-t border-[#333] p-2 z-50">
+      <div className="sticky bottom-0 left-0 right-0 bg-[#111] border-t border-[#333] p-2 z-40">
         <div className="flex items-center gap-2 max-w-4xl mx-auto">
           <button
             onClick={() => setShowModelModal(true)}
