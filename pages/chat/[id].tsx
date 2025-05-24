@@ -373,10 +373,10 @@ const sendMessage = async () => {
       </div>
     )}
     
-<div className="flex h-screen"> 
+<div className="flex h-screen overflow-hidden"> 
   {/* 좌측: 고정 이미지 영역 */}
-<div className="w-1/2 max-w-[50%] h-full overflow-hidden bg-[#0d0d0d] relative hidden md:flex items-center justify-center px-6"> 
-   {characterInfo?.emotionImages && displayedImage && (
+  <div className="w-1/2 max-w-[50%] bg-[#0d0d0d] flex flex-col items-center justify-start px-6 pt-[4.5rem] pb-20">
+    {characterInfo?.emotionImages && displayedImage && (
       <>
         <div className="relative w-full h-full">
           <Image
@@ -398,7 +398,7 @@ const sendMessage = async () => {
   </div>
 
   {/* 우측: 채팅 스크롤 영역 */}
-  <div className="w-1/2 max-w-[50%] overflow-y-auto px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light">
+  <div className="w-1/2 max-w-[50%] px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full">
             {messages.map((msg) => {
   const isEditing = editTargetId === msg.id
   const isUser = msg.role === 'user'
