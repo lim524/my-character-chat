@@ -404,7 +404,7 @@ const sendMessage = async () => {
   const isUser = msg.role === 'user'
 
   return (
-    <div key={msg.id} className="group relative bg-[#1a1a1a] p-3 rounded-xl">
+    <div key={msg.id} className="group relative p-1">
       {isEditing ? (
         <div className="flex flex-col gap-2">
           <textarea
@@ -440,10 +440,10 @@ const sendMessage = async () => {
         </div>
       ) : (
         <>
-          <div className={isUser ? 'text-blue-400' : 'text-white'}>
+          <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
             {msg.content}
           </div>
-          <div className="absolute top-2 right-2 flex gap-3 opacity-0 group-hover:opacity-100 transition">
+          <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
             <button
               onClick={() => {
                 setEditTargetId(msg.id)
