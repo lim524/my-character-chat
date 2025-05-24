@@ -372,8 +372,8 @@ const sendMessage = async () => {
         )}
       </div>
     )}
-
-<div className="flex h-[calc(100vh-56px)]">
+    
+<div className="flex h-screen"> 
   {/* 좌측: 고정 이미지 영역 */}
   <div className="w-1/2 max-w-[50%] bg-[#0d0d0d] flex flex-col items-center justify-start px-6 pt-[4.5rem] pb-20">
     {characterInfo?.emotionImages && displayedImage && (
