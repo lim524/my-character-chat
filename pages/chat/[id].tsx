@@ -496,7 +496,7 @@ const sendMessage = async () => {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-        placeholder="대사를 입력하세요. 예) 안녕! 뭐해?"
+        placeholder="대사를 입력하세요"
         className="flex-1 bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none"
       />
       <button
