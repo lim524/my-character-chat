@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
 import Image from 'next/image'
-import { Pencil, Trash2, RotateCcw } from 'lucide-react'
+import { Pencil, Trash2, RotateCcw, Sparkles } from 'lucide-react'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -479,29 +479,41 @@ const sendMessage = async () => {
   </div>
 </div>
 
-      <div className="sticky bottom-0 left-0 right-0 bg-[#111] border-t border-[#333] p-2 z-40">
-        <div className="flex items-center gap-2 max-w-4xl mx-auto">
-          <button
-            onClick={() => setShowModelModal(true)}
-            className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full"
-          >
-            모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}
-          </button>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="메시지를 입력하세요..."
-            className="flex-1 px-4 py-3 border border-[#444] rounded-full bg-[#222] text-white text-sm placeholder-gray-500 focus:outline-none"
-          />
-          <button
-            onClick={sendMessage}
-            className="shrink-0 bg-[#e45463] hover:bg-[#e97585] text-white px-4 py-2 rounded-full text-sm"
-          >
-            전송
-          </button>
-        </div>
-      </div>
+<div className="sticky bottom-0 bg-[#111] border-t border-[#333] px-4 py-3 z-50">
+  <div className="flex items-center gap-3 max-w-5xl mx-auto">
+    {/* 왼쪽: 모델 선택 */}
+    <button
+      onClick={() => setShowModelModal(true)}
+      className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap"
+    >
+      모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}
+    </button>
+
+    {/* 가운데 + 오른쪽: 채팅 입력 UI */}
+    <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2">
+      <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+        placeholder="대사를 입력하세요. 예) 안녕! 뭐해?"
+        className="flex-1 bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none"
+      />
+      <button
+        onClick={sendMessage}
+        className="ml-3 p-1 rounded hover:bg-[#333]"
+      >
+        <svg
+          className="w-5 h-5 text-white"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path d="M2.94 2.94a1.5 1.5 0 0 1 1.67-.3l12.5 5.8a1.5 1.5 0 0 1 0 2.72l-12.5 5.8A1.5 1.5 0 0 1 2 15.8V4.2a1.5 1.5 0 0 1 .94-1.26z" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
 
       {showModelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
