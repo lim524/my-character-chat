@@ -385,7 +385,7 @@ const sendMessage = async () => {
   <div className="w-1/2 max-w-[50%] h-full px-6 pt-[4.5rem] pb-20 flex flex-col items-center justify-start">
     {characterInfo?.emotionImages && displayedImage && (
       <>
-        <div className="relative w-full h-full">
+        <div className="relative w-full max-w-md aspect-square">
           <Image
             src={displayedImage}
             alt="감정 이미지"
