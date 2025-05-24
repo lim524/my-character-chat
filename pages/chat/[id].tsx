@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
 import Image from 'next/image'
+import { Pencil, Trash2, RotateCcw } from 'lucide-react'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -399,24 +400,20 @@ const sendMessage = async () => {
   {/* 우측: 채팅 스크롤 영역 */}
   <div className="w-1/2 max-w-[50%] overflow-y-auto px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light">
             {messages.map((msg) => {
-  const isUser = msg.role === 'user'
   const isEditing = editTargetId === msg.id
-  const showMenu = menuTargetId === msg.id
+  const isUser = msg.role === 'user'
 
-  if (isUser) {
-    const match = msg.content.match(/^(.*?)(\s*\{(.+?)\})?$/)
-    const text = match?.[1]?.trim() ?? msg.content
-    const emotion = match?.[3]?.trim()
-
-    return (
-      <div key={msg.id} className="relative group whitespace-pre-wrap text-gray-400 italic">
-        {isEditing ? (
-          <div className="flex gap-2 items-center">
-            <input
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="bg-[#222] border border-gray-600 px-2 py-1 text-white rounded w-full"
-            />
+  return (
+    <div key={msg.id} className="group relative bg-[#1a1a1a] p-3 rounded-xl">
+      {isEditing ? (
+        <div className="flex flex-col gap-2">
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
+            rows={4}
+          />
+          <div className="flex justify-end gap-2">
             <button
               onClick={async () => {
                 await fetch('/api/update-message', {
@@ -425,75 +422,55 @@ const sendMessage = async () => {
                   body: JSON.stringify({ id: msg.id, content: editContent }),
                 })
                 setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === msg.id ? { ...m, content: editContent } : m
-                  )
+                  prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
                 )
                 setEditTargetId(null)
               }}
-              className="text-sm text-green-400"
+              className="text-sm text-yellow-400 hover:text-yellow-300"
             >
               저장
             </button>
-          </div>
-        ) : (
-          <>
-            <div>{text}</div>
-            {emotion && <div className="text-gray-400 text-sm">{emotion}</div>}
-
             <button
-              onClick={() => setMenuTargetId(showMenu ? null : msg.id)}
-              className="absolute -top-6 right-0 text-gray-400 hover:text-white text-xl"
+              onClick={() => setEditTargetId(null)}
+              className="text-sm text-gray-400 hover:text-white"
             >
-              ⋮
+              취소
             </button>
-
-            {showMenu && (
-              <div className="absolute right-5 top-7 bg-[#2a2a2a] border border-[#444] rounded shadow z-50">
-                <button
-                  onClick={() => {
-                    setEditTargetId(msg.id)
-                    setEditContent(msg.content)
-                    setMenuTargetId(null)
-                  }}
-                  className="block px-4 py-2 text-sm text-white hover:bg-[#444]"
-                >
-                  수정하기
-                </button>
-                <button
-                  onClick={async () => {
-                    await fetch('/api/delete-message', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ id: msg.id }),
-                    })
-                    setMessages((prev) => prev.filter((m) => m.id !== msg.id))
-                    setMenuTargetId(null)
-                  }}
-                  className="block px-4 py-2 text-sm text-red-400 hover:bg-[#444]"
-                >
-                  삭제하기
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    )
-  }
-
-  // assistant 메시지
-    const lines = (msg.content ?? '')
-      .replace(/\{(.*?)\}/g, '$1')
-      .split(/(?<="[^"]*")/g)
-      .map((line) => line.trim())
-      .filter(Boolean)
-
-  return (
-    <div key={msg.id} className="whitespace-pre-wrap text-white">
-      {lines.map((line, i) => (
-        <div key={i}>{line}</div>
-      ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={isUser ? 'text-blue-400' : 'text-white'}>
+            {msg.content}
+          </div>
+          <div className="absolute top-2 right-2 flex gap-3 opacity-0 group-hover:opacity-100 transition">
+            <button
+              onClick={() => {
+                setEditTargetId(msg.id)
+                setEditContent(msg.content)
+              }}
+              className="text-gray-400 hover:text-white"
+              title="수정"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={async () => {
+                await fetch('/api/delete-message', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: msg.id }),
+                })
+                setMessages((prev) => prev.filter((m) => m.id !== msg.id))
+              }}
+              className="text-gray-400 hover:text-red-400"
+              title="삭제"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 })}
