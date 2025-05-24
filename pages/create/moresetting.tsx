@@ -166,25 +166,6 @@ export default function MoresettingPage() {
           ※ 주연, 조연은 각각 4명까지 캐릭터를 생성할 수 있습니다.
         </p>
 
-        {/* 사용자 설정 */}
-        <div className="space-y-4">
-          <label className="block text-sm font-semibold">사용자 설정</label>
-          <input
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            placeholder="사용자 이름"
-            className="w-full bg-[#1c1c1e] border border-[#444] p-3 rounded text-white placeholder-gray-500"
-          />
-          <textarea
-            value={userDescription}
-            onChange={(e) => setUserDescription(e.target.value)}
-            maxLength={500}
-            placeholder="사용자 설명 (500자)"
-            className="w-full bg-[#1c1c1e] border border-[#444] p-3 rounded text-white placeholder-gray-500 resize-none"
-            rows={3}
-          />
-        </div>
-
         {/* 주연 캐릭터 */}
         <div className="space-y-4">
           <label className="block text-sm font-semibold">주요 캐릭터 설정</label>
