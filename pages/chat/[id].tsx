@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
 import Image from 'next/image'
-import { Pencil, Trash2, RotateCcw, Sparkles } from 'lucide-react'
+import { Pencil, Trash2, PanelRightOpen, Sparkles } from 'lucide-react'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -118,6 +118,26 @@ useEffect(() => {
 
   resolveSessionId()
 }, [id, mode, userId])
+
+useEffect(() => {
+  const fetchUserPoint = async () => {
+    if (!userId) return
+    const { data, error } = await supabase
+      .from('user_points')
+      .select('points')
+      .eq('user_id', userId)
+      .single()
+
+    if (error) {
+      console.error('❌ 포인트 조회 실패:', error)
+      return
+    }
+
+    setPoint(data?.points ?? 0)
+  }
+
+  fetchUserPoint()
+}, [userId])
 
 // ✅ 3. 캐릭터 & 메시지 불러오기 (sessionId까지 준비된 후 실행)
 useEffect(() => {
@@ -369,12 +389,13 @@ const sendMessage = async () => {
     <div className="text-right text-xs text-gray-400">
       {characterInfo.userName && <div>👤 {characterInfo.userName}</div>}
       {characterInfo.userRole && <div>역할: {characterInfo.userRole}</div>}
-      <button
-        onClick={() => setMenuOpen(!menuOpen)}
-        className="mt-1 text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded-full"
-      >
-        메뉴 열기
-      </button>
+    <button
+      onClick={() => setMenuOpen(!menuOpen)}
+      className="mt-1 p-1 text-white hover:text-yellow-300"
+      title="메뉴 열기"
+    >
+      <PanelRightOpen className="w-5 h-5" />
+    </button>
     </div>
   </div>
 )}
