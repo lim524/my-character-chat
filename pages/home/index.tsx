@@ -1,198 +1,193 @@
+import PointBadge from '@/components/PointBadge'
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import supabase from '@/lib/supabaseClient'
+import { Eye, Heart } from 'lucide-react'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+interface RawCharacter {
+  id: string
+  name: string
+  personality: string
+  description: string
+  situation: string
+  image_url?: string
+}
 
 interface Character {
   id: string
   name: string
-  description: string
-  imageUrl: string
-  createdAt: string
-  user_id?: string
   personality: string
+  description: string
   situation: string
+  imageUrl: string
+  likes: number
+  views: number
 }
 
-export default function CharacterList() {
-  const [characters, setCharacters] = useState<Character[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [userId, setUserId] = useState<string | null>(null)
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
+export default function HomePage() {
   const router = useRouter()
-
-  useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      setUserId(data?.user?.id || null)
-    }
-    getUser()
-  }, [])
+  const [characters, setCharacters] = useState<Character[]>([])
+  const [activeTab, setActiveTab] = useState<'recommend' | 'ranking'>('recommend')
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
 
   useEffect(() => {
     const fetchCharacters = async () => {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, description, created_at, user_id, personality, situation, image_url')
+        .select('id, name, personality, description, situation, image_url')
+        .eq('is_public', true)
+        .order('created_at', { ascending: false })
 
       if (error) {
         console.error('❌ 캐릭터 불러오기 실패:', error)
-      } else {
-        const formatted = (data || []).map((char: any) => ({
-          ...char,
-          imageUrl: char.image_url || '/default-profile.png',
-        }))
-        setCharacters(formatted)
+        return
       }
+
+      const processed = (data || []).map((char: RawCharacter) => ({
+        id: char.id,
+        name: char.name,
+        personality: char.personality,
+        description: char.description,
+        situation: char.situation,
+        imageUrl: char.image_url?.startsWith('http')
+          ? char.image_url
+          : '/default-profile.png',
+        likes: 0,
+        views: 0,
+      }))
+
+      setCharacters(processed)
     }
 
     fetchCharacters()
   }, [])
 
-  const handleEdit = async (id: string) => {
-    const { data, error } = await supabase
-      .from('characters')
-      .select('*')
-      .eq('id', id)
-      .single()
-
-    if (error || !data) {
-      alert('캐릭터를 불러오지 못했습니다.')
-      return
-    }
-
-    const draft = {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      firstLine: data.first_line,
-      personality: data.personality,
-      tags: data.tags || [],
-      isPublic: data.is_public ?? true,
-      isCensored: data.is_censored ?? true,
-      imageUrl: data.image_url || '',
-      emotionImages: data.emotion_images || [],
-      userName: data.user_name || '',
-      userRole: data.user_role || '',
-      userDescription: data.user_description || '',
-      situation: data.situation || '',
-      occupation: data.details?.occupation || '',
-      birthplace: data.details?.birthplace || '',
-      age: data.details?.age || '',
-      trauma: data.details?.trauma || '',
-      relationships: data.details?.relationships || '',
-      goal: data.details?.goal || '',
-      worldSetting: data.world_setting || '',
-      details: {
-        occupation: data.details?.occupation || '',
-        birthplace: data.details?.birthplace || '',
-        age: data.details?.age || '',
-        trauma: data.details?.trauma || '',
-        relationships: data.details?.relationships || '',
-        goal: data.details?.goal || '',
-        worldSetting: data.world_setting || '',
-        situation: data.situation || '',
-      },
-      protagonist: data.protagonist || [],
-      supporting: data.supporting || [],
-    }
-
-    localStorage.setItem('character-draft', JSON.stringify(draft))
-    router.push('/create')
+  const openProfile = (char: Character) => {
+    setSelectedCharacter(char)
   }
 
-  const handleDelete = async (id: string) => {
-    const confirmed = confirm('정말 이 캐릭터를 삭제하시겠습니까?')
-    if (!confirmed) return
-
-    const { error } = await supabase.from('characters').delete().eq('id', id)
-
-    if (error) {
-      alert('삭제 중 오류가 발생했습니다.')
-      console.error('❌ 삭제 실패:', error)
-      return
-    }
-
-    setCharacters((prev) => prev.filter((char) => char.id !== id))
+  const goToChat = (id: string) => {
+    setSelectedCharacter(null)
+    router.push(`/chat/${encodeURIComponent(id)}`)
   }
-
-  const filteredCharacters = characters.filter((char) =>
-    char.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    char.description.toLowerCase().includes(searchTerm.toLowerCase())
-  )
 
   return (
-    <div className="bg-[#111] text-white min-h-screen px-4 py-6">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4">캐릭터 목록</h1>
-
-        <div className="mb-4">
-          <input
-            type="text"
-            placeholder="캐릭터 검색"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 rounded bg-[#222] border border-[#444] text-sm text-white placeholder-gray-400"
-          />
+    <>
+      <main className="bg-black text-white min-h-screen px-4 pt-28 pb-32">
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('recommend')}
+            className={`px-4 py-1 rounded-full text-sm font-medium ${
+              activeTab === 'recommend' ? 'bg-white text-black' : 'bg-white/10 text-white'
+            }`}
+          >
+            추천
+          </button>
+          <button
+            onClick={() => setActiveTab('ranking')}
+            className={`px-4 py-1 rounded-full text-sm font-medium ${
+              activeTab === 'ranking' ? 'bg-white text-black' : 'bg-white/10 text-white'
+            }`}
+          >
+            랭킹
+          </button>
         </div>
 
-        {filteredCharacters.length === 0 ? (
-          <p className="text-gray-400">검색 결과가 없습니다.</p>
-        ) : (
-          <ul className="space-y-4">
-            {filteredCharacters.map((char) => (
-              <li
-                key={char.id}
-                onClick={() => setSelectedCharacter(char)}
-                className="flex items-start gap-4 bg-[#1c1c1e] rounded-lg p-4 cursor-pointer hover:bg-[#2a2a2a]"
-              >
-                <img
-                  src={char.imageUrl}
-                  alt={char.name}
-                  className="w-14 h-14 rounded-full object-cover border border-[#333]"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-base font-semibold">{char.name}</span>
+        {activeTab === 'recommend' && (
+          <>
+            <h2 className="text-xl font-bold mb-4">추천 캐릭터</h2>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+              {characters.slice(0, 10).map((char) => (
+                <div
+                  key={char.id}
+                  onClick={() => openProfile(char)}
+                  className="w-48 shrink-0 rounded-2xl overflow-hidden bg-zinc-900 cursor-pointer hover:bg-zinc-800"
+                >
+                  <div className="relative w-full h-[200px] bg-black">
+                    <Image
+                      src={char.imageUrl}
+                      alt={char.name}
+                      fill
+                      className="object-cover rounded-none"
+                    />
                   </div>
-                  <p className="text-sm text-gray-300 line-clamp-2">{char.description}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    생성일: {new Date(char.createdAt).toLocaleDateString()}
-                  </p>
-
-                  {char.user_id === userId && (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleEdit(char.id) }}
-                        className="text-sm px-4 py-1 rounded-full bg-white text-black hover:bg-gray-300 transition"
-                      >
-                        수정
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(char.id) }}
-                        className="text-sm px-4 py-1 rounded-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
-                      >
-                        삭제
-                      </button>
+                  <div className="p-3">
+                    <h3 className="text-white font-semibold text-sm">{char.name}</h3>
+                    <p className="text-xs text-gray-400 line-clamp-fallback">{char.description}</p>
+                    <div className="flex justify-between text-xs text-gray-400 mt-2">
+                      <span className="flex items-center gap-1">
+                        <Heart className="w-4 h-4 text-red-500" />
+                        {char.likes}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-4 h-4" />
+                        {char.views}
+                      </span>
                     </div>
-                  )}
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          </>
+        )}
+
+        {activeTab === 'ranking' && (
+          <>
+            <h2 className="text-xl font-bold mb-4">인기 랭킹</h2>
+            <div className="space-y-3">
+              {[...characters]
+                .sort((a, b) => b.likes - a.likes)
+                .map((char, i) => (
+                  <div
+                    key={char.id}
+                    onClick={() => openProfile(char)}
+                    className="bg-white/10 backdrop-blur-md p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-white/20"
+                  >
+                    <span className="text-lg font-bold w-6">{i + 1}</span>
+                    <div className="relative w-14 h-14">
+                      <Image
+                        src={char.imageUrl}
+                        alt={char.name}
+                        fill
+                        className="rounded-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white text-sm">{char.name}</h3>
+                      <p className="text-xs text-gray-400">{char.description}</p>
+                    </div>
+                    <div className="ml-auto text-right text-xs text-gray-400 flex flex-col items-end gap-1">
+                      <span className="flex items-center gap-1">
+                        <Heart className="w-4 h-4 text-red-500" />
+                        {char.likes}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-4 h-4" />
+                        {char.views}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </>
         )}
 
         {selectedCharacter && (
           <CharacterProfileModal
             character={selectedCharacter}
             onClose={() => setSelectedCharacter(null)}
-            onStartChat={() => {
-              setSelectedCharacter(null)
-              router.push(`/chat/${selectedCharacter.name}`)
-            }}
+            onStartChat={() => goToChat(selectedCharacter.id)}
           />
         )}
-      </div>
-    </div>
+      </main>
+      <PointBadge />
+    </>
   )
 }
