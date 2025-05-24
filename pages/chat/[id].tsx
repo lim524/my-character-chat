@@ -61,8 +61,7 @@ export default function ChatPage() {
   const [showModelModal, setShowModelModal] = useState(false)
   const [editTargetId, setEditTargetId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
-  const [menuTargetId, setMenuTargetId] = useState<string | null>(null)
-
+  
   const bottomRef = useRef<HTMLDivElement>(null) 
 
 useEffect(() => {
@@ -178,17 +177,6 @@ useEffect(() => {
           ]
         : []
 
-    if (
-      formattedCharacter.situation &&
-      !initialMessages.some((m) => m.content.includes(formattedCharacter.situation))
-    ) {
-      initialMessages.unshift({
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: `{${formattedCharacter.situation}}`,
-      })
-    }
-
     setMessages(initialMessages)
 
     // 기본 감정 이미지 표시
@@ -207,15 +195,14 @@ useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, id])
 
-  useEffect(() => {
-    const last = messages[messages.length - 1]
-    if (!last || last.role !== 'assistant') return
-    const emotion = characterInfo?.emotionImages?.find((img) =>
+useEffect(() => {
+  const last = messages[messages.length - 1]
+  if (!last || last.role !== 'assistant') return
+  const matched = characterInfo?.emotionImages?.find((img) =>
     last.content.includes(img.label)
-    )?.label
-    const matched = characterInfo?.emotionImages?.find((img: EmotionImage) => img.label === emotion)
-    if (matched) setDisplayedImage(matched.imageUrl)
-  }, [messages, characterInfo])
+  )
+  if (matched) setDisplayedImage(matched.imageUrl)
+}, [messages, characterInfo])
 
   const deductPoint = async (amount: number) => {
   if (!userId) return false

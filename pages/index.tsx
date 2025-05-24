@@ -37,7 +37,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'recommend' | 'ranking'>('recommend')
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
 
-  
+
   useEffect(() => {
     const fetchCharacters = async () => {
       const { data, error } = await supabase
@@ -119,20 +119,22 @@ export default function HomePage() {
                       className="object-cover rounded-none"
                     />
                   </div>
-                  <div className="p-3">
+                 <div className="p-3 h-40 flex flex-col justify-between">
+                  <div>
                     <h3 className="text-white font-semibold text-sm">{char.name}</h3>
                     <p className="text-xs text-gray-400 line-clamp-fallback">{char.description}</p>
-                    <div className="flex justify-between text-xs text-gray-400 mt-2">
-                      <span className="flex items-center gap-1">
-                        <Heart className="w-4 h-4 text-red-500" />
-                        {char.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-4 h-4" />
-                        {char.views}
-                      </span>
-                    </div>
                   </div>
+                  <div className="flex justify-between text-xs text-gray-400 mt-2">
+                    <span className="flex items-center gap-1">
+                      <Heart className="w-4 h-4 text-red-500" />
+                      {char.likes}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-4 h-4" />
+                      {char.views}
+                    </span>
+                  </div>
+                </div>
                 </div>
               ))}
             </div>
