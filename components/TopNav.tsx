@@ -44,10 +44,12 @@ export default function TopNav() {
         }}
       >
         <Link href="/" style={{ display: 'flex', alignItems: 'center' }}>
-          <img
-            src="/logo/novelchat.png"
-            alt="NovelChat"
-            style={{ height: '34px', objectFit: 'contain' }}
+          <Image
+          src="/logo/novelchat.png"
+          alt="NovelChat"
+          width={100}
+          height={34}
+          style={{ objectFit: 'contain' }}
           />
         </Link>
 

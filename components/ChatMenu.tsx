@@ -118,7 +118,7 @@ export default function ChatMenu({
             <BookOpen className="w-5 h-5" /> 로어북
           </h2>
           <p className="text-xs text-gray-400">
-            로어북 추가 후 그동안의 스토리를 내용 안에 적으면 캐릭터가 잊지 않고 기억해요.
+            중요한 스토리 내용을 입력하세요
           </p>
           <button
             onClick={() => setShowLoreModal(true)}
@@ -167,7 +167,7 @@ export default function ChatMenu({
                 value={newLoreTitle}
                 onChange={(e) => setNewLoreTitle(e.target.value)}
                 className="w-full bg-[#2a2a2a] text-white placeholder-gray-500 p-2 rounded border border-gray-600"
-                placeholder="ex) 안녕친구들"
+                placeholder="로어북 제목"
               />
             </div>
             <div>
@@ -178,7 +178,7 @@ export default function ChatMenu({
                 rows={6}
                 maxLength={1000}
                 className="w-full bg-[#2a2a2a] text-white placeholder-gray-500 p-2 rounded border border-gray-600"
-                placeholder="ex) 첫눈이 내리는 날, 벤치에서 사랑을 고백했다."
+                placeholder="ex) 이서아는 그를 사랑하고 있다."
               />
             </div>
             <button

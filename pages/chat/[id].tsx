@@ -126,7 +126,7 @@ useEffect(() => {
       .from('user_points')
       .select('points')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('❌ 포인트 조회 실패:', error)
