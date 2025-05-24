@@ -66,6 +66,13 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null) 
 
 useEffect(() => {
+  document.body.style.overflow = 'hidden'
+  return () => {
+    document.body.style.overflow = 'auto'
+  }
+}, [])
+
+useEffect(() => {
   const getSession = async () => {
     const { data } = await supabase.auth.getSession()
     setUserId(data.session?.user?.id ?? null)
@@ -329,7 +336,7 @@ const sendMessage = async () => {
 
 
   return (
-    <div className="bg-[#0d0d0d] text-white min-h-screen flex flex-col">  
+    <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden">  
 <button
   onClick={() => router.push('/')}
   className="absolute top-4 left-4 flex items-center text-white text-base hover:text-gray-300 z-50"
@@ -375,7 +382,7 @@ const sendMessage = async () => {
     
 <div className="flex h-screen overflow-hidden"> 
   {/* 좌측: 고정 이미지 영역 */}
-  <div className="w-1/2 max-w-[50%] bg-[#0d0d0d] flex flex-col items-center justify-start px-6 pt-[4.5rem] pb-20">
+  <div className="w-1/2 max-w-[50%] h-full overflow-y-auto px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light">
     {characterInfo?.emotionImages && displayedImage && (
       <>
         <div className="relative w-full h-full">
