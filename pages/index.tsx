@@ -80,7 +80,7 @@ export default function HomePage() {
 
   return (
     <>
-      <main className="bg-black text-white min-h-screen px-4 pt-28 pb-32">
+      <main className="bg-black text-white h-screen px-4 pt-28 pb-32">
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setActiveTab('recommend')}
