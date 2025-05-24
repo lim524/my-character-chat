@@ -1,4 +1,5 @@
 'use client'
+import ChatMenu from '@/components/ChatMenu'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
@@ -64,7 +65,13 @@ export default function ChatPage() {
   
   const bottomRef = useRef<HTMLDivElement>(null) 
 
-useEffect(() => {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [userName, setUserName] = useState('')
+  const [userDescription, setUserDescription] = useState('')
+  const [lore, setLore] = useState('')
+  const [point, setPoint] = useState(0)
+
+  useEffect(() => {
   document.body.style.overflow = 'hidden'
   return () => {
     document.body.style.overflow = 'auto'
@@ -341,31 +348,36 @@ const sendMessage = async () => {
         &lt;
       </button>
 
-          {characterInfo.imageUrl && (
-            <div className="relative w-10 h-10">
-  <Image
-    src={characterInfo.imageUrl}
-    alt="profile"
-    fill
-    className="rounded-full object-cover"
-  />
-</div>
-
-          )}
-          <div>
-            <div className="font-semibold text-white">{characterInfo.name}</div>
-            <div className="text-xs text-gray-400">{characterInfo.personality}</div>
-          </div>
+      {characterInfo.imageUrl && (
+        <div className="relative w-10 h-10">
+          <Image
+            src={characterInfo.imageUrl}
+            alt="profile"
+            fill
+            className="rounded-full object-cover"
+          />
         </div>
+      )}
 
-        {characterInfo.userName && (
-          <div className="text-right text-xs text-gray-400">
-            <div>👤 {characterInfo.userName}</div>
-            {characterInfo.userRole && <div>역할: {characterInfo.userRole}</div>}
-          </div>
-        )}
+      <div>
+        <div className="font-semibold text-white">{characterInfo.name}</div>
+        <div className="text-xs text-gray-400">{characterInfo.personality}</div>
       </div>
-    )}
+    </div>
+
+    {/* ✅ 메뉴 버튼 포함 우측 영역 */}
+    <div className="text-right text-xs text-gray-400">
+      {characterInfo.userName && <div>👤 {characterInfo.userName}</div>}
+      {characterInfo.userRole && <div>역할: {characterInfo.userRole}</div>}
+      <button
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="mt-1 text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded-full"
+      >
+        메뉴 열기
+      </button>
+    </div>
+  </div>
+)}
     
 <div className="flex h-screen overflow-hidden"> 
   {/* 좌측: 고정 이미지 영역 */}
@@ -483,6 +495,7 @@ const sendMessage = async () => {
       모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}
     </button>
 
+
     {/* 가운데 + 오른쪽: 채팅 입력 UI */}
     <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2">
       <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
@@ -508,6 +521,7 @@ const sendMessage = async () => {
     </div>
   </div>
 </div>
+
 
       {showModelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -539,6 +553,23 @@ const sendMessage = async () => {
           </div>
         </div>
       )}
+
+    {menuOpen && (  // ← 이걸 여기 추가
+      <div className="fixed top-0 right-0 h-screen w-[320px] bg-[#111] border-l border-gray-800 z-50 overflow-y-auto shadow-xl">
+        <ChatMenu
+          userName={userName}
+          userDescription={userDescription}
+          onUserChange={(field, val) => {
+            if (field === 'name') setUserName(val)
+            else setUserDescription(val)
+          }}
+          point={point}
+          lore={lore}
+          onLoreChange={setLore}
+        />
+      </div>
+    )}
     </div>
+    
   )
 }
