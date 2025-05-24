@@ -55,14 +55,14 @@ export default function ChatMenu({
   }
 
   return (
-    <div className="w-full max-w-md bg-white text-black p-4 space-y-6 h-screen overflow-y-auto relative">
+    <div className="w-full max-w-md bg-[#111] text-white p-4 space-y-6 h-screen overflow-y-auto relative">
       {/* 닫기 버튼 */}
-      <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-black">
+      <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white">
         <X className="w-5 h-5" />
       </button>
 
       {/* 포인트 표시 */}
-      <div className="flex items-center gap-2 text-lg font-bold text-black">
+      <div className="flex items-center gap-2 text-lg font-bold text-yellow-400">
         <Coins className="w-5 h-5" />
         보유 포인트: {point}P
       </div>
@@ -72,7 +72,7 @@ export default function ChatMenu({
         <button
           onClick={() => setActiveTab('user')}
           className={`px-4 py-1 rounded-full text-sm font-medium ${
-            activeTab === 'user' ? 'bg-black text-white' : 'bg-gray-200 text-black'
+            activeTab === 'user' ? 'bg-white text-black' : 'bg-white/10 text-white'
           }`}
         >
           내 정보 수정
@@ -80,7 +80,7 @@ export default function ChatMenu({
         <button
           onClick={() => setActiveTab('lore')}
           className={`px-4 py-1 rounded-full text-sm font-medium ${
-            activeTab === 'lore' ? 'bg-black text-white' : 'bg-gray-200 text-black'
+            activeTab === 'lore' ? 'bg-white text-black' : 'bg-white/10 text-white'
           }`}
         >
           로어북
@@ -117,7 +117,7 @@ export default function ChatMenu({
           <h2 className="flex items-center gap-2 text-base font-semibold">
             <BookOpen className="w-5 h-5" /> 로어북
           </h2>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-400">
             로어북 추가 후 그동안의 스토리를 내용 안에 적으면 캐릭터가 잊지 않고 기억해요.
           </p>
           <button
@@ -130,13 +130,16 @@ export default function ChatMenu({
           <div className="space-y-2">
             {loreList.map((item) => (
               <div key={item.id} className="flex items-center justify-between bg-black text-white p-2 rounded">
-                <span className="text-sm truncate max-w-[180px]">{item.title}</span>
+                <div className="text-left">
+                  <div className="font-semibold text-sm">{item.title}</div>
+                  <div className="text-xs text-gray-400 max-w-[180px] truncate">{item.content}</div>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={item.enabled}
                     onChange={() => handleToggleLore(item.id)}
-                    className="w-4 h-4 accent-black"
+                    className="w-4 h-4 accent-yellow-500"
                   />
                   <button onClick={() => handleRemoveLore(item.id)}>
                     <Trash2 className="w-4 h-4 text-red-500 hover:text-red-400" />
