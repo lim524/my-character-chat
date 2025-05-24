@@ -398,7 +398,7 @@ const sendMessage = async () => {
   </div>
 
   {/* 우측: 채팅 스크롤 영역 */}
-  <div className="w-1/2 max-w-[50%] overflow-y-auto px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light">
+  <div className="flex-1 overflow-y-auto px-6 pt-4 pb-32 space-y-4 text-[15px] leading-relaxed font-light">
             {messages.map((msg) => {
   const isEditing = editTargetId === msg.id
   const isUser = msg.role === 'user'
