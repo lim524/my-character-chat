@@ -373,9 +373,9 @@ const sendMessage = async () => {
       </div>
     )}
 
-<div className="flex h-screen">
-    {/* 좌측: 고정 이미지 영역 */}
-   <div className="w-1/2 relative hidden md:block">
+<div className="flex h-[calc(100vh-56px)]">
+  {/* 좌측: 고정 이미지 영역 */}
+  <div className="w-1/2 max-w-[50%] bg-[#0d0d0d] flex flex-col items-center justify-start px-6 pt-[4.5rem] pb-20">
     {characterInfo?.emotionImages && displayedImage && (
       <>
         <div className="relative w-full h-full">
@@ -397,8 +397,9 @@ const sendMessage = async () => {
     )}
   </div>
 
-  {/* 우측: 채팅 스크롤 영역 */}  
- <div className="w-full md:w-1/2 flex flex-col">            {messages.map((msg) => {
+  {/* 우측: 채팅 스크롤 영역 */}
+  <div className="w-1/2 max-w-[50%] overflow-y-auto px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light">
+            {messages.map((msg) => {
   const isEditing = editTargetId === msg.id
   const isUser = msg.role === 'user'
 
