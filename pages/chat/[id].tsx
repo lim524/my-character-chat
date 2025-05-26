@@ -591,7 +591,6 @@ const sendMessage = async () => {
           onLoreChange={setLore}
           onClose={() => setMenuOpen(false)}
         />
-        console.log('🔥 메뉴 열림 시 포인트:', point)
       </div>
     )}
     </div>
