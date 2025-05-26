@@ -211,6 +211,18 @@ useEffect(() => {
   if (matched) setDisplayedImage(matched.imageUrl)
 }, [messages, characterInfo])
 
+useEffect(() => {
+  if (mode !== 'continue' || !characterInfo || displayedImage) return
+
+  const last = messages[messages.length - 1]
+  if (!last || last.role !== 'assistant') return
+
+  const matched = characterInfo.emotionImages.find((img) =>
+    last.content.includes(img.label)
+  )
+  if (matched) setDisplayedImage(matched.imageUrl)
+}, [mode, messages, characterInfo, displayedImage])
+
   const deductPoint = async (amount: number) => {
   if (!userId) return false
   try {
