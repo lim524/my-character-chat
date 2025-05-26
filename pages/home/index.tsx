@@ -36,6 +36,8 @@ export default function HomePage() {
   const [characters, setCharacters] = useState<Character[]>([])
   const [activeTab, setActiveTab] = useState<'recommend' | 'ranking'>('recommend')
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
 
   useEffect(() => {
     const fetchCharacters = async () => {
@@ -78,9 +80,15 @@ export default function HomePage() {
     router.push(`/chat/${encodeURIComponent(id)}`)
   }
 
+    const filteredCharacters = characters.filter((char) =>
+    char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    char.description.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+
   return (
     <>
-      <main className="bg-black text-white min-h-screen px-4 pt-28 pb-32">
+      <main className="bg-black text-white h-screen px-4 pt-28 pb-32">
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setActiveTab('recommend')}
@@ -100,12 +108,21 @@ export default function HomePage() {
           </button>
         </div>
 
+        <div className="mb-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="캐릭터 검색..."
+            className="w-full px-4 py-2 rounded bg-[#1c1c1c] text-white border border-[#444] placeholder-gray-500"
+          />
+        </div>
+
         {activeTab === 'recommend' && (
           <>
             <h2 className="text-xl font-bold mb-4">추천 캐릭터</h2>
             <div className="flex gap-4 overflow-x-auto pb-2">
-              {characters.slice(0, 10).map((char) => (
-                <div
+              {filteredCharacters.slice(0, 10).map((char) => (  <div
                   key={char.id}
                   onClick={() => openProfile(char)}
                   className="w-48 shrink-0 rounded-2xl overflow-hidden bg-zinc-900 cursor-pointer hover:bg-zinc-800"
@@ -118,20 +135,22 @@ export default function HomePage() {
                       className="object-cover rounded-none"
                     />
                   </div>
-                  <div className="p-3">
+                 <div className="p-3 h-30 flex flex-col justify-between">
+                  <div>
                     <h3 className="text-white font-semibold text-sm">{char.name}</h3>
                     <p className="text-xs text-gray-400 line-clamp-fallback">{char.description}</p>
-                    <div className="flex justify-between text-xs text-gray-400 mt-2">
-                      <span className="flex items-center gap-1">
-                        <Heart className="w-4 h-4 text-red-500" />
-                        {char.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-4 h-4" />
-                        {char.views}
-                      </span>
-                    </div>
                   </div>
+                  <div className="flex justify-between text-xs text-gray-400 mt-2">
+                    <span className="flex items-center gap-1">
+                      <Heart className="w-4 h-4 text-red-500" />
+                      {char.likes}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-4 h-4" />
+                      {char.views}
+                    </span>
+                  </div>
+                </div>
                 </div>
               ))}
             </div>
