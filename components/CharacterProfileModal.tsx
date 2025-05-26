@@ -20,13 +20,13 @@ interface Props {
 export default function CharacterProfileModal({ character, onClose, onStartChat }: Props) {
   const router = useRouter()
 
-  const handleStartChat = (mode: 'new' | 'continue') => {
-    onClose()
-    setTimeout(() => {
-      router.push(`/chat/${character.id}?mode=${mode}`)
-      if (onStartChat) onStartChat()
-    }, 10)
-  }
+const handleStartChat = (mode: 'new' | 'continue') => {
+  onClose()
+  setTimeout(() => {
+    router.replace(`/chat/${character.id}?mode=${mode}`) // ✅ router.push → replace
+    if (onStartChat) onStartChat()
+  }, 10)
+}
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
