@@ -1,3 +1,4 @@
+import { useSearch } from '@/context/SearchContext'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -7,6 +8,7 @@ import LoginModal from './LoginModal'
 import supabase from '../lib/supabaseClient'
 
 export default function TopNav() {
+  const { toggleSearch } = useSearch()
   const [menuOpen, setMenuOpen] = useState(false)
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
@@ -99,8 +101,8 @@ export default function TopNav() {
               로그아웃
             </button>
           )}
-
-          <FiSearch size={20} />
+          
+          <FiSearch size={20} onClick={toggleSearch} style={{ cursor: 'pointer' }} />
           <FiBell size={20} />
           <FiMenu size={22} style={{ cursor: 'pointer' }} onClick={() => setMenuOpen(true)} />
         </div>
