@@ -5,6 +5,7 @@ import { useRouter } from 'next/router'
 import { Eye, Heart } from 'lucide-react'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
 import { createClient } from '@supabase/supabase-js'
+import { useSearch } from '@/context/SearchContext'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,6 +37,7 @@ export default function HomePage() {
   const [characters, setCharacters] = useState<Character[]>([])
   const [activeTab, setActiveTab] = useState<'recommend' | 'ranking'>('recommend')
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
+  const { searchQuery, setSearchQuery, showSearch } = useSearch()
 
 
   useEffect(() => {
@@ -79,6 +81,11 @@ export default function HomePage() {
     router.push(`/chat/${encodeURIComponent(id)}`)
   }
 
+  const filteredCharacters = characters.filter((char) =>
+  char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  char.description.toLowerCase().includes(searchQuery.toLowerCase())
+)
+
   return (
     <>
       <main className="bg-black text-white h-screen px-4 pt-28 pb-32">
@@ -101,11 +108,23 @@ export default function HomePage() {
           </button>
         </div>
 
+          {showSearch && (
+            <div className="mb-4">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="캐릭터 검색..."
+                className="w-full px-4 py-2 rounded bg-[#1c1c1c] text-white border border-[#444] placeholder-gray-500"
+              />
+            </div>
+          )}
+
         {activeTab === 'recommend' && (
           <>
             <h2 className="text-xl font-bold mb-4">추천 캐릭터</h2>
             <div className="flex gap-4 overflow-x-auto pb-2">
-              {characters.slice(0, 10).map((char) => (
+              {filteredCharacters.slice(0, 10).map((char) => (
                 <div
                   key={char.id}
                   onClick={() => openProfile(char)}
@@ -145,7 +164,7 @@ export default function HomePage() {
           <>
             <h2 className="text-xl font-bold mb-4">인기 랭킹</h2>
             <div className="space-y-3">
-              {[...characters]
+              {[...filteredCharacters]
                 .sort((a, b) => b.likes - a.likes)
                 .map((char, i) => (
                   <div
