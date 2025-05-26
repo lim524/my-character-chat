@@ -137,7 +137,7 @@ useEffect(() => {
   }
 
   fetchUserPoint()
-}, [userId])
+}, [menuOpen, userId])
 
 // ✅ 3. 캐릭터 & 메시지 불러오기 (sessionId까지 준비된 후 실행)
 useEffect(() => {
