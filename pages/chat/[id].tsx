@@ -69,8 +69,7 @@ export default function ChatPage() {
   const [userName, setUserName] = useState('')
   const [userDescription, setUserDescription] = useState('')
   const [lore, setLore] = useState('')
-  const [point, setPoint] = useState(0)
-
+  
   useEffect(() => {
   document.body.style.overflow = 'hidden'
   return () => {
@@ -118,27 +117,6 @@ useEffect(() => {
 
   resolveSessionId()
 }, [id, mode, userId])
-
-useEffect(() => {
-  if (!menuOpen || !userId) return
-
-  const fetchUserPoint = async () => {
-    const { data, error } = await supabase
-      .from('user_points')
-      .select('points')
-      .eq('user_id', userId)
-      .single()
-
-    if (error) {
-      console.error('❌ 포인트 재조회 실패:', error)
-      return
-    }
-
-    setPoint(data?.points ?? 0)
-  }
-
-  fetchUserPoint()
-}, [menuOpen, userId])
 
 
 // ✅ 3. 캐릭터 & 메시지 불러오기 (sessionId까지 준비된 후 실행)
@@ -586,7 +564,6 @@ const sendMessage = async () => {
             if (field === 'name') setUserName(val)
             else setUserDescription(val)
           }}
-          point={point}
           lore={lore}
           onLoreChange={setLore}
           onClose={() => setMenuOpen(false)}

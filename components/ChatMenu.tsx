@@ -1,5 +1,6 @@
-import { User, Coins, BookOpen, X, Menu, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { User, Coins, BookOpen, X, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import supabase from '../lib/supabaseClient'
 
 interface LoreEntry {
   id: string
@@ -12,7 +13,6 @@ interface ChatMenuProps {
   userName: string
   userDescription: string
   onUserChange: (field: 'name' | 'description', value: string) => void
-  point: number
   lore: string
   onLoreChange: (value: string) => void
   onClose: () => void
@@ -22,7 +22,6 @@ export default function ChatMenu({
   userName,
   userDescription,
   onUserChange,
-  point,
   lore,
   onLoreChange,
   onClose,
@@ -32,22 +31,50 @@ export default function ChatMenu({
   const [newLoreTitle, setNewLoreTitle] = useState('')
   const [newLoreContent, setNewLoreContent] = useState('')
   const [showLoreModal, setShowLoreModal] = useState(false)
+  const [point, setPoint] = useState(0)
+
+  useEffect(() => {
+    const fetchPoint = async () => {
+      const { data } = await supabase.auth.getSession()
+      const userId = data.session?.user?.id
+      if (!userId) return
+
+      const { data: pointData, error } = await supabase
+        .from('user_points')
+        .select('points')
+        .eq('user_id', userId)
+        .single()
+
+      if (!error && pointData) setPoint(pointData.points)
+    }
+
+    fetchPoint()
+    window.addEventListener('point-update', fetchPoint)
+    return () => window.removeEventListener('point-update', fetchPoint)
+  }, [])
 
   const handleAddLore = () => {
     if (newLoreTitle.trim() === '' || newLoreContent.trim() === '') return
-    setLoreList((prev) => [...prev, {
-      id: crypto.randomUUID(),
-      title: newLoreTitle.trim(),
-      content: newLoreContent.trim(),
-      enabled: true,
-    }])
+    setLoreList((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        title: newLoreTitle.trim(),
+        content: newLoreContent.trim(),
+        enabled: true,
+      },
+    ])
     setNewLoreTitle('')
     setNewLoreContent('')
     setShowLoreModal(false)
   }
 
   const handleToggleLore = (id: string) => {
-    setLoreList((prev) => prev.map((item) => item.id === id ? { ...item, enabled: !item.enabled } : item))
+    setLoreList((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, enabled: !item.enabled } : item
+      )
+    )
   }
 
   const handleRemoveLore = (id: string) => {
@@ -117,9 +144,7 @@ export default function ChatMenu({
           <h2 className="flex items-center gap-2 text-base font-semibold text-white">
             <BookOpen className="w-5 h-5" /> 로어북
           </h2>
-          <p className="text-xs text-gray-400">
-            중요한 스토리 내용을 입력하세요
-          </p>
+          <p className="text-xs text-gray-400">중요한 스토리 내용을 입력하세요</p>
           <button
             onClick={() => setShowLoreModal(true)}
             className="bg-gray-100 hover:bg-gray-300 text-black px-4 py-1 rounded text-sm font-medium"
@@ -129,7 +154,10 @@ export default function ChatMenu({
 
           <div className="space-y-2">
             {loreList.map((item) => (
-              <div key={item.id} className="flex items-center justify-between bg-[#2a2a2a] text-white p-2 rounded border border-gray-700">
+              <div
+                key={item.id}
+                className="flex items-center justify-between bg-[#2a2a2a] text-white p-2 rounded border border-gray-700"
+              >
                 <div className="text-left">
                   <div className="font-semibold text-sm text-white">{item.title}</div>
                   <div className="text-xs text-gray-400 max-w-[180px] truncate">{item.content}</div>
