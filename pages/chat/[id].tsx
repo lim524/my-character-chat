@@ -120,16 +120,17 @@ useEffect(() => {
 }, [id, mode, userId])
 
 useEffect(() => {
+  if (!menuOpen || !userId) return
+
   const fetchUserPoint = async () => {
-    if (!userId) return
     const { data, error } = await supabase
       .from('user_points')
       .select('points')
       .eq('user_id', userId)
-      .maybeSingle()
+      .single()
 
     if (error) {
-      console.error('❌ 포인트 조회 실패:', error)
+      console.error('❌ 포인트 재조회 실패:', error)
       return
     }
 
@@ -138,6 +139,7 @@ useEffect(() => {
 
   fetchUserPoint()
 }, [menuOpen, userId])
+
 
 // ✅ 3. 캐릭터 & 메시지 불러오기 (sessionId까지 준비된 후 실행)
 useEffect(() => {
