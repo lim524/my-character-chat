@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { Home, Sparkles, User, List } from 'lucide-react'
+import { Home, Sparkles, User, List, MessageSquare } from 'lucide-react' // ✅ 커뮤니티 아이콘 추가
 
 type Props = {
   isOpen: boolean
@@ -11,9 +11,9 @@ export default function SideMenu({ isOpen, onClose }: Props) {
   const router = useRouter()
 
   const handleCreate = () => {
-    localStorage.removeItem('character-draft') // ✅ 수정 데이터 제거
-    onClose() // ✅ 사이드 메뉴 닫기
-    router.push('/create') // ✅ 생성 페이지로 이동
+    localStorage.removeItem('character-draft') // ✅ 캐릭터 작성 임시 데이터 제거
+    onClose()
+    router.push('/create')
   }
 
   return (
@@ -57,7 +57,6 @@ export default function SideMenu({ isOpen, onClose }: Props) {
           <Home size={18} /> 홈
         </Link>
 
-        {/* ✅ 수정된 생성 버튼 */}
         <button
           onClick={handleCreate}
           style={{
@@ -87,6 +86,15 @@ export default function SideMenu({ isOpen, onClose }: Props) {
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
           <List size={18} /> 캐릭터 목록
+        </Link>
+
+        {/* ✅ 커뮤니티 버튼 추가 */}
+        <Link
+          href="/community"
+          onClick={onClose}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+        >
+          <MessageSquare size={18} /> 커뮤니티
         </Link>
       </nav>
     </div>
