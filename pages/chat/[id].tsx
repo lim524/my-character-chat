@@ -212,7 +212,9 @@ useEffect(() => {
 }, [messages, characterInfo])
 
 useEffect(() => {
-  if (mode !== 'continue' || !characterInfo || displayedImage) return
+  if (mode !== 'continue') return
+  if (!messages || messages.length === 0 || !characterInfo) return
+  if (displayedImage) return
 
   const last = messages[messages.length - 1]
   if (!last || last.role !== 'assistant') return
