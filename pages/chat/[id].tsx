@@ -213,6 +213,28 @@ useEffect(() => {
 
 useEffect(() => {
   if (mode !== 'continue') return
+  if (!characterInfo || messages.length === 0) return
+
+  const last = messages[messages.length - 1]
+  if (!last || last.role !== 'assistant') return
+
+  // 감정 이미지가 이미 설정되었으면 무시
+  if (displayedImage) return
+
+  const matched = characterInfo.emotionImages.find((img) =>
+    last.content.includes(img.label)
+  )
+
+  if (matched) {
+    setDisplayedImage(matched.imageUrl)
+  } else if (characterInfo.emotionImages.length > 0) {
+    // 매칭된 라벨이 없을 경우에도 첫 번째 이미지 기본으로 표시
+    setDisplayedImage(characterInfo.emotionImages[0].imageUrl)
+  }
+}, [mode, messages, characterInfo, displayedImage])
+
+useEffect(() => {
+  if (mode !== 'continue') return
   if (!messages || messages.length === 0 || !characterInfo) return
   if (displayedImage) return
 
