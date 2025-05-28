@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import supabase from '@/lib/supabaseClient'
 import ImageUploader from '@/components/ImageUploader'
+import Image from 'next/image'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -36,14 +37,11 @@ export default function SettingsPage() {
           .single()
 
         if (userProfile) {
-          const loadedNickname = userProfile.nickname || localStorage.getItem('profile-nickname') || generateRandomNickname()
-          setNickname(loadedNickname)
+          setNickname(userProfile.nickname || generateRandomNickname())
           setGender(userProfile.gender || '남성')
           setImage(userProfile.image || '/default-profile.png')
         } else {
-          const fallbackNickname = localStorage.getItem('profile-nickname') || generateRandomNickname()
-          setNickname(fallbackNickname)
-          setImage('/default-profile.png')
+          setNickname(generateRandomNickname())
         }
       }
     }
@@ -103,7 +101,12 @@ export default function SettingsPage() {
       <div className="w-full max-w-md space-y-6">
         {/* 프로필 이미지 업로드 */}
         <div className="relative w-24 h-24 mx-auto">
-          <img src={image ? image : '/default-profile.png'} alt="프로필" className="rounded-full w-full h-full object-cover" />
+          <Image
+            src={image?.trim() ? image : '/default-profile.png'}
+            alt="프로필"
+            fill
+            className="rounded-full object-cover"
+          />
           <div className="absolute bottom-0 right-0 bg-black/70 rounded-full p-1 cursor-pointer">
             <ImageUploader onUpload={(url) => setImage(url)} />
           </div>
