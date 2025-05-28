@@ -107,7 +107,7 @@ export default function SettingsPage() {
             fill
             className="rounded-full object-cover"
           />
-          <div className="absolute bottom-0 right-0 bg-black/70 rounded-full p-1 cursor-pointer">
+          <div className="absolute bottom-0 right-0 z-10">
             <ImageUploader onUpload={(url) => setImage(url)} />
           </div>
         </div>
