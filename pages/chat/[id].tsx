@@ -40,12 +40,12 @@ type Character = {
 }
 
 const models = [
-  { id: 'gpt-3.5', label: 'GPT-3.5 Turbo', description: '빠른 속도의 AI 모델', point: 20 },
-  { id: 'gpt-4o', label: 'GPT-4o', description: '고성능 몰입형 AI', point: 40 },
-  { id: 'claude-haiku', label: 'Claude 3.7 Haiku', description: '가볍고 빠른 답변용 AI', point: 20 },
-  { id: 'claude-sonnet', label: 'Claude 3.7 Sonnet', description: '고퀄리티 감정 몰입 대화 AI', point: 40 },
-  { id: 'gemini-flash', label: 'Gemini 2.5 Flash', description: '빠르고 경제적인 구글 AI', point: 20 },
-  { id: 'gemini-pro', label: 'Gemini 2.5 Pro', description: '고급 지능과 묘사를 가진 구글 AI', point: 40 },
+  { id: 'gpt-3.5', label: 'GPT-3.5 Turbo', description: '빠른 속도의 AI 모델', point: 10 },
+  { id: 'gpt-4o', label: 'GPT-4o', description: '고성능 몰입형 AI', point: 20 },
+  { id: 'claude-haiku', label: 'Claude 3.7 Haiku', description: '가볍고 빠른 답변용 AI', point: 10 },
+  { id: 'claude-sonnet', label: 'Claude 3.7 Sonnet', description: '고퀄리티 감정 몰입 대화 AI', point: 20 },
+  { id: 'gemini-flash', label: 'Gemini 2.5 Flash', description: '빠르고 경제적인 구글 AI', point: 10 },
+  { id: 'gemini-pro', label: 'Gemini 2.5 Pro', description: '고급 지능과 묘사를 가진 구글 AI', point: 20 },
 ]
 
 export default function ChatPage() {
@@ -202,24 +202,12 @@ useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, id])
 
-useEffect(() => {
-  const last = messages[messages.length - 1]
-  if (!last || last.role !== 'assistant') return
-  const matched = characterInfo?.emotionImages?.find((img) =>
-    last.content.includes(img.label)
-  )
-  if (matched) setDisplayedImage(matched.imageUrl)
-}, [messages, characterInfo])
 
 useEffect(() => {
-  if (mode !== 'continue') return
-  if (!characterInfo || messages.length === 0) return
+  if (!characterInfo || !characterInfo.emotionImages || messages.length === 0) return
 
   const last = messages[messages.length - 1]
   if (!last || last.role !== 'assistant') return
-
-  // 감정 이미지가 이미 설정되었으면 무시
-  if (displayedImage) return
 
   const matched = characterInfo.emotionImages.find((img) =>
     last.content.includes(img.label)
@@ -227,25 +215,10 @@ useEffect(() => {
 
   if (matched) {
     setDisplayedImage(matched.imageUrl)
-  } else if (characterInfo.emotionImages.length > 0) {
-    // 매칭된 라벨이 없을 경우에도 첫 번째 이미지 기본으로 표시
+  } else if (!displayedImage && characterInfo.emotionImages.length > 0) {
     setDisplayedImage(characterInfo.emotionImages[0].imageUrl)
   }
-}, [mode, messages, characterInfo, displayedImage])
-
-useEffect(() => {
-  if (mode !== 'continue') return
-  if (!messages || messages.length === 0 || !characterInfo) return
-  if (displayedImage) return
-
-  const last = messages[messages.length - 1]
-  if (!last || last.role !== 'assistant') return
-
-  const matched = characterInfo.emotionImages.find((img) =>
-    last.content.includes(img.label)
-  )
-  if (matched) setDisplayedImage(matched.imageUrl)
-}, [mode, messages, characterInfo, displayedImage])
+}, [characterInfo, messages])
 
   const deductPoint = async (amount: number) => {
   if (!userId) return false
