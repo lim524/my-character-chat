@@ -103,7 +103,7 @@ export default function SettingsPage() {
       <div className="w-full max-w-md space-y-6">
         {/* 프로필 이미지 업로드 */}
         <div className="relative w-24 h-24 mx-auto">
-          <img src={image || '/default-profile.png'} alt="프로필" className="rounded-full w-full h-full object-cover" />
+          <img src={image ? image : '/default-profile.png'} alt="프로필" className="rounded-full w-full h-full object-cover" />
           <div className="absolute bottom-0 right-0 bg-black/70 rounded-full p-1 cursor-pointer">
             <ImageUploader onUpload={(url) => setImage(url)} />
           </div>
