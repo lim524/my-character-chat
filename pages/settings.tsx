@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const [nickname, setNickname] = useState('')
   const [nicknameError, setNicknameError] = useState('')
   const [checking, setChecking] = useState(false)
-  const [image, setImage] = useState('/logo/default-profile.png')
+  const [image, setImage] = useState('/default-profile.png')
 
   const generateRandomNickname = () => {
     const adjectives = ['사려깊은', '용감한', '수줍은', '우아한']
@@ -39,11 +39,11 @@ export default function SettingsPage() {
           const loadedNickname = userProfile.nickname || localStorage.getItem('profile-nickname') || generateRandomNickname()
           setNickname(loadedNickname)
           setGender(userProfile.gender || '남성')
-          setImage(userProfile.image || '/logo/default-profile.png')
+          setImage(userProfile.image || '/default-profile.png')
         } else {
           const fallbackNickname = localStorage.getItem('profile-nickname') || generateRandomNickname()
           setNickname(fallbackNickname)
-          setImage('/logo/default-profile.png')
+          setImage('/default-profile.png')
         }
       }
     }
@@ -84,7 +84,7 @@ export default function SettingsPage() {
       .update({
         nickname,
         gender,
-        image: image || '/logo/default-profile.png',
+        image: image || '/default-profile.png',
       })
       .eq('id', userId)
 
@@ -103,7 +103,7 @@ export default function SettingsPage() {
       <div className="w-full max-w-md space-y-6">
         {/* 프로필 이미지 업로드 */}
         <div className="relative w-24 h-24 mx-auto">
-          <img src={image || '/logo/default-profile.png'} alt="프로필" className="rounded-full w-full h-full object-cover" />
+          <img src={image || '/default-profile.png'} alt="프로필" className="rounded-full w-full h-full object-cover" />
           <div className="absolute bottom-0 right-0 bg-black/70 rounded-full p-1 cursor-pointer">
             <ImageUploader onUpload={(url) => setImage(url)} />
           </div>
