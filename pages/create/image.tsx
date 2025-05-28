@@ -107,7 +107,7 @@ export default function EmotionImagePage() {
       id: draft.id || uuidv4(),
       userId,
       name: draft.name,
-      isAdult: draft.isAdult ?? false,
+      isAdult: draft.isAdult === 'boolean' ? draft.isAdult : false,
       description: draft.description,
       personality: draft.occupation || '',
       situation: draft.situation || '',
@@ -182,7 +182,7 @@ export default function EmotionImagePage() {
                 {loading ? '업로드 중...' : 'AI 이미지 생성 기능은 추후 추가 예정'}
               </span>
             </div>
-            <input id="file-upload" type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+            <input id="file-upload" type="file" accept="image/*" multiple onChange={handleUpload} className="hidden" />
           </div>
 
 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
