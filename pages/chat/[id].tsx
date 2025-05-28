@@ -347,16 +347,14 @@ const sendMessage = async () => {
 </button>
  
 {characterInfo && (
- <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 max-w-5xl mx-auto w-full">
-   <div className="flex items-center gap-3">
-      {/* ← 홈으로 텍스트 버튼 */}
+  <div className="flex items-center justify-between px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
+    <div className="flex items-center gap-3">
       <button
         onClick={() => router.push('/')}
         className="text-white text-xl font-bold mr-2 hover:text-gray-300"
       >
         &lt;
       </button>
-
       {characterInfo.imageUrl && (
         <div className="relative w-10 h-10">
           <Image
@@ -367,30 +365,25 @@ const sendMessage = async () => {
           />
         </div>
       )}
-
-
-
-      <div>
-        <div className="font-semibold text-white">{characterInfo.name}</div>
-        <div className="text-xs text-gray-400">{characterInfo.personality}</div>
+      <div className="flex flex-col">
+        <span className="text-white text-sm font-semibold truncate">{characterInfo.name}</span>
+        <span className="text-xs text-gray-400 truncate">{characterInfo.personality}</span>
       </div>
     </div>
 
-    {/* ✅ 메뉴 버튼 포함 우측 영역 */}
-    <div className="text-right text-xs text-gray-400">
+    <div className="hidden sm:flex flex-col text-xs text-gray-400 items-end">
       {characterInfo.userName && <div>👤 {characterInfo.userName}</div>}
       {characterInfo.userRole && <div>역할: {characterInfo.userRole}</div>}
-    <button
-      onClick={() => setMenuOpen(!menuOpen)}
-      className="mt-1 p-1 text-white hover:text-yellow-300"
-      title="메뉴 열기"
-    >
-      <PanelRightOpen className="w-5 h-5" />
-    </button>
+      <button
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="mt-1 p-1 text-white hover:text-yellow-300"
+        title="메뉴 열기"
+      >
+        <PanelRightOpen className="w-5 h-5" />
+      </button>
     </div>
   </div>
 )}
-
     
 
 
