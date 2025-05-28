@@ -9,6 +9,9 @@ export default function MoresettingPage() {
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
 
+  const [isAdult, setIsAdult] = useState(false)
+
+
   const [userName, setUserName] = useState('')
   const [userDescription, setUserDescription] = useState('')
 
@@ -29,6 +32,7 @@ export default function MoresettingPage() {
         setUserDescription(parsed.userDescription || '')
         setProtagonist(parsed.protagonist || [{ name: '', description: '' }])
         setSupporting(parsed.supporting || [{ name: '', description: '' }])
+        setIsAdult(parsed.isAdult ?? false)  
       } catch (e) {
         console.error('character-draft 파싱 실패', e)
       }
@@ -48,6 +52,7 @@ export default function MoresettingPage() {
       userDescription,
       protagonist,
       supporting,
+      isAdult,
     }
     localStorage.setItem('character-draft', JSON.stringify(updated))
   }, [isPublic, tags, userName, userDescription, protagonist, supporting, isLoaded])
@@ -120,6 +125,48 @@ export default function MoresettingPage() {
             >
               비공개
             </button>
+          </div>
+        </div>
+
+        {/* 선정적 콘텐츠 포함 여부 */}
+        <div>
+          <label className="block mb-2 text-sm font-semibold">
+            선정적인 콘텐츠 포함 여부 <span className="text-red-500">*</span>
+          </label>
+          <p className="text-sm text-gray-400 mb-3">
+            선정적인 콘텐츠가 포함된 캐릭터를 모두 이용 가능으로 지정할 경우, 경고 없이 차단될 수 있습니다.
+          </p>
+
+          <div className="bg-[#1c1c1e] border border-[#333] rounded-lg p-4 space-y-3">
+            <div
+              onClick={() => setIsAdult(false)}
+              className={`flex items-center gap-3 p-3 rounded cursor-pointer transition border ${
+                !isAdult ? 'bg-[#333] border-white' : 'border-[#444] hover:border-white'
+              }`}
+            >
+              <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold"
+                  style={{ borderColor: !isAdult ? '#fff' : '#666' }}>
+                {!isAdult && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
+              </div>
+              <div>
+                <p className="text-white font-semibold">✅ 모든 사용자가 이용 가능해요</p>
+              </div>
+            </div>
+
+            <div
+              onClick={() => setIsAdult(true)}
+              className={`flex items-center gap-3 p-3 rounded cursor-pointer transition border ${
+                isAdult ? 'bg-[#333] border-white' : 'border-[#444] hover:border-white'
+              }`}
+            >
+              <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs font-bold"
+                  style={{ borderColor: isAdult ? '#fff' : '#666' }}>
+                {isAdult && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
+              </div>
+              <div>
+                <p className="text-white font-semibold">🔞 성인 사용자만 이용 가능해요</p>
+              </div>
+            </div>
           </div>
         </div>
 

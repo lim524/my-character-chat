@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
+import supabase from '@/lib/supabaseClient'
 
 export default function MyPage() {
   const [safetyFilter, setSafetyFilter] = useState(true)
@@ -19,10 +20,14 @@ export default function MyPage() {
     localStorage.setItem('safety-filter', newValue.toString())
   }
 
-  const handleLogout = () => {
-    // 실제 구현 시 Auth 연동 필요
-    alert('로그아웃 되었습니다')
-    router.push('/')
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) {
+      alert('로그아웃 실패: ' + error.message)
+    } else {
+      alert('로그아웃 되었습니다')
+      router.push('/')
+    }
   }
 
   return (
@@ -43,9 +48,12 @@ export default function MyPage() {
           </div>
             <p className="text-lg font-semibold">사려깊은노린재802</p>
           </div>
-          <button className="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600">
-            관리
-          </button>
+        <button
+          className="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"
+          onClick={() => router.push('/settings')}
+        >
+          관리
+        </button>
         </div>
 
         {/* 크리에이터 활동 */}
@@ -74,13 +82,6 @@ export default function MyPage() {
             className="bg-gray-800 hover:bg-gray-700 text-white py-2 px-4 rounded"
           >
             캐릭터 관리
-          </button>
-
-          <button
-            onClick={() => router.push('/settings')}
-            className="bg-gray-800 hover:bg-gray-700 text-white py-2 px-4 rounded"
-          >
-            설정
           </button>
 
           <button
