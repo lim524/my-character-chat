@@ -37,6 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     id: character.id,
     user_id: character.userId,
     name: character.name,
+    is_adult: character.isAdult,
     description: character.description || '',
     personality: character.personality || '',
     situation: character.situation || '',

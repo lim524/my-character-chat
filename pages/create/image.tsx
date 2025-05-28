@@ -107,6 +107,7 @@ export default function EmotionImagePage() {
       id: draft.id || uuidv4(),
       userId,
       name: draft.name,
+      isAdult: draft.isAdult ?? false,
       description: draft.description,
       personality: draft.occupation || '',
       situation: draft.situation || '',
