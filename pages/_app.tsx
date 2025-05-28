@@ -15,7 +15,6 @@ export default function App({ Component, pageProps }: AppProps) {
       {!isChatPage && <TopNav />}
       <Component {...pageProps} />
       {!isChatPage && <BottomNav />}
-      <PointBadge />
     </SearchProvider>
   )
 }
