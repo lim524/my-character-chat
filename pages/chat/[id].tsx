@@ -346,8 +346,9 @@ const sendMessage = async () => {
 >
 </button>
  
+// ✅ 최상단 상단바 + 배경 이미지 모바일 대응 포함
 {characterInfo && (
-  <div className="flex items-center justify-between px-4 py-3 pt-[env(safe-area-inset-top)] sm:pt-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
+  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 max-w-5xl mx-auto w-full px-4 sm:px-0 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
     <div className="flex items-center gap-3">
       <button
         onClick={() => router.push('/')}
@@ -355,6 +356,7 @@ const sendMessage = async () => {
       >
         &lt;
       </button>
+
       {characterInfo.imageUrl && (
         <div className="relative w-10 h-10">
           <Image
@@ -365,13 +367,14 @@ const sendMessage = async () => {
           />
         </div>
       )}
-      <div className="flex flex-col">
-        <span className="text-white text-sm font-semibold truncate">{characterInfo.name}</span>
-        <span className="text-xs text-gray-400 truncate">{characterInfo.personality}</span>
+
+      <div>
+        <div className="font-semibold text-white text-sm sm:text-base">{characterInfo.name}</div>
+        <div className="text-xs text-gray-400">{characterInfo.personality}</div>
       </div>
     </div>
 
-    <div className="hidden sm:flex flex-col text-xs text-gray-400 items-end">
+    <div className="text-right text-xs text-gray-400 ml-auto">
       {characterInfo.userName && <div>👤 {characterInfo.userName}</div>}
       {characterInfo.userRole && <div>역할: {characterInfo.userRole}</div>}
       <button
@@ -384,144 +387,132 @@ const sendMessage = async () => {
     </div>
   </div>
 )}
-    
 
+<div className="relative h-screen overflow-hidden">
+  {/* 모바일: 배경 이미지 */}
+  {characterInfo?.emotionImages && displayedImage && (
+    <div className="sm:hidden absolute inset-0 opacity-20 -z-10">
+      <Image
+        src={displayedImage}
+        alt="배경 이미지"
+        fill
+        className="object-cover"
+      />
+    </div>
+  )}
 
-<div className="flex h-screen overflow-hidden"> 
-  {/* 좌측: 고정 이미지 영역 */}
-  <div className="w-full sm:w-1/2 sm:max-w-[50%] px-4 sm:px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] font-light leading-relaxed overflow-y-auto h-full relative z-10">
-    {characterInfo?.emotionImages && displayedImage && (
-      <>
-        <div className="relative w-full max-w-md aspect-square">
-          <Image
-            src={displayedImage}
-            alt="감정 이미지"
-            fill
-            className="object-cover rounded-xl"
-          />
-        </div>
-
-        {characterInfo?.emotionImages && displayedImage && (
-          <div className="absolute inset-0 -z-10 sm:hidden">
+  <div className="flex h-full">
+    {/* 데스크탑: 고정 이미지 영역 */}
+    <div className="hidden sm:flex w-1/2 max-w-[50%] h-full px-6 pt-[4.5rem] pb-20 flex-col items-center justify-start">
+      {characterInfo?.emotionImages && displayedImage && (
+        <>
+          <div className="relative w-full max-w-md aspect-square">
             <Image
               src={displayedImage}
-              alt="감정 배경"
+              alt="감정 이미지"
               fill
-              className="object-cover opacity-20"
+              className="object-cover rounded-xl"
             />
           </div>
-        )}
 
-        <div className="mt-4 text-sm text-gray-300 bg-[#1e1e1e] px-4 py-2 rounded-xl max-w-sm w-full text-center">
-          {
-            characterInfo.emotionImages.find(img => img.imageUrl === displayedImage)?.label
-            || '감정 정보 없음'
-          }
-        </div>
-      </>
-    )}
-  </div>
-
-      {characterInfo?.emotionImages && displayedImage && (
-        <div className="absolute inset-0 -z-10 sm:hidden">
-          <Image
-            src={displayedImage}
-            alt="감정 이미지"
-            fill
-            className="object-cover opacity-20"
-          />
-        </div>
-      )}
-
-
-  {/* 우측: 채팅 스크롤 영역 */}
-<div className="w-full sm:w-1/2 sm:max-w-[50%] px-4 sm:px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full relative z-10">
-            {messages.map((msg) => {
-  const isEditing = editTargetId === msg.id
-  const isUser = msg.role === 'user'
-
-  return (
-    <div key={msg.id} className="group relative p-1">
-      {isEditing ? (
-        <div className="flex flex-col gap-2">
-          <textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
-            rows={4}
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={async () => {
-                await fetch('/api/update-message', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: msg.id, content: editContent }),
-                })
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
-                )
-                setEditTargetId(null)
-              }}
-              className="text-sm text-yellow-400 hover:text-yellow-300"
-            >
-              저장
-            </button>
-            <button
-              onClick={() => setEditTargetId(null)}
-              className="text-sm text-gray-400 hover:text-white"
-            >
-              취소
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
-            {msg.content}
-          </div>
-          <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-            <button
-              onClick={() => {
-                setEditTargetId(msg.id)
-                setEditContent(msg.content)
-              }}
-              className="text-gray-400 hover:text-white"
-              title="수정"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              onClick={async () => {
-                await fetch('/api/delete-message', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: msg.id }),
-                })
-                setMessages((prev) => prev.filter((m) => m.id !== msg.id))
-              }}
-              className="text-gray-400 hover:text-red-400"
-              title="삭제"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+          <div className="mt-4 text-sm text-gray-300 bg-[#1e1e1e] px-4 py-2 rounded-xl max-w-sm w-full text-center">
+            {
+              characterInfo.emotionImages.find(img => img.imageUrl === displayedImage)?.label
+              || '감정 정보 없음'
+            }
           </div>
         </>
       )}
     </div>
-  )
-})}
 
-    <div ref={bottomRef} />
+    {/* 채팅 영역 */}
+    <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full">
+      {messages.map((msg) => {
+        const isEditing = editTargetId === msg.id
+        const isUser = msg.role === 'user'
+
+        return (
+          <div key={msg.id} className="group relative p-1">
+            {isEditing ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
+                  rows={4}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={async () => {
+                      await fetch('/api/update-message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: msg.id, content: editContent }),
+                      })
+                      setMessages((prev) =>
+                        prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
+                      )
+                      setEditTargetId(null)
+                    }}
+                    className="text-sm text-yellow-400 hover:text-yellow-300"
+                  >
+                    저장
+                  </button>
+                  <button
+                    onClick={() => setEditTargetId(null)}
+                    className="text-sm text-gray-400 hover:text-white"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
+                  {msg.content}
+                </div>
+                <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                  <button
+                    onClick={() => {
+                      setEditTargetId(msg.id)
+                      setEditContent(msg.content)
+                    }}
+                    className="text-gray-400 hover:text-white"
+                    title="수정"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await fetch('/api/delete-message', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: msg.id }),
+                      })
+                      setMessages((prev) => prev.filter((m) => m.id !== msg.id))
+                    }}
+                    className="text-gray-400 hover:text-red-400"
+                    title="삭제"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })}
+
+      <div ref={bottomRef} />
+    </div>
   </div>
 </div>
 
-  <div
-    className="sticky bottom-0 bg-[#111]/90 border-t border-[#333] px-4 py-3 z-50 backdrop-blur-sm"
-    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-  >
+<div
+  className="sticky bottom-0 bg-[#111] border-t border-[#333] px-4 py-3 z-50"
+  style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+>
   <div className="flex items-center gap-3 max-w-5xl mx-auto">
-    {/* 왼쪽: 모델 선택 */}
     <button
       onClick={() => setShowModelModal(true)}
       className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap"
@@ -529,8 +520,6 @@ const sendMessage = async () => {
       모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}
     </button>
 
-
-    {/* 가운데 + 오른쪽: 채팅 입력 UI */}
     <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2">
       <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
       <input
@@ -538,6 +527,7 @@ const sendMessage = async () => {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
         placeholder="대사를 입력하세요"
+        inputMode="text"
         className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none"
       />
       <button
@@ -555,7 +545,6 @@ const sendMessage = async () => {
     </div>
   </div>
 </div>
-
 
       {showModelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
