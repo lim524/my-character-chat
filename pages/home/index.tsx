@@ -92,7 +92,8 @@ const filteredCharacters = characters.filter((char) => {
     char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     char.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-  const allowBySafety = !safetyFilter || !char.isAdult // 세이프티 ON이면 성인물 제외
+  const allowBySafety =
+  !safetyFilter || char.isAdult === false
 
   return matchesSearch && allowBySafety
 
