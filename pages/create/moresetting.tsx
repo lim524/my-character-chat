@@ -55,7 +55,7 @@ export default function MoresettingPage() {
       isAdult,
     }
     localStorage.setItem('character-draft', JSON.stringify(updated))
-  }, [isPublic, tags, userName, userDescription, protagonist, supporting, isLoaded])
+  }, [isPublic, tags, userName, userDescription, protagonist, supporting, isLoaded, isAdult])
 
   const handleNext = () => {
     router.push('/create/image')
