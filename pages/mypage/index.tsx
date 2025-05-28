@@ -6,6 +6,29 @@ import supabase from '@/lib/supabaseClient'
 export default function MyPage() {
   const [safetyFilter, setSafetyFilter] = useState(true)
   const router = useRouter()
+  const [nickname, setNickname] = useState('')
+
+    useEffect(() => {
+    const cached = localStorage.getItem('profile-nickname')
+    if (cached) setNickname(cached)
+
+    const fetchNickname = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase
+          .from('users')
+          .select('nickname')
+          .eq('id', user.id)
+          .single()
+        if (data?.nickname) {
+          setNickname(data.nickname)
+          localStorage.setItem('profile-nickname', data.nickname)
+        }
+      }
+    }
+    fetchNickname()
+  }, [])
+
 
   useEffect(() => {
     const savedFilter = localStorage.getItem('safety-filter')
@@ -46,7 +69,7 @@ export default function MyPage() {
               className="rounded-full object-cover"
             />
           </div>
-            <p className="text-lg font-semibold">사려깊은노린재802</p>
+            <p className="text-lg font-semibold">{nickname}</p>
           </div>
         <button
           className="text-sm bg-gray-700 px-3 py-1 rounded hover:bg-gray-600"

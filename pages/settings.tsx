@@ -36,11 +36,13 @@ export default function SettingsPage() {
           .single()
 
         if (userProfile) {
-          setNickname(userProfile.nickname || generateRandomNickname())
+          const loadedNickname = userProfile.nickname || localStorage.getItem('profile-nickname') || generateRandomNickname()
+          setNickname(loadedNickname)
           setGender(userProfile.gender || '남성')
           setImage(userProfile.image || '/default-profile.png')
         } else {
-          setNickname(generateRandomNickname())
+          const fallbackNickname = localStorage.getItem('profile-nickname') || generateRandomNickname()
+          setNickname(fallbackNickname)
           setImage('/default-profile.png')
         }
       }
@@ -90,6 +92,7 @@ export default function SettingsPage() {
       console.error('❌ 프로필 저장 실패:', error)
       alert('저장 실패: ' + error.message)
     } else {
+      localStorage.setItem('profile-nickname', nickname)
       alert('프로필이 저장되었습니다.')
       location.reload()
     }
@@ -147,7 +150,7 @@ export default function SettingsPage() {
                 setNickname(random)
                 setNicknameError('')
               }}
-              className="px-3 py-2 bg-pink-600 text-white text-sm rounded hover:bg-pink-500"
+              className="px-3 py-2 bg-white text-black text-sm rounded hover:bg-gray-300"
             >
               랜덤 생성
             </button>
