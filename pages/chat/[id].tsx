@@ -349,7 +349,6 @@ const sendMessage = async () => {
 {characterInfo && (
   <div className="flex items-start justify-between px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
     <div className="flex items-center gap-3">
-      {/* ← 홈으로 텍스트 버튼 */}
       <button
         onClick={() => router.push('/')}
         className="text-white text-xl font-bold mr-2 hover:text-gray-300"
@@ -374,23 +373,86 @@ const sendMessage = async () => {
       </div>
     </div>
 
-    {/* ✅ 메뉴 버튼 포함 우측 영역 */}
     <div className="text-right text-xs text-gray-400">
       {characterInfo.userName && <div>👤 {characterInfo.userName}</div>}
       {characterInfo.userRole && <div>역할: {characterInfo.userRole}</div>}
-    <button
-      onClick={() => setMenuOpen(!menuOpen)}
-      className="mt-1 p-1 text-white hover:text-yellow-300"
-      title="메뉴 열기"
-    >
-      <PanelRightOpen className="w-5 h-5" />
-    </button>
+      <button
+        onClick={() => setMenuOpen(!menuOpen)}
+        className="mt-1 p-1 text-white hover:text-yellow-300"
+        title="메뉴 열기"
+      >
+        <PanelRightOpen className="w-5 h-5" />
+      </button>
     </div>
   </div>
 )}
-    
-<div className="flex h-screen overflow-hidden"> 
-  {/* 좌측: 고정 이미지 영역 */}
+
+{characterInfo && (
+  <>
+    <div className="relative w-full h-screen bg-black text-white overflow-hidden sm:hidden">
+      {displayedImage && (
+        <Image
+          src={displayedImage}
+          alt="배경"
+          fill
+          className="object-cover opacity-25"
+        />
+      )}
+
+      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-[#111]/80 backdrop-blur-md">
+        <div className="flex items-center gap-2">
+          
+          {characterInfo.imageUrl && (
+            <Image
+              src={characterInfo.imageUrl}
+              alt="캐릭터"
+              width={36}
+              height={36}
+              className="rounded-full object-cover"
+            />
+          )}
+
+          <div>
+            <div className="text-sm font-semibold">{characterInfo.name}</div>
+            <div className="text-xs text-gray-400">@{characterInfo.userName}</div>
+          </div>
+        </div>
+        <div className="text-white">⋮</div>
+      </div>
+
+      <div className="absolute top-16 bottom-20 left-0 right-0 z-10 overflow-y-auto px-4 py-2 space-y-3">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`text-sm whitespace-pre-wrap ${msg.role === 'user' ? 'text-gray-300 italic' : 'text-yellow-400'}`}
+          >
+            {msg.content}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#111]/90 px-4 py-3">
+        <div className="flex items-center gap-2 bg-[#222] rounded-full px-4 py-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+            placeholder="대사를 입력하세요"
+            className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none"
+          />
+          <button onClick={sendMessage}>
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2.94 2.94a1.5 1.5 0 0 1 1.67-.3l12.5 5.8a1.5 1.5 0 0 1 0 2.72l-12.5 5.8A1.5 1.5 0 0 1 2 15.8V4.2a1.5 1.5 0 0 1 .94-1.26z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </>
+)}
+
+<div className="hidden sm:flex h-screen overflow-hidden">
   <div className="w-1/2 max-w-[50%] h-full px-6 pt-[4.5rem] pb-20 flex flex-col items-center justify-start">
     {characterInfo?.emotionImages && displayedImage && (
       <>
@@ -402,7 +464,6 @@ const sendMessage = async () => {
             className="object-cover rounded-xl"
           />
         </div>
-
         <div className="mt-4 text-sm text-gray-300 bg-[#1e1e1e] px-4 py-2 rounded-xl max-w-sm w-full text-center">
           {
             characterInfo.emotionImages.find(img => img.imageUrl === displayedImage)?.label
@@ -413,100 +474,94 @@ const sendMessage = async () => {
     )}
   </div>
 
-  {/* 우측: 채팅 스크롤 영역 */}
   <div className="w-1/2 max-w-[50%] px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full">
-            {messages.map((msg) => {
-  const isEditing = editTargetId === msg.id
-  const isUser = msg.role === 'user'
+    {messages.map((msg) => {
+      const isEditing = editTargetId === msg.id
+      const isUser = msg.role === 'user'
 
-  return (
-    <div key={msg.id} className="group relative p-1">
-      {isEditing ? (
-        <div className="flex flex-col gap-2">
-          <textarea
-            value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
-            rows={4}
-          />
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={async () => {
-                await fetch('/api/update-message', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: msg.id, content: editContent }),
-                })
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
-                )
-                setEditTargetId(null)
-              }}
-              className="text-sm text-yellow-400 hover:text-yellow-300"
-            >
-              저장
-            </button>
-            <button
-              onClick={() => setEditTargetId(null)}
-              className="text-sm text-gray-400 hover:text-white"
-            >
-              취소
-            </button>
-          </div>
+      return (
+        <div key={msg.id} className="group relative p-1">
+          {isEditing ? (
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
+                rows={4}
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={async () => {
+                    await fetch('/api/update-message', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: msg.id, content: editContent }),
+                    })
+                    setMessages((prev) =>
+                      prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
+                    )
+                    setEditTargetId(null)
+                  }}
+                  className="text-sm text-yellow-400 hover:text-yellow-300"
+                >
+                  저장
+                </button>
+                <button
+                  onClick={() => setEditTargetId(null)}
+                  className="text-sm text-gray-400 hover:text-white"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
+                {msg.content}
+              </div>
+              <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                <button
+                  onClick={() => {
+                    setEditTargetId(msg.id)
+                    setEditContent(msg.content)
+                  }}
+                  className="text-gray-400 hover:text-white"
+                  title="수정"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/delete-message', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: msg.id }),
+                    })
+                    setMessages((prev) => prev.filter((m) => m.id !== msg.id))
+                  }}
+                  className="text-gray-400 hover:text-red-400"
+                  title="삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
-            {msg.content}
-          </div>
-          <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-            <button
-              onClick={() => {
-                setEditTargetId(msg.id)
-                setEditContent(msg.content)
-              }}
-              className="text-gray-400 hover:text-white"
-              title="수정"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              onClick={async () => {
-                await fetch('/api/delete-message', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: msg.id }),
-                })
-                setMessages((prev) => prev.filter((m) => m.id !== msg.id))
-              }}
-              className="text-gray-400 hover:text-red-400"
-              title="삭제"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  )
-})}
-
+      )
+    })}
     <div ref={bottomRef} />
   </div>
 </div>
 
 <div className="sticky bottom-0 bg-[#111] border-t border-[#333] px-4 py-3 z-50">
   <div className="flex items-center gap-3 max-w-5xl mx-auto">
-    {/* 왼쪽: 모델 선택 */}
     <button
       onClick={() => setShowModelModal(true)}
       className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap"
     >
       모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}
     </button>
-
-
-    {/* 가운데 + 오른쪽: 채팅 입력 UI */}
     <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2">
       <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
       <input
@@ -531,7 +586,6 @@ const sendMessage = async () => {
     </div>
   </div>
 </div>
-
 
       {showModelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
