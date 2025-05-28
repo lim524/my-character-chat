@@ -347,7 +347,7 @@ const sendMessage = async () => {
 </button>
  
 {characterInfo && (
-  <div className="flex items-center justify-between px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
+  <div className="flex items-center justify-between px-4 py-3 pt-[env(safe-area-inset-top)] sm:pt-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
     <div className="flex items-center gap-3">
       <button
         onClick={() => router.push('/')}
@@ -389,7 +389,7 @@ const sendMessage = async () => {
 
 <div className="flex h-screen overflow-hidden"> 
   {/* 좌측: 고정 이미지 영역 */}
-  <div className="hidden sm:flex w-1/2 max-w-[50%] h-full px-6 pt-[4.5rem] pb-20 flex-col items-center justify-start">
+  <div className="w-full sm:w-1/2 sm:max-w-[50%] px-4 sm:px-6 pt-[4.5rem] pb-32 space-y-4 text-[15px] font-light leading-relaxed overflow-y-auto h-full relative z-10">
     {characterInfo?.emotionImages && displayedImage && (
       <>
         <div className="relative w-full max-w-md aspect-square">
@@ -401,7 +401,16 @@ const sendMessage = async () => {
           />
         </div>
 
-
+        {characterInfo?.emotionImages && displayedImage && (
+          <div className="absolute inset-0 -z-10 sm:hidden">
+            <Image
+              src={displayedImage}
+              alt="감정 배경"
+              fill
+              className="object-cover opacity-20"
+            />
+          </div>
+        )}
 
         <div className="mt-4 text-sm text-gray-300 bg-[#1e1e1e] px-4 py-2 rounded-xl max-w-sm w-full text-center">
           {
@@ -507,7 +516,10 @@ const sendMessage = async () => {
   </div>
 </div>
 
-<div className="sticky bottom-0 bg-[#111]/90 backdrop-blur-sm border-t border-[#333] px-4 py-3 z-50">
+  <div
+    className="sticky bottom-0 bg-[#111]/90 border-t border-[#333] px-4 py-3 z-50 backdrop-blur-sm"
+    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+  >
   <div className="flex items-center gap-3 max-w-5xl mx-auto">
     {/* 왼쪽: 모델 선택 */}
     <button
