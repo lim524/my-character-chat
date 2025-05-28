@@ -1,12 +1,12 @@
 // pages/settings.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import supabase from '@/lib/supabaseClient'
-import ImageUploader from '@/components/ImageUploader'
 import Image from 'next/image'
 
 export default function SettingsPage() {
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [email, setEmail] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
@@ -25,7 +25,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser()
+      const { data } = await supabase.auth.getUser()
       if (data?.user) {
         setEmail(data.user.email || '')
         setUserId(data.user.id)
@@ -67,6 +67,21 @@ export default function SettingsPage() {
     setChecking(false)
   }
 
+  const handleImageClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // 파일을 업로드하는 로직 (예: supabase storage)
+    // 여기에 직접 업로드 구현 필요
+    // 지금은 임시로 preview URL 설정
+    const previewUrl = URL.createObjectURL(file)
+    setImage(previewUrl)
+  }
+
   const saveProfile = async () => {
     if (nicknameError) {
       alert('닉네임 중복을 해결해주세요.')
@@ -99,17 +114,21 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-[#1f1f1f] text-white px-6 py-8 pt-28 flex justify-center">
       <div className="w-full max-w-md space-y-6">
-        {/* 프로필 이미지 업로드 */}
-        <div className="relative w-24 h-24 mx-auto">
+        {/* 프로필 이미지 */}
+        <div className="relative w-24 h-24 mx-auto cursor-pointer" onClick={handleImageClick}>
           <Image
             src={image?.trim() ? image : '/default-profile.png'}
             alt="프로필"
             fill
             className="rounded-full object-cover"
           />
-          <div className="absolute bottom-0 right-0 z-10">
-            <ImageUploader onUpload={(url) => setImage(url)} />
-          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleImageChange}
+          />
         </div>
 
         {/* 이메일 (읽기 전용) */}
