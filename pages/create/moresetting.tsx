@@ -133,9 +133,6 @@ export default function MoresettingPage() {
           <label className="block mb-2 text-sm font-semibold">
             선정적인 콘텐츠 포함 여부 <span className="text-red-500">*</span>
           </label>
-          <p className="text-sm text-gray-400 mb-3">
-            선정적인 콘텐츠가 포함된 캐릭터를 모두 이용 가능으로 지정할 경우, 경고 없이 차단될 수 있습니다.
-          </p>
 
           <div className="bg-[#1c1c1e] border border-[#333] rounded-lg p-4 space-y-3">
             <div

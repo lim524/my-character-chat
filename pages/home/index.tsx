@@ -19,6 +19,7 @@ interface RawCharacter {
   description: string
   situation: string
   image_url?: string
+  is_adult?: boolean
 }
 
 interface Character {
@@ -30,6 +31,7 @@ interface Character {
   imageUrl: string
   likes: number
   views: number
+  isAdult?: boolean
 }
 
 export default function HomePage() {
@@ -38,13 +40,13 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<'recommend' | 'ranking'>('recommend')
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const { searchQuery, setSearchQuery, showSearch } = useSearch()
-
+  const [safetyFilter, setSafetyFilter] = useState(true)
 
   useEffect(() => {
     const fetchCharacters = async () => {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, personality, description, situation, image_url')
+        .select('id, name, personality, description, situation, image_url, is_adult')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
 
@@ -64,10 +66,14 @@ export default function HomePage() {
           : '/default-profile.png',
         likes: 0,
         views: 0,
+        isAdult: char.is_adult ?? false,
       }))
 
       setCharacters(processed)
     }
+
+    const filter = localStorage.getItem('safety-filter')
+    setSafetyFilter(filter === 'true')
 
     fetchCharacters()
   }, [])
@@ -81,11 +87,16 @@ export default function HomePage() {
     router.push(`/chat/${encodeURIComponent(id)}`)
   }
 
-  const filteredCharacters = characters.filter((char) =>
-  char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-  char.description.toLowerCase().includes(searchQuery.toLowerCase())
-)
+const filteredCharacters = characters.filter((char) => {
+  const matchesSearch =
+    char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    char.description.toLowerCase().includes(searchQuery.toLowerCase())
 
+  const allowBySafety = !safetyFilter || !char.isAdult // 세이프티 ON이면 성인물 제외
+
+  return matchesSearch && allowBySafety
+
+})
   return (
     <>
       <main className="bg-black text-white h-screen px-4 pt-28 pb-32">
