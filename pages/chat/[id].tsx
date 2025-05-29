@@ -346,7 +346,6 @@ const sendMessage = async () => {
 >
 </button>
  
-// ✅ 최상단 상단바 + 배경 이미지 모바일 대응 포함
 {characterInfo && (
   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 max-w-5xl mx-auto w-full px-4 sm:px-0 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
     <div className="flex items-center gap-3">
