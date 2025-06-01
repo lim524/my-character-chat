@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
 import Image from 'next/image'
-import { Pencil, Trash2, PanelRightOpen, Sparkles, Smile, Bot, Zap, Feather, Gem } from 'lucide-react' // 이모티콘을 위해 lucide-react에서 아이콘 추가
+import { Pencil, Trash2, PanelRightOpen, Sparkles, Smile, Bot, Zap, Feather, Gem } from 'lucide-react'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -137,6 +137,8 @@ export default function ChatPage() {
       }
 
       setCharacterInfo(formattedCharacter)
+      // 디버깅용: 캐릭터 정보 로드 확인
+      console.log('캐릭터 정보 로드:', formattedCharacter);
 
       if (mode === 'continue') {
         const { data: sessionMessages, error } = await supabase
@@ -341,6 +343,7 @@ export default function ChatPage() {
             layout="fill"
             objectFit="cover"
             className="blur-sm" // 배경 이미지에 약간의 블러 효과
+            priority // 이 속성을 추가하여 이미지 로딩 우선순위를 높입니다.
           />
         </div>
       )}
@@ -366,7 +369,7 @@ export default function ChatPage() {
             </div>
           )}
 
-          <div className="flex-grow min-w-0"> {/* 내용이 길어져도 짤리지 않게 */}
+          <div className="flex-grow min-w-0">
             <div className="font-semibold text-white text-base truncate">{characterInfo.name}</div>
             <div className="text-xs text-gray-400 truncate">{characterInfo.personality}</div>
           </div>
@@ -410,7 +413,7 @@ export default function ChatPage() {
         </div>
 
         {/* Chat Area (full width on mobile) */}
-        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10"> {/* z-10 추가로 배경 이미지 위에 오도록 */}
+        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10">
           {messages.map((msg) => {
             const isEditing = editTargetId === msg.id
             const isUser = msg.role === 'user'
@@ -494,28 +497,28 @@ export default function ChatPage() {
 
       {/* Chat Input */}
       <div className="w-full bg-[#111] border-t border-[#333] px-4 py-3 z-50">
-        <div className="flex items-center gap-3 max-w-5xl mx-auto flex-wrap sm:flex-nowrap"> {/* flex-wrap 추가로 모바일에서 줄바꿈 가능 */}
+        <div className="flex items-center gap-3 max-w-5xl mx-auto flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setShowModelModal(true)}
-            className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center justify-center sm:w-auto w-full mb-2 sm:mb-0" // 모바일에서 버튼 너비 조정
+            className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center justify-center sm:w-auto w-full mb-2 sm:mb-0"
           >
-            {models.find(m => m.id === selectedModel)?.icon} {/* 아이콘 추가 */}
+            {models.find(m => m.id === selectedModel)?.icon}
             <span className="ml-1">모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}</span>
           </button>
 
-          <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2 w-full"> {/* w-full 추가로 모바일에서 너비 조정 */}
+          <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2 w-full">
             <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
-            <textarea // input 대신 textarea를 사용하여 높이 자동 조절
+            <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) { // Shift+Enter는 줄바꿈, Enter는 전송
+                if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
                 }
               }}
               placeholder="대사를 입력하세요"
-              className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none resize-none overflow-hidden h-auto max-h-24" // 높이 자동 조절
+              className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none resize-none overflow-hidden h-auto max-h-24"
               rows={1}
             />
             <button
@@ -535,8 +538,8 @@ export default function ChatPage() {
       </div>
 
       {showModelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"> {/* p-4 추가로 모바일에서 여백 */}
-          <div className="bg-[#1b1b1b] p-6 rounded-2xl w-full max-w-sm space-y-6 relative"> {/* max-w-sm 추가로 모바일에서 너비 제한 */}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1b1b1b] p-6 rounded-2xl w-full max-w-sm space-y-6 relative">
             <h2 className="text-xl font-bold text-white text-center">AI 모델 선택</h2>
             <div className="space-y-4">
               {models.map((model) => (
@@ -547,8 +550,8 @@ export default function ChatPage() {
                     ${selectedModel === model.id ? 'bg-[#e45463]' : 'bg-[#2b2b2b]'}
                   `}
                 >
-                  <div className="flex items-center"> {/* 아이콘과 텍스트를 함께 정렬 */}
-                    <span className="mr-2">{model.icon}</span> {/* 이모티콘 위치 */}
+                  <div className="flex items-center">
+                    <span className="mr-2">{model.icon}</span>
                     <div className="flex flex-col">
                       <span className="text-white font-semibold">{model.label}</span>
                       <span className="text-xs text-gray-400">{model.description}</span>
@@ -569,7 +572,7 @@ export default function ChatPage() {
       )}
 
       {menuOpen && (
-        <div className="fixed top-0 right-0 h-screen w-full max-w-[320px] bg-[#111] border-l border-gray-800 z-50 overflow-y-auto shadow-xl sm:w-[320px]"> {/* 모바일에서 w-full, 데스크톱에서 w-[320px] */}
+        <div className="fixed top-0 right-0 h-screen w-full max-w-[320px] bg-[#111] border-l border-gray-800 z-50 overflow-y-auto shadow-xl sm:w-[320px]">
           <ChatMenu
             userName={userName}
             userDescription={userDescription}
