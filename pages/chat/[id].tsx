@@ -335,7 +335,6 @@ export default function ChatPage() {
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {/* Background Image for Mobile */}
-      <div className="relative sm:hidden w-full h-full"></div>
       {characterInfo?.imageUrl && (
         <div className="sm:hidden absolute inset-0 z-0 opacity-10">
           <Image
