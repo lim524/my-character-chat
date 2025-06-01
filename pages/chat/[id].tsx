@@ -337,16 +337,15 @@ export default function ChatPage() {
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {/* Background Image for Mobile */}
       {characterInfo?.imageUrl && ( // emotionImages 대신 imageUrl을 사용
-        <div className="sm:hidden absolute inset-0 z-0 opacity-15"> {/* opacity를 15로 조정, z-0 유지 */}
-          <Image
-            src={characterInfo.imageUrl}
-            alt="background"
-            layout="fill"
-            objectFit="cover"
-            className="blur-sm" // 배경 이미지에 약간의 블러 효과
-            priority // 이 속성을 추가하여 이미지 로딩 우선순위를 높입니다.
-          />
-        </div>
+      <div className="sm:hidden relative w-full h-full absolute inset-0 z-0">
+        <Image
+          src={characterInfo.imageUrl}
+          alt="배경 이미지"
+          fill
+          className="object-cover opacity-15 blur-sm"
+          priority
+        />
+      </div>
       )}
 
       {/* Top Navigation */}
@@ -464,7 +463,7 @@ export default function ChatPage() {
                       {msg.content}
                     </div>
                     {/* 수정/삭제 버튼 위치 조정 */}
-                    <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition">
+                    <div className="flex justify-end gap-2 mt-1 transition sm:opacity-0 sm:group-hover:opacity-100">
                       <span className="mr-4"></span> {/* 스페이스 효과 유지 */}
                       <button
                         onClick={() => {
