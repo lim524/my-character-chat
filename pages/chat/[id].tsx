@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
 import Image from 'next/image'
-import { Pencil, Trash2, PanelRightOpen, Sparkles, Smile, Bot, Zap, Feather, Gem } from 'lucide-react' // 이모티콘 아이콘 추가
+import { Pencil, Trash2, PanelRightOpen, Sparkles, Smile, Bot, Zap, Feather, Gem } from 'lucide-react' // 아이콘 추가
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -131,17 +131,17 @@ export default function ChatPage() {
         return
       }
 
-      // Supabase에서 imageUrl을 characterInfo.imageUrl로 직접 할당
       const formattedCharacter: Character = {
         ...data,
-        imageUrl: data.imageUrl || null, // imageUrl 필드가 null일 경우를 대비
+        // data.imageUrl이 null이면 null을 그대로 유지, 그렇지 않으면 data.imageUrl 값 사용
+        imageUrl: data.imageUrl || null, 
         emotionImages: Array.isArray(data.emotion_images) ? data.emotion_images : [],
       }
 
       setCharacterInfo(formattedCharacter)
       // 디버깅용: 캐릭터 정보 로드 확인
       console.log('캐릭터 정보 로드:', formattedCharacter);
-      console.log('배경 이미지 URL:', formattedCharacter.imageUrl); // 이제 제대로 나와야 함
+      console.log('배경 이미지 URL:', formattedCharacter.imageUrl); // Supabase에서 가져온 imageUrl 값을 그대로 출력
 
 
       if (mode === 'continue') {
@@ -186,9 +186,12 @@ export default function ChatPage() {
 
       setMessages(initialMessages)
 
-      // 초기 감정 이미지 표시
+      // 초기 감정 이미지 표시 (emotionImages가 있다면 첫 번째 이미지)
       if (formattedCharacter.emotionImages.length > 0) {
         setDisplayedImage(formattedCharacter.emotionImages[0].imageUrl)
+      } else {
+        // 감정 이미지가 없다면, 캐릭터의 메인 이미지를 기본으로 설정 (선택적)
+        setDisplayedImage(formattedCharacter.imageUrl || null);
       }
     }
 
@@ -338,24 +341,24 @@ export default function ChatPage() {
 
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
-      {/* Background Image for Mobile */}
-      {/* imageUrl을 배경으로 사용하도록 조건과 src를 변경합니다. */}
-      {characterInfo?.imageUrl && ( 
-      <div className="sm:hidden absolute inset-0 z-0"> {/* relative w-full h-full 제거 */}
-        <Image
-          src={characterInfo.imageUrl} // emotionImages 대신 imageUrl을 사용
-          alt="배경 이미지"
-          fill
-          className="object-cover opacity-15 blur-sm"
-          priority
-        />
-      </div>
+      {/* Background Image for Mobile (sm:hidden) */}
+      {/* displayedImage가 있으면 배경으로 사용. displayedImage는 emotionImages[0] 또는 캐릭터 메인 이미지에서 가져올 수 있음 */}
+      {displayedImage && ( 
+        <div className="sm:hidden absolute inset-0 z-0">
+          <Image
+            src={displayedImage} // 감정 이미지 또는 기본 캐릭터 이미지를 사용
+            alt="배경 이미지"
+            fill
+            className="object-cover opacity-15 blur-sm"
+            priority
+          />
+        </div>
       )}
 
       {/* Top Navigation */}
       {characterInfo && (
         <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50 flex-wrap sm:flex-nowrap"
-             style={{ paddingTop: 'env(safe-area-inset-top)' }}> {/* 노치 디자인 고려 */}
+             style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <button
             onClick={() => router.push('/')}
             className="text-white text-xl font-bold mr-2 hover:text-gray-300"
@@ -464,8 +467,9 @@ export default function ChatPage() {
                     <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
                       {msg.content}
                     </div>
-                    {/* 수정/삭제 버튼 가시성 - 모바일에서 항상 보이게 하려면 opacity-0 group-hover:opacity-100 제거 */}
-                    <div className="flex justify-end gap-2 mt-1 transition sm:opacity-0 sm:group-hover:opacity-100"> 
+                    {/* 수정/삭제 버튼 가시성 - 모바일에서 항상 보이게 하려면 opacity-0 group-hover:opacity-100 제거 또는 조정 */}
+                    {/* 현재 코드에서는 group-hover 사용. 모바일에서 기본적으로 보이게 하려면 opacity-100으로 변경 */}
+                    <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition"> 
                       <span className="mr-4"></span> {/* 스페이스 효과 유지 */}
                       <button
                         onClick={() => {
@@ -504,30 +508,30 @@ export default function ChatPage() {
 
       {/* Chat Input */}
       <div className="w-full bg-[#111] border-t border-[#333] px-4 py-3 z-50"
-           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}> {/* 노치 디자인 고려 */}
+           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex items-center gap-3 max-w-5xl mx-auto flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setShowModelModal(true)}
             className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center justify-center sm:w-auto w-full mb-2 sm:mb-0"
           >
-            {models.find(m => m.id === selectedModel)?.icon} {/* 아이콘 렌더링 */}
+            {models.find(m => m.id === selectedModel)?.icon}
             <span className="ml-1">모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}</span>
           </button>
 
           <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2 w-full">
             <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
-            <textarea // input 대신 textarea 사용
+            <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey) { // Shift + Enter는 줄바꿈, Enter만 누르면 전송
                   e.preventDefault();
                   sendMessage();
                 }
               }}
               placeholder="대사를 입력하세요"
-              className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none resize-none overflow-hidden h-auto max-h-24" // 높이 자동 조절 및 최대 높이
-              rows={1} // 초기에는 1줄 높이
+              className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none resize-none overflow-hidden h-auto max-h-24"
+              rows={1}
             />
             <button
               onClick={sendMessage}
@@ -559,7 +563,7 @@ export default function ChatPage() {
                   `}
                 >
                   <div className="flex items-center">
-                    <span className="mr-2">{model.icon}</span> {/* 모델 선택 모달에도 아이콘 추가 */}
+                    <span className="mr-2">{model.icon}</span>
                     <div className="flex flex-col">
                       <span className="text-white font-semibold">{model.label}</span>
                       <span className="text-xs text-gray-400">{model.description}</span>
