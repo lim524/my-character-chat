@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { createClient } from '@supabase/supabase-js'
 import Image from 'next/image'
-import { Pencil, Trash2, PanelRightOpen, Sparkles } from 'lucide-react'
+import { Pencil, Trash2, PanelRightOpen, Sparkles, Smile, Bot, Zap, Feather, Gem } from 'lucide-react' // 이모티콘을 위해 lucide-react에서 아이콘 추가
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,12 +40,12 @@ type Character = {
 }
 
 const models = [
-  { id: 'gpt-3.5', label: 'GPT-3.5 Turbo', description: '빠른 속도의 AI 모델', point: 10 },
-  { id: 'gpt-4o', label: 'GPT-4o', description: '고성능 몰입형 AI', point: 20 },
-  { id: 'claude-haiku', label: 'Claude 3.7 Haiku', description: '가볍고 빠른 답변용 AI', point: 10 },
-  { id: 'claude-sonnet', label: 'Claude 3.7 Sonnet', description: '고퀄리티 감정 몰입 대화 AI', point: 20 },
-  { id: 'gemini-flash', label: 'Gemini 2.5 Flash', description: '빠르고 경제적인 구글 AI', point: 10 },
-  { id: 'gemini-pro', label: 'Gemini 2.5 Pro', description: '고급 지능과 묘사를 가진 구글 AI', point: 20 },
+  { id: 'gpt-3.5', label: 'GPT-3.5 Turbo', description: '빠른 속도의 AI 모델', point: 10, icon: <Zap size={16} /> },
+  { id: 'gpt-4o', label: 'GPT-4o', description: '고성능 몰입형 AI', point: 20, icon: <Sparkles size={16} /> },
+  { id: 'claude-haiku', label: 'Claude 3.7 Haiku', description: '가볍고 빠른 답변용 AI', point: 10, icon: <Feather size={16} /> },
+  { id: 'claude-sonnet', label: 'Claude 3.7 Sonnet', description: '고퀄리티 감정 몰입 대화 AI', point: 20, icon: <Smile size={16} /> },
+  { id: 'gemini-flash', label: 'Gemini 2.5 Flash', description: '빠르고 경제적인 구글 AI', point: 10, icon: <Gem size={16} /> },
+  { id: 'gemini-pro', label: 'Gemini 2.5 Pro', description: '고급 지능과 묘사를 가진 구글 AI', point: 20, icon: <Bot size={16} /> },
 ]
 
 export default function ChatPage() {
@@ -85,7 +85,6 @@ export default function ChatPage() {
     getSession()
   }, [])
 
-  // ✅ 2. sessionId 결정 (userId, id, mode가 준비된 후 실행)
   useEffect(() => {
     const resolveSessionId = async () => {
       if (typeof id !== 'string' || !userId) return
@@ -111,15 +110,12 @@ export default function ChatPage() {
         }
       }
 
-      // 새로 대화 시작인 경우
       setSessionId(crypto.randomUUID())
     }
 
     resolveSessionId()
   }, [id, mode, userId])
 
-
-  // ✅ 3. 캐릭터 & 메시지 불러오기 (sessionId까지 준비된 후 실행)
   useEffect(() => {
     if (!userId || !id || !sessionId) return
 
@@ -142,7 +138,6 @@ export default function ChatPage() {
 
       setCharacterInfo(formattedCharacter)
 
-      // 👉 이어서 대화: 해당 세션의 메시지만 불러오기
       if (mode === 'continue') {
         const { data: sessionMessages, error } = await supabase
           .from('chat_messages')
@@ -168,7 +163,6 @@ export default function ChatPage() {
         return
       }
 
-      // 👉 새 대화 시작: localStorage or 초기 상황 사용
       const savedMessages = typeof window !== 'undefined' ? localStorage.getItem(`chat-${id}`) : null
       const initialMessages: Message[] = savedMessages
         ? JSON.parse(savedMessages)
@@ -186,7 +180,6 @@ export default function ChatPage() {
 
       setMessages(initialMessages)
 
-      // 기본 감정 이미지 표시
       if (formattedCharacter.emotionImages.length > 0) {
         setDisplayedImage(formattedCharacter.emotionImages[0].imageUrl)
       }
@@ -277,7 +270,6 @@ export default function ChatPage() {
   const sendMessage = async () => {
     if (!input.trim() || !characterInfo) return
 
-    // 🔥 포인트 차감 로직 추가
     const model = models.find((m) => m.id === selectedModel)
     const cost = model?.point ?? 0
 
@@ -287,7 +279,6 @@ export default function ChatPage() {
       window.dispatchEvent(new Event('point-update'))
     }
     
-    // 💬 메시지 생성 및 전송
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -308,7 +299,6 @@ export default function ChatPage() {
 
     setMessages([...newMessages, ...replyMessages])
 
-    // 저장 로직은 그대로 유지
     if (userId && characterInfo?.id) {
       const rowsToInsert = [
         {
@@ -341,10 +331,23 @@ export default function ChatPage() {
 
 
   return (
-    <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden">  
+    <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
+      {/* Background Image for Mobile */}
+      {characterInfo?.imageUrl && (
+        <div className="sm:hidden absolute inset-0 z-0 opacity-10">
+          <Image
+            src={characterInfo.imageUrl}
+            alt="background"
+            layout="fill"
+            objectFit="cover"
+            className="blur-sm" // 배경 이미지에 약간의 블러 효과
+          />
+        </div>
+      )}
+
       {/* Top Navigation */}
       {characterInfo && (
-        <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50">
+        <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => router.push('/')}
             className="text-white text-xl font-bold mr-2 hover:text-gray-300"
@@ -353,7 +356,7 @@ export default function ChatPage() {
           </button>
 
           {characterInfo.imageUrl && (
-            <div className="relative w-10 h-10">
+            <div className="relative w-10 h-10 flex-shrink-0">
               <Image
                 src={characterInfo.imageUrl}
                 alt="profile"
@@ -363,17 +366,17 @@ export default function ChatPage() {
             </div>
           )}
 
-          <div>
-            <div className="font-semibold text-white text-base">{characterInfo.name}</div>
-            <div className="text-xs text-gray-400">{characterInfo.personality}</div>
+          <div className="flex-grow min-w-0"> {/* 내용이 길어져도 짤리지 않게 */}
+            <div className="font-semibold text-white text-base truncate">{characterInfo.name}</div>
+            <div className="text-xs text-gray-400 truncate">{characterInfo.personality}</div>
           </div>
 
-          <div className="text-right text-xs text-gray-400 ml-auto">
-            {characterInfo.userName && <div>👤 {characterInfo.userName}</div>}
-            {characterInfo.userRole && <div>역할: {characterInfo.userRole}</div>}
+          <div className="text-right text-xs text-gray-400 ml-auto flex flex-col items-end sm:items-stretch">
+            {characterInfo.userName && <div className="truncate">👤 {characterInfo.userName}</div>}
+            {characterInfo.userRole && <div className="truncate">역할: {characterInfo.userRole}</div>}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="mt-1 p-1 text-white hover:text-yellow-300"
+              className="mt-1 p-1 text-white hover:text-yellow-300 flex-shrink-0"
               title="메뉴 열기"
             >
               <PanelRightOpen className="w-5 h-5" />
@@ -383,7 +386,7 @@ export default function ChatPage() {
       )}
 
       <div className="relative flex flex-1 overflow-hidden">
-        {/* Desktop: Fixed Image Area */}
+        {/* Desktop: Fixed Image Area (hidden on mobile) */}
         <div className="hidden sm:flex w-1/2 max-w-[50%] h-full px-6 pt-6 pb-20 flex-col items-center justify-start overflow-y-auto">
           {characterInfo?.emotionImages && displayedImage && (
             <>
@@ -406,84 +409,81 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* Chat Area */}
-        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full">
+        {/* Chat Area (full width on mobile) */}
+        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10"> {/* z-10 추가로 배경 이미지 위에 오도록 */}
           {messages.map((msg) => {
             const isEditing = editTargetId === msg.id
             const isUser = msg.role === 'user'
 
             return (
               <div key={msg.id} className="group relative p-1">
-{isEditing ? (
-  <div className="flex flex-col gap-2">
-    <textarea
-      value={editContent}
-      onChange={(e) => setEditContent(e.target.value)}
-      className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
-      rows={4}
-    />
-    <div className="flex justify-end gap-2">
-      <button
-        onClick={async () => {
-          await fetch('/api/update-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: msg.id, content: editContent }),
-          })
-          setMessages((prev) =>
-            prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
-          )
-          setEditTargetId(null)
-        }}
-        className="text-sm text-yellow-400 hover:text-yellow-300"
-      >
-        저장
-      </button>
-      <button
-        onClick={() => setEditTargetId(null)}
-        className="text-sm text-gray-400 hover:text-white"
-      >
-        취소
-      </button>
-    </div>
-  </div>
-) : (
-  <>
-    <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
-      {msg.content}
-    </div>
-    {/* 여기에 버튼을 위한 새로운 div를 추가합니다. */}
-    <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition">
-      {/* '스페이스 두 번' 효과를 위해 빈 span에 margin-right를 줍니다. */}
-      <span className="mr-4"></span> {/* mr-2는 0.5rem, mr-4는 1rem 간격 */}
-      <button
-        onClick={() => {
-          setEditTargetId(msg.id)
-          setEditContent(msg.content)
-        }}
-        className="text-gray-400 hover:text-white"
-        title="수정"
-      >
-        <Pencil className="w-4 h-4" />
-      </button>
-      <button
-        onClick={async () => {
-          await fetch('/api/delete-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: msg.id }),
-          })
-          setMessages((prev) => prev.filter((m) => m.id !== msg.id))
-        }}
-        className="text-gray-400 hover:text-red-400"
-        title="삭제"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
-    </div>
-  </>
-)}
-
+                {isEditing ? (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
+                      rows={4}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={async () => {
+                          await fetch('/api/update-message', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: msg.id, content: editContent }),
+                          })
+                          setMessages((prev) =>
+                            prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
+                          )
+                          setEditTargetId(null)
+                        }}
+                        className="text-sm text-yellow-400 hover:text-yellow-300"
+                      >
+                        저장
+                      </button>
+                      <button
+                        onClick={() => setEditTargetId(null)}
+                        className="text-sm text-gray-400 hover:text-white"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
+                      {msg.content}
+                    </div>
+                    <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition">
+                      <span className="mr-4"></span>
+                      <button
+                        onClick={() => {
+                          setEditTargetId(msg.id)
+                          setEditContent(msg.content)
+                        }}
+                        className="text-gray-400 hover:text-white"
+                        title="수정"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await fetch('/api/delete-message', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: msg.id }),
+                          })
+                          setMessages((prev) => prev.filter((m) => m.id !== msg.id))
+                        }}
+                        className="text-gray-400 hover:text-red-400"
+                        title="삭제"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )
           })}
@@ -494,26 +494,33 @@ export default function ChatPage() {
 
       {/* Chat Input */}
       <div className="w-full bg-[#111] border-t border-[#333] px-4 py-3 z-50">
-        <div className="flex items-center gap-3 max-w-5xl mx-auto">
+        <div className="flex items-center gap-3 max-w-5xl mx-auto flex-wrap sm:flex-nowrap"> {/* flex-wrap 추가로 모바일에서 줄바꿈 가능 */}
           <button
             onClick={() => setShowModelModal(true)}
-            className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap"
+            className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center justify-center sm:w-auto w-full mb-2 sm:mb-0" // 모바일에서 버튼 너비 조정
           >
-            모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}
+            {models.find(m => m.id === selectedModel)?.icon} {/* 아이콘 추가 */}
+            <span className="ml-1">모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}</span>
           </button>
 
-          <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2">
+          <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2 w-full"> {/* w-full 추가로 모바일에서 너비 조정 */}
             <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
-            <input
+            <textarea // input 대신 textarea를 사용하여 높이 자동 조절
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { // Shift+Enter는 줄바꿈, Enter는 전송
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
               placeholder="대사를 입력하세요"
-              className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none"
+              className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none resize-none overflow-hidden h-auto max-h-24" // 높이 자동 조절
+              rows={1}
             />
             <button
               onClick={sendMessage}
-              className="ml-3 p-1 rounded hover:bg-[#333]"
+              className="ml-3 p-1 rounded hover:bg-[#333] flex-shrink-0"
             >
               <svg
                 className="w-5 h-5 text-white"
@@ -528,8 +535,8 @@ export default function ChatPage() {
       </div>
 
       {showModelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-[#1b1b1b] p-6 rounded-2xl w-96 space-y-6 relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"> {/* p-4 추가로 모바일에서 여백 */}
+          <div className="bg-[#1b1b1b] p-6 rounded-2xl w-full max-w-sm space-y-6 relative"> {/* max-w-sm 추가로 모바일에서 너비 제한 */}
             <h2 className="text-xl font-bold text-white text-center">AI 모델 선택</h2>
             <div className="space-y-4">
               {models.map((model) => (
@@ -540,9 +547,12 @@ export default function ChatPage() {
                     ${selectedModel === model.id ? 'bg-[#e45463]' : 'bg-[#2b2b2b]'}
                   `}
                 >
-                  <div className="flex flex-col">
-                    <span className="text-white font-semibold">{model.label}</span>
-                    <span className="text-xs text-gray-400">{model.description}</span>
+                  <div className="flex items-center"> {/* 아이콘과 텍스트를 함께 정렬 */}
+                    <span className="mr-2">{model.icon}</span> {/* 이모티콘 위치 */}
+                    <div className="flex flex-col">
+                      <span className="text-white font-semibold">{model.label}</span>
+                      <span className="text-xs text-gray-400">{model.description}</span>
+                    </div>
                   </div>
                   <div className="text-sm text-white font-bold">{model.point}P</div>
                 </div>
@@ -559,7 +569,7 @@ export default function ChatPage() {
       )}
 
       {menuOpen && (
-        <div className="fixed top-0 right-0 h-screen w-[320px] bg-[#111] border-l border-gray-800 z-50 overflow-y-auto shadow-xl">
+        <div className="fixed top-0 right-0 h-screen w-full max-w-[320px] bg-[#111] border-l border-gray-800 z-50 overflow-y-auto shadow-xl sm:w-[320px]"> {/* 모바일에서 w-full, 데스크톱에서 w-[320px] */}
           <ChatMenu
             userName={userName}
             userDescription={userDescription}
@@ -574,6 +584,5 @@ export default function ChatPage() {
         </div>
       )}
     </div>
-    
   )
 }
