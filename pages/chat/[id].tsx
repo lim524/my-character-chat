@@ -414,72 +414,76 @@ export default function ChatPage() {
 
             return (
               <div key={msg.id} className="group relative p-1">
-                {isEditing ? (
-                  <div className="flex flex-col gap-2">
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
-                      rows={4}
-                    />
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={async () => {
-                          await fetch('/api/update-message', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: msg.id, content: editContent }),
-                          })
-                          setMessages((prev) =>
-                            prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
-                          )
-                          setEditTargetId(null)
-                        }}
-                        className="text-sm text-yellow-400 hover:text-yellow-300"
-                      >
-                        저장
-                      </button>
-                      <button
-                        onClick={() => setEditTargetId(null)}
-                        className="text-sm text-gray-400 hover:text-white"
-                      >
-                        취소
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
-                      {msg.content}
-                    </div>
-                    <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        onClick={() => {
-                          setEditTargetId(msg.id)
-                          setEditContent(msg.content)
-                        }}
-                        className="text-gray-400 hover:text-white"
-                        title="수정"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await fetch('/api/delete-message', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: msg.id }),
-                          })
-                          setMessages((prev) => prev.filter((m) => m.id !== msg.id))
-                        }}
-                        className="text-gray-400 hover:text-red-400"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </>
-                )}
+{isEditing ? (
+  <div className="flex flex-col gap-2">
+    <textarea
+      value={editContent}
+      onChange={(e) => setEditContent(e.target.value)}
+      className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
+      rows={4}
+    />
+    <div className="flex justify-end gap-2">
+      <button
+        onClick={async () => {
+          await fetch('/api/update-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: msg.id, content: editContent }),
+          })
+          setMessages((prev) =>
+            prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
+          )
+          setEditTargetId(null)
+        }}
+        className="text-sm text-yellow-400 hover:text-yellow-300"
+      >
+        저장
+      </button>
+      <button
+        onClick={() => setEditTargetId(null)}
+        className="text-sm text-gray-400 hover:text-white"
+      >
+        취소
+      </button>
+    </div>
+  </div>
+) : (
+  <>
+    <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
+      {msg.content}
+    </div>
+    {/* 여기에 버튼을 위한 새로운 div를 추가합니다. */}
+    <div className="flex justify-end gap-2 mt-1 opacity-0 group-hover:opacity-100 transition">
+      {/* '스페이스 두 번' 효과를 위해 빈 span에 margin-right를 줍니다. */}
+      <span className="mr-4"></span> {/* mr-2는 0.5rem, mr-4는 1rem 간격 */}
+      <button
+        onClick={() => {
+          setEditTargetId(msg.id)
+          setEditContent(msg.content)
+        }}
+        className="text-gray-400 hover:text-white"
+        title="수정"
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
+      <button
+        onClick={async () => {
+          await fetch('/api/delete-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: msg.id }),
+          })
+          setMessages((prev) => prev.filter((m) => m.id !== msg.id))
+        }}
+        className="text-gray-400 hover:text-red-400"
+        title="삭제"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  </>
+)}
+
               </div>
             )
           })}
