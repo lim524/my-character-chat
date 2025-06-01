@@ -336,16 +336,18 @@ export default function ChatPage() {
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {/* Background Image for Mobile */}
-      {characterInfo?.imageUrl && ( // emotionImages 대신 imageUrl을 사용
-      <div className="sm:hidden relative w-full h-full absolute inset-0 z-0">
-        <Image
-          src={characterInfo.imageUrl}
-          alt="배경 이미지"
-          fill
-          className="object-cover opacity-15 blur-sm"
-          priority
-        />
-      </div>
+      {characterInfo?.imageUrl && (
+        // `relative w-full h-full`을 제거하고 `absolute inset-0`만 사용.
+        // `opacity`는 원하는 투명도에 맞춰 조정.
+        <div className="sm:hidden absolute inset-0 z-0">
+          <Image
+            src={characterInfo.imageUrl}
+            alt="배경 이미지"
+            fill
+            className="object-cover opacity-15 blur-sm" // opacity와 blur를 Image 컴포넌트에 직접 적용
+            priority
+          />
+        </div>
       )}
 
       {/* Top Navigation */}
