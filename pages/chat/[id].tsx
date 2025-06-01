@@ -137,8 +137,10 @@ export default function ChatPage() {
       }
 
       setCharacterInfo(formattedCharacter)
-      // 디버깅용: 캐릭터 정보 로드 확인
-      console.log('캐릭터 정보 로드:', formattedCharacter);
+      // !!! 여기를 확인하세요 !!!
+      console.log('캐릭터 정보 로드됨:', formattedCharacter);
+      console.log('배경 이미지 URL:', formattedCharacter.imageUrl); 
+
 
       if (mode === 'continue') {
         const { data: sessionMessages, error } = await supabase
@@ -336,7 +338,8 @@ export default function ChatPage() {
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {/* Background Image for Mobile */}
       {characterInfo?.imageUrl && (
-        <div className="sm:hidden absolute inset-0 z-0 opacity-10">
+        // opacity-10을 opacity-20 등으로 높여서 테스트해보세요.
+        <div className="sm:hidden absolute inset-0 z-0 opacity-10"> 
           <Image
             src={characterInfo.imageUrl}
             alt="background"
@@ -413,7 +416,8 @@ export default function ChatPage() {
         </div>
 
         {/* Chat Area (full width on mobile) */}
-        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10">
+        {/* z-10은 그대로 유지하고, 혹시모를 배경색 충돌을 위해 bg-transparent 추가 */}
+        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10 bg-transparent"> 
           {messages.map((msg) => {
             const isEditing = editTargetId === msg.id
             const isUser = msg.role === 'user'
