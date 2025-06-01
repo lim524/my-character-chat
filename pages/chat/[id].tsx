@@ -32,11 +32,11 @@ type Character = {
   description: string
   situation: string
   firstLine?: string
-  imageUrl?: string
+  imageUrl?: string // 캐릭터의 메인 이미지 URL
   userName?: string
   userRole?: string
   userDescription?: string
-  emotionImages: EmotionImage[]
+  emotionImages: EmotionImage[] // 감정별 이미지 배열
 }
 
 const models = [
@@ -57,7 +57,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [characterInfo, setCharacterInfo] = useState<Character | null>(null)
-  const [displayedImage, setDisplayedImage] = useState<string | null>(null)
+  const [displayedImage, setDisplayedImage] = useState<string | null>(null) // 감정 이미지
   const [selectedModel, setSelectedModel] = useState(models[0].id)
   const [showModelModal, setShowModelModal] = useState(false)
   const [editTargetId, setEditTargetId] = useState<string | null>(null)
@@ -131,15 +131,17 @@ export default function ChatPage() {
         return
       }
 
+      // Supabase에서 imageUrl을 characterInfo.imageUrl로 직접 할당
       const formattedCharacter: Character = {
         ...data,
+        imageUrl: data.imageUrl || null, // imageUrl 필드가 null일 경우를 대비
         emotionImages: Array.isArray(data.emotion_images) ? data.emotion_images : [],
       }
 
       setCharacterInfo(formattedCharacter)
       // 디버깅용: 캐릭터 정보 로드 확인
       console.log('캐릭터 정보 로드:', formattedCharacter);
-      console.log('배경 이미지 URL:', formattedCharacter.imageUrl);
+      console.log('배경 이미지 URL:', formattedCharacter.imageUrl); // 이제 제대로 나와야 함
 
 
       if (mode === 'continue') {
@@ -184,6 +186,7 @@ export default function ChatPage() {
 
       setMessages(initialMessages)
 
+      // 초기 감정 이미지 표시
       if (formattedCharacter.emotionImages.length > 0) {
         setDisplayedImage(formattedCharacter.emotionImages[0].imageUrl)
       }
@@ -336,18 +339,17 @@ export default function ChatPage() {
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {/* Background Image for Mobile */}
-      {characterInfo?.imageUrl && (
-        // `relative w-full h-full`을 제거하고 `absolute inset-0`만 사용.
-        // `opacity`는 원하는 투명도에 맞춰 조정.
-        <div className="sm:hidden absolute inset-0 z-0">
-          <Image
-            src={characterInfo.imageUrl}
-            alt="배경 이미지"
-            fill
-            className="object-cover opacity-15 blur-sm" // opacity와 blur를 Image 컴포넌트에 직접 적용
-            priority
-          />
-        </div>
+      {/* imageUrl을 배경으로 사용하도록 조건과 src를 변경합니다. */}
+      {characterInfo?.imageUrl && ( 
+      <div className="sm:hidden absolute inset-0 z-0"> {/* relative w-full h-full 제거 */}
+        <Image
+          src={characterInfo.imageUrl} // emotionImages 대신 imageUrl을 사용
+          alt="배경 이미지"
+          fill
+          className="object-cover opacity-15 blur-sm"
+          priority
+        />
+      </div>
       )}
 
       {/* Top Navigation */}
@@ -392,7 +394,6 @@ export default function ChatPage() {
       )}
 
       {/* Main Content Area */}
-      {/* h-full을 없애고 flex-1로 상단/하단바를 제외한 남은 공간을 차지하도록 변경 */}
       <div className="relative flex flex-1 overflow-hidden">
         {/* Desktop: Fixed Image Area (hidden on mobile) */}
         <div className="hidden sm:flex w-1/2 max-w-[50%] h-full px-6 pt-6 pb-20 flex-col items-center justify-start overflow-y-auto">
@@ -418,7 +419,6 @@ export default function ChatPage() {
         </div>
 
         {/* Chat Area (full width on mobile) */}
-        {/* z-10은 그대로 유지하고, 혹시모를 배경색 충돌을 위해 bg-transparent 추가 */}
         <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10 bg-transparent"> 
           {messages.map((msg) => {
             const isEditing = editTargetId === msg.id
@@ -464,8 +464,8 @@ export default function ChatPage() {
                     <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
                       {msg.content}
                     </div>
-                    {/* 수정/삭제 버튼 위치 조정 */}
-                    <div className="flex justify-end gap-2 mt-1 transition sm:opacity-0 sm:group-hover:opacity-100">
+                    {/* 수정/삭제 버튼 가시성 - 모바일에서 항상 보이게 하려면 opacity-0 group-hover:opacity-100 제거 */}
+                    <div className="flex justify-end gap-2 mt-1 transition sm:opacity-0 sm:group-hover:opacity-100"> 
                       <span className="mr-4"></span> {/* 스페이스 효과 유지 */}
                       <button
                         onClick={() => {
