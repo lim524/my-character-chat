@@ -349,7 +349,7 @@ export default function ChatPage() {
             src={displayedImage} // 감정 이미지 또는 기본 캐릭터 이미지를 사용
             alt="배경 이미지"
             fill
-            className="object-cover opacity-15 blur-sm"
+            className="object-cover opacity-15"
             priority
           />
         </div>
