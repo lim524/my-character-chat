@@ -357,8 +357,7 @@ export default function ChatPage() {
 
       {/* Top Navigation */}
       {characterInfo && (
-        <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50 flex-wrap sm:flex-nowrap"
-             style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50 flex-wrap sm:flex-nowrap">          
           <button
             onClick={() => router.push('/')}
             className="text-white text-xl font-bold mr-2 hover:text-gray-300"
@@ -507,8 +506,7 @@ export default function ChatPage() {
       </div>
 
       {/* Chat Input */}
-      <div className="w-full bg-[#111] border-t border-[#333] px-4 py-3 z-50"
-           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="w-full bg-[#111] border-t border-[#333] px-4 py-3 z-50">
         <div className="flex items-center gap-3 max-w-5xl mx-auto flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setShowModelModal(true)}
