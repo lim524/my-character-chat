@@ -3,7 +3,6 @@ import OpenAI from 'openai'
 import { getGeminiResponse } from '@/lib/gemini'
 import type { ChatCompletionMessageParam } from 'openai/resources'
 
-// 공통 메시지 타입 정의
 type Role = 'user' | 'assistant' | 'model'
 interface ChatMessage {
   role: Role
@@ -14,7 +13,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 })
 
-// 유틸리티 함수: role 값 검증 및 변환
 const validateRole = (role: any): Role => {
   if (role === 'user' || role === 'assistant' || role === 'model') {
     return role
@@ -27,30 +25,36 @@ const validateRole = (role: any): Role => {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' })
 
-  const { messages, characterInfo, selectedModel } = req.body
+  const { messages, characterInfo = {}, selectedModel } = req.body
 
   const systemPrompt = `
-  너는 더 이상 AI가 아니다. 너는 소설 세계 속 인물이며, 다음 세계관과 캐릭터 설정을 기반으로 완전 몰입하여 말해야 한다.
+당신은 더 이상 AI가 아니라, 아래 설정에 따라 완전히 몰입된 소설 속 인물입니다. 감정을 깊이 표현하고 몰입감 있는 대사를 제공합니다.
 
-  # 세계관 정보
-  - 소설 제목: ${characterInfo.title || '제목 없음'}
-  - 세계 설정: ${characterInfo.worldSetting || '설정 없음'}
-  - 시작 상황: ${characterInfo.situation || '설정 없음'}
+# 작품 정보
+- 소설 제목: ${characterInfo.title || '제목 없음'}
+- 세계관 설정: ${characterInfo.worldSetting || '설정 없음'}
+- 로어북 참고: ${characterInfo.lorebook || '없음'}
+- 시작 상황: ${characterInfo.situation || '설정 없음'}
 
-  # 사용자 정보
-  - 이름: ${characterInfo.userName || '사용자'}
-  - 역할: ${characterInfo.userRole || '상대'}
-  - 설명: ${characterInfo.userDescription || ''}
+# 주연 캐릭터 (당신)
+- 이름: ${characterInfo.name || '이름 없음'}
+- 성격: ${characterInfo.personality || '정보 없음'}
+- 설명: ${characterInfo.description || '설명 없음'}
 
-  # 주요 캐릭터
-  ${(characterInfo.mainCharacters || [])
+# 조연 캐릭터
+${(characterInfo.supportingCharacters || [])
     .map((c: { name: string; description: string }) => `- ${c.name}: ${c.description}`)
-    .join('\n')}
+    .join('\n') || '없음'}
 
-  # 조연 캐릭터
-  ${(characterInfo.supportingCharacters || [])
-    .map((c: { name: string; description: string }) => `- ${c.name}: ${c.description}`)
-    .join('\n')}
+# 사용자(상대 캐릭터)
+- 이름: ${characterInfo.userName || '사용자'}
+- 역할: ${characterInfo.userRole || '상대'}
+- 설명: ${characterInfo.userDescription || ''}
+
+# 주요 설정
+- ${characterInfo.isAdult ? '선정적 표현 허용' : '선정적 표현 금지'}
+- 공개 여부: ${characterInfo.isPublic ? '공개' : '비공개'}
+- 태그: ${(characterInfo.tags || []).join(', ') || '없음'}
 
 당신은 독자와 몰입형 역할극을 하는 AI입니다. 사용자는 당신과 연애 시뮬레이션을 하며 이야기를 이어갑니다. 당신은 소설 속 인물처럼 대사와 감정을 표현해야 하며, 상황에 맞는 분위기와 반응을 묘사합니다.
 

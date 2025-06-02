@@ -169,7 +169,7 @@ export default function EmotionImagePage() {
             최대 용량: 5MB <br />
             파일 이름이 띄어쓰기 되면 안됩니다. <br />
             ex. lemon apple.png (x) → lemonapple.png (o) <br />
-            기본 이미지의 규격 사이즈는 768x1024 px 입니다.
+            기본 이미지의 규격은 정사각형 형태입니다.
           </p>
 
           <div className="mb-6">
