@@ -87,16 +87,16 @@ export default function HomePage() {
     router.push(`/chat/${encodeURIComponent(id)}`)
   }
 
-const filteredCharacters = characters.filter((char) => {
-  const matchesSearch =
-    char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    char.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredCharacters = characters.filter((char) => {
+    const matchesSearch =
+      char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      char.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-  const allowBySafety = !safetyFilter || !char.isAdult // 세이프티 ON이면 성인물 제외
+    const allowBySafety = !safetyFilter || !char.isAdult // 세이프티 ON이면 성인물 제외
 
-  return matchesSearch && allowBySafety
+    return matchesSearch && allowBySafety
+  })
 
-})
   return (
     <>
       <main className="bg-black text-white h-screen px-4 pt-28 pb-32">
@@ -119,17 +119,17 @@ const filteredCharacters = characters.filter((char) => {
           </button>
         </div>
 
-          {showSearch && (
-            <div className="mb-4">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="캐릭터 검색..."
-                className="w-full px-4 py-2 rounded bg-[#1c1c1c] text-white border border-[#444] placeholder-gray-500"
-              />
-            </div>
-          )}
+        {showSearch && (
+          <div className="mb-4">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="캐릭터 검색..."
+              className="w-full px-4 py-2 rounded bg-[#1c1c1c] text-white border border-[#444] placeholder-gray-500"
+            />
+          </div>
+        )}
 
         {activeTab === 'recommend' && (
           <>
@@ -139,32 +139,34 @@ const filteredCharacters = characters.filter((char) => {
                 <div
                   key={char.id}
                   onClick={() => openProfile(char)}
-                  className="w-48 shrink-0 rounded-2xl overflow-hidden bg-zinc-900 cursor-pointer hover:bg-zinc-800"
+                  className="w-56 shrink-0 rounded-2xl overflow-hidden bg-[#1a1a1a] shadow-lg cursor-pointer hover:bg-[#232323] transition-all duration-150"
+                  style={{ minWidth: '224px' }}
                 >
-                  <div className="relative w-full h-[200px] bg-black">
+                  {/* 카드 상단 이미지 */}
+                  <div className="relative w-full h-44 bg-black">
                     <Image
                       src={char.imageUrl}
                       alt={char.name}
                       fill
-                      className="object-cover rounded-none"
+                      className="object-cover"
                     />
                   </div>
-                 <div className="p-3 h-30 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-white font-semibold text-sm">{char.name}</h3>
-                    <p className="text-xs text-gray-400 line-clamp-fallback">{char.description}</p>
+                  {/* 하단 내용 */}
+                  <div className="p-4 flex flex-col h-[170px]">
+                    <h3 className="text-white font-bold text-base mb-1 line-clamp-1">{char.name}</h3>
+                    <div className="flex items-center text-gray-400 text-xs mb-2 gap-4">
+                      <span className="flex items-center gap-1">
+                        <Heart className="w-4 h-4 text-red-400" />
+                        {char.likes}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-4 h-4 text-gray-300" />
+                        {char.views}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 line-clamp-2 flex-1 mb-2">{char.description}</p>
+                    {/* 작성자 등 추가 정보 넣고 싶으면 여기에 추가 */}
                   </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-2">
-                    <span className="flex items-center gap-1">
-                      <Heart className="w-4 h-4 text-red-500" />
-                      {char.likes}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-4 h-4" />
-                      {char.views}
-                    </span>
-                  </div>
-                </div>
                 </div>
               ))}
             </div>
@@ -181,7 +183,7 @@ const filteredCharacters = characters.filter((char) => {
                   <div
                     key={char.id}
                     onClick={() => openProfile(char)}
-                    className="bg-white/10 backdrop-blur-md p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-white/20"
+                    className="bg-[#1a1a1a] shadow-md p-4 rounded-2xl flex items-center gap-4 cursor-pointer hover:bg-[#232323] transition-all duration-150"
                   >
                     <span className="text-lg font-bold w-6">{i + 1}</span>
                     <div className="relative w-14 h-14">
@@ -192,19 +194,19 @@ const filteredCharacters = characters.filter((char) => {
                         className="rounded-full object-cover"
                       />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white text-sm">{char.name}</h3>
-                      <p className="text-xs text-gray-400">{char.description}</p>
-                    </div>
-                    <div className="ml-auto text-right text-xs text-gray-400 flex flex-col items-end gap-1">
-                      <span className="flex items-center gap-1">
-                        <Heart className="w-4 h-4 text-red-500" />
-                        {char.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-4 h-4" />
-                        {char.views}
-                      </span>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-white text-sm mb-1">{char.name}</h3>
+                      <div className="flex items-center text-gray-400 text-xs gap-4 mb-1">
+                        <span className="flex items-center gap-1">
+                          <Heart className="w-4 h-4 text-red-400" />
+                          {char.likes}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-4 h-4 text-gray-300" />
+                          {char.views}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 line-clamp-1">{char.description}</p>
                     </div>
                   </div>
                 ))}
