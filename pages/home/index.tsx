@@ -20,8 +20,7 @@ interface RawCharacter {
   situation: string
   image_url?: string
   is_adult?: boolean
-  tags?: string[] // 예시: tags 필드 (string[])
-  author?: string // 예시: author
+  // ↓ 여기에 없는 컬럼은 select에서 빼야 함!
 }
 
 interface Character {
@@ -34,8 +33,6 @@ interface Character {
   likes: number
   views: number
   isAdult?: boolean
-  tags: string[]
-  author: string
 }
 
 export default function HomePage() {
@@ -50,7 +47,8 @@ export default function HomePage() {
     const fetchCharacters = async () => {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, personality, description, situation, image_url, is_adult, tags, author')
+        // ↓ 실제 DB 컬럼만 남겨두기
+        .select('id, name, personality, description, situation, image_url, is_adult')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
 
@@ -68,11 +66,9 @@ export default function HomePage() {
         imageUrl: char.image_url?.startsWith('http')
           ? char.image_url
           : '/default-profile.png',
-        likes: Math.floor(Math.random() * 800), // 샘플용, 실제는 DB 컬럼 사용
-        views: Math.floor(Math.random() * 1000),
+        likes: Math.floor(Math.random() * 200) + 10,  // 데모용 랜덤값
+        views: Math.floor(Math.random() * 800) + 20,  // 데모용 랜덤값
         isAdult: char.is_adult ?? false,
-        tags: Array.isArray(char.tags) ? char.tags : [],
-        author: char.author ?? '익명',
       }))
 
       setCharacters(processed)
@@ -98,12 +94,11 @@ export default function HomePage() {
       char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       char.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const allowBySafety = !safetyFilter || !char.isAdult // 세이프티 ON이면 성인물 제외
-
+    const allowBySafety = !safetyFilter || !char.isAdult
     return matchesSearch && allowBySafety
   })
 
-  // ----- 카드 UI만 리디자인 시작 -----
+  // 카드 UI만 리디자인
   function CharacterCard({ char, rank }: { char: Character; rank?: number }) {
     return (
       <div
@@ -119,11 +114,11 @@ export default function HomePage() {
             fill
             className="object-cover"
           />
-          {/* 우상단 카운트 뱃지(예: 조회수) */}
+          {/* 우상단 카운트 뱃지(조회수) */}
           <span className="absolute top-2 right-2 bg-black/70 text-white text-xs font-semibold rounded-full px-3 py-1">
             {char.views}
           </span>
-          {/* 랭킹이면 좌상단 랭킹 넘버 */}
+          {/* 랭킹이면 좌상단 넘버 */}
           {typeof rank === 'number' && (
             <span className="absolute top-2 left-2 bg-indigo-500/80 text-white text-xs font-semibold rounded-full px-2 py-1">
               {rank + 1}
@@ -134,19 +129,7 @@ export default function HomePage() {
         <div className="flex flex-col px-4 pt-3 pb-4 flex-1">
           <div className="font-bold text-base mb-1 line-clamp-1">{char.name}</div>
           <div className="text-xs text-gray-400 mb-2 line-clamp-1">{char.description}</div>
-          {/* 태그 */}
-          <div className="flex flex-wrap gap-1 mb-2">
-            {char.tags?.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                className="bg-[#222] text-xs text-indigo-200 font-semibold px-2 py-0.5 rounded-md"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center justify-between mt-auto">
-            <span className="text-xs text-gray-500">@{char.author}</span>
+          <div className="flex items-center justify-end mt-auto">
             <span className="flex items-center text-xs text-gray-400 gap-1">
               <Heart className="w-4 h-4 text-pink-400" />
               {char.likes}
@@ -156,7 +139,6 @@ export default function HomePage() {
       </div>
     )
   }
-  // ----- 카드 UI만 리디자인 끝 -----
 
   return (
     <>
