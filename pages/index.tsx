@@ -2,7 +2,7 @@ import PointBadge from '@/components/PointBadge'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import { Eye, Heart } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
 import { createClient } from '@supabase/supabase-js'
 import { useSearch } from '@/context/SearchContext'
@@ -20,6 +20,8 @@ interface RawCharacter {
   situation: string
   image_url?: string
   is_adult?: boolean
+  tags?: string[] // 예시: tags 필드 (string[])
+  author?: string // 예시: author
 }
 
 interface Character {
@@ -32,6 +34,8 @@ interface Character {
   likes: number
   views: number
   isAdult?: boolean
+  tags: string[]
+  author: string
 }
 
 export default function HomePage() {
@@ -46,7 +50,7 @@ export default function HomePage() {
     const fetchCharacters = async () => {
       const { data, error } = await supabase
         .from('characters')
-        .select('id, name, personality, description, situation, image_url, is_adult')
+        .select('id, name, personality, description, situation, image_url, is_adult, tags, author')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
 
@@ -64,9 +68,11 @@ export default function HomePage() {
         imageUrl: char.image_url?.startsWith('http')
           ? char.image_url
           : '/default-profile.png',
-        likes: 0,
-        views: 0,
+        likes: Math.floor(Math.random() * 800), // 샘플용, 실제는 DB 컬럼 사용
+        views: Math.floor(Math.random() * 1000),
         isAdult: char.is_adult ?? false,
+        tags: Array.isArray(char.tags) ? char.tags : [],
+        author: char.author ?? '익명',
       }))
 
       setCharacters(processed)
@@ -96,6 +102,61 @@ export default function HomePage() {
 
     return matchesSearch && allowBySafety
   })
+
+  // ----- 카드 UI만 리디자인 시작 -----
+  function CharacterCard({ char, rank }: { char: Character; rank?: number }) {
+    return (
+      <div
+        onClick={() => openProfile(char)}
+        className="w-60 shrink-0 bg-[#1a1a1a] rounded-xl shadow-lg cursor-pointer hover:bg-[#232323] transition-all relative flex flex-col"
+        style={{ minWidth: '240px' }}
+      >
+        {/* 이미지 및 오른쪽 상단 뱃지 */}
+        <div className="relative w-full h-56 rounded-t-xl overflow-hidden">
+          <Image
+            src={char.imageUrl}
+            alt={char.name}
+            fill
+            className="object-cover"
+          />
+          {/* 우상단 카운트 뱃지(예: 조회수) */}
+          <span className="absolute top-2 right-2 bg-black/70 text-white text-xs font-semibold rounded-full px-3 py-1">
+            {char.views}
+          </span>
+          {/* 랭킹이면 좌상단 랭킹 넘버 */}
+          {typeof rank === 'number' && (
+            <span className="absolute top-2 left-2 bg-indigo-500/80 text-white text-xs font-semibold rounded-full px-2 py-1">
+              {rank + 1}
+            </span>
+          )}
+        </div>
+        {/* 아래 텍스트 블럭 */}
+        <div className="flex flex-col px-4 pt-3 pb-4 flex-1">
+          <div className="font-bold text-base mb-1 line-clamp-1">{char.name}</div>
+          <div className="text-xs text-gray-400 mb-2 line-clamp-1">{char.description}</div>
+          {/* 태그 */}
+          <div className="flex flex-wrap gap-1 mb-2">
+            {char.tags?.slice(0, 4).map((tag) => (
+              <span
+                key={tag}
+                className="bg-[#222] text-xs text-indigo-200 font-semibold px-2 py-0.5 rounded-md"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-auto">
+            <span className="text-xs text-gray-500">@{char.author}</span>
+            <span className="flex items-center text-xs text-gray-400 gap-1">
+              <Heart className="w-4 h-4 text-pink-400" />
+              {char.likes}
+            </span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  // ----- 카드 UI만 리디자인 끝 -----
 
   return (
     <>
@@ -136,38 +197,7 @@ export default function HomePage() {
             <h2 className="text-xl font-bold mb-4">추천 캐릭터</h2>
             <div className="flex gap-4 overflow-x-auto pb-2">
               {filteredCharacters.slice(0, 10).map((char) => (
-                <div
-                  key={char.id}
-                  onClick={() => openProfile(char)}
-                  className="w-56 shrink-0 rounded-2xl overflow-hidden bg-[#1a1a1a] shadow-lg cursor-pointer hover:bg-[#232323] transition-all duration-150"
-                  style={{ minWidth: '224px' }}
-                >
-                  {/* 카드 상단 이미지 */}
-                  <div className="relative w-full h-44 bg-black">
-                    <Image
-                      src={char.imageUrl}
-                      alt={char.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  {/* 하단 내용 */}
-                  <div className="p-4 flex flex-col h-[170px]">
-                    <h3 className="text-white font-bold text-base mb-1 line-clamp-1">{char.name}</h3>
-                    <div className="flex items-center text-gray-400 text-xs mb-2 gap-4">
-                      <span className="flex items-center gap-1">
-                        <Heart className="w-4 h-4 text-red-400" />
-                        {char.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-4 h-4 text-gray-300" />
-                        {char.views}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-400 line-clamp-2 flex-1 mb-2">{char.description}</p>
-                    {/* 작성자 등 추가 정보 넣고 싶으면 여기에 추가 */}
-                  </div>
-                </div>
+                <CharacterCard key={char.id} char={char} />
               ))}
             </div>
           </>
@@ -176,39 +206,11 @@ export default function HomePage() {
         {activeTab === 'ranking' && (
           <>
             <h2 className="text-xl font-bold mb-4">인기 랭킹</h2>
-            <div className="space-y-3">
+            <div className="flex gap-4 overflow-x-auto pb-2">
               {[...filteredCharacters]
                 .sort((a, b) => b.likes - a.likes)
                 .map((char, i) => (
-                  <div
-                    key={char.id}
-                    onClick={() => openProfile(char)}
-                    className="bg-[#1a1a1a] shadow-md p-4 rounded-2xl flex items-center gap-4 cursor-pointer hover:bg-[#232323] transition-all duration-150"
-                  >
-                    <span className="text-lg font-bold w-6">{i + 1}</span>
-                    <div className="relative w-14 h-14">
-                      <Image
-                        src={char.imageUrl}
-                        alt={char.name}
-                        fill
-                        className="rounded-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-white text-sm mb-1">{char.name}</h3>
-                      <div className="flex items-center text-gray-400 text-xs gap-4 mb-1">
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-4 h-4 text-red-400" />
-                          {char.likes}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-4 h-4 text-gray-300" />
-                          {char.views}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-400 line-clamp-1">{char.description}</p>
-                    </div>
-                  </div>
+                  <CharacterCard key={char.id} char={char} rank={i} />
                 ))}
             </div>
           </>
