@@ -1,19 +1,24 @@
-// pages/settings.tsx
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
-import supabase from '@/lib/supabaseClient'
 import Image from 'next/image'
+
+const PROFILE_KEY = 'local-profile'
+
+interface LocalProfile {
+  email: string
+  nickname: string
+  gender: string
+  image: string
+}
 
 export default function SettingsPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [email, setEmail] = useState('')
-  const [userId, setUserId] = useState<string | null>(null)
   const [gender, setGender] = useState('남성')
   const [nickname, setNickname] = useState('')
   const [nicknameError, setNicknameError] = useState('')
-  const [checking, setChecking] = useState(false)
   const [image, setImage] = useState('/default-profile.png')
 
   const generateRandomNickname = () => {
@@ -24,103 +29,65 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      if (data?.user) {
-        setEmail(data.user.email || '')
-        setUserId(data.user.id)
-
-        const { data: userProfile } = await supabase
-          .from('users')
-          .select('nickname, gender, image')
-          .eq('id', data.user.id)
-          .single()
-
-        if (userProfile) {
-          setNickname(userProfile.nickname || generateRandomNickname())
-          setGender(userProfile.gender || '남성')
-          setImage(userProfile.image || '/default-profile.png')
-        } else {
-          setNickname(generateRandomNickname())
-        }
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY)
+      if (raw) {
+        const profile: LocalProfile = JSON.parse(raw)
+        setEmail(profile.email ?? '')
+        setNickname(profile.nickname ?? generateRandomNickname())
+        setGender(profile.gender ?? '남성')
+        setImage(profile.image ?? '/default-profile.png')
+      } else {
+        setNickname(generateRandomNickname())
       }
+    } catch {
+      setNickname(generateRandomNickname())
     }
-    fetchUser()
   }, [])
 
-  const checkNicknameDuplicate = async () => {
-    if (!nickname || !userId) return
-    setChecking(true)
-    const { data, error } = await supabase
-      .from('users')
-      .select('nickname')
-      .eq('nickname', nickname)
-      .neq('id', userId)
-
-    if (error) {
-      setNicknameError('중복 확인 실패')
-    } else if (data.length > 0) {
-      setNicknameError('이미 사용 중인 닉네임입니다.')
-    } else {
-      setNicknameError('')
-    }
-    setChecking(false)
+  const checkNicknameDuplicate = () => {
+    setNicknameError('')
   }
 
   const handleImageClick = () => {
     fileInputRef.current?.click()
   }
 
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    // 파일을 업로드하는 로직 (예: supabase storage)
-    // 여기에 직접 업로드 구현 필요
-    // 지금은 임시로 preview URL 설정
-    const previewUrl = URL.createObjectURL(file)
-    setImage(previewUrl)
+    const reader = new FileReader()
+    reader.onload = () => setImage(reader.result as string)
+    reader.readAsDataURL(file)
   }
 
-  const saveProfile = async () => {
-    if (nicknameError) {
-      alert('닉네임 중복을 해결해주세요.')
+  const saveProfile = () => {
+    if (!nickname.trim()) {
+      alert('닉네임을 입력해 주세요.')
       return
     }
-    if (!userId) {
-      alert('사용자 인증 정보가 없습니다.')
-      return
+    const profile: LocalProfile = {
+      email,
+      nickname: nickname.trim(),
+      gender,
+      image: image || '/default-profile.png',
     }
-
-    const { error } = await supabase
-      .from('users')
-      .update({
-        nickname,
-        gender,
-        image: image || '/default-profile.png',
-      })
-      .eq('id', userId)
-
-    if (error) {
-      console.error('❌ 프로필 저장 실패:', error)
-      alert('저장 실패: ' + error.message)
-    } else {
-      localStorage.setItem('profile-nickname', nickname)
-      alert('프로필이 저장되었습니다.')
-      location.reload()
-    }
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
+    localStorage.setItem('profile-nickname', profile.nickname)
+    alert('프로필이 저장되었습니다.')
+    router.push('/mypage')
   }
 
   return (
     <div className="min-h-screen bg-[#1f1f1f] text-white px-6 py-8 pt-28 flex justify-center">
       <div className="w-full max-w-md space-y-6">
-        {/* 프로필 이미지 */}
         <div className="relative w-24 h-24 mx-auto cursor-pointer" onClick={handleImageClick}>
           <Image
             src={image?.trim() ? image : '/default-profile.png'}
             alt="프로필"
             fill
             className="rounded-full object-cover"
+            unoptimized={image.startsWith('data:')}
           />
           <input
             type="file"
@@ -131,17 +98,16 @@ export default function SettingsPage() {
           />
         </div>
 
-        {/* 이메일 (읽기 전용) */}
         <div>
-          <label className="block mb-1 text-sm">이메일</label>
+          <label className="block mb-1 text-sm">이메일 (로컬용 표시)</label>
           <input
             value={email}
-            readOnly
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="선택 입력"
             className="w-full px-4 py-2 bg-[#333] rounded text-white outline-none"
           />
         </div>
 
-        {/* 성별 */}
         <div>
           <label className="block mb-1 text-sm">성별</label>
           <select
@@ -155,7 +121,6 @@ export default function SettingsPage() {
           </select>
         </div>
 
-        {/* 닉네임 + 랜덤 생성 */}
         <div>
           <label className="block mb-1 text-sm">닉네임</label>
           <div className="flex gap-2">
@@ -168,8 +133,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => {
-                const random = generateRandomNickname()
-                setNickname(random)
+                setNickname(generateRandomNickname())
                 setNicknameError('')
               }}
               className="px-3 py-2 bg-white text-black text-sm rounded hover:bg-gray-300"
@@ -180,13 +144,32 @@ export default function SettingsPage() {
           {nicknameError && <p className="text-sm text-red-500 mt-1">{nicknameError}</p>}
         </div>
 
-        {/* 저장 버튼 */}
         <button
           onClick={saveProfile}
           className="w-full bg-white text-black font-semibold py-2 rounded hover:bg-gray-300 transition"
         >
           저장하기
         </button>
+
+        <div className="border-t border-gray-700 pt-6 mt-6">
+          <h2 className="text-lg font-semibold text-white mb-2">API 설정 (로컬 전용)</h2>
+          <p className="text-sm text-gray-400 mb-3">
+            채팅 AI를 사용하려면 프로젝트 루트에 <code className="bg-[#333] px-1 rounded">.env.local</code> 파일을 만들고 아래 변수를 설정하세요. 사용하는 프로바이더만 넣으면 됩니다.
+          </p>
+          <pre className="text-xs text-gray-300 bg-[#222] p-4 rounded overflow-x-auto whitespace-pre">
+{`# OpenAI (GPT)
+OPENAI_API_KEY=sk-...
+
+# Anthropic (Claude)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Google (Gemini)
+NEXT_PUBLIC_GEMINI_API_KEY=...`}
+          </pre>
+          <p className="text-sm text-gray-400 mt-3">
+            Temperature·Max tokens는 채팅 화면에서 「모델 선택」 버튼으로 설정할 수 있으며, 로컬에 저장됩니다.
+          </p>
+        </div>
       </div>
     </div>
   )

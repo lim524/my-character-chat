@@ -1,6 +1,5 @@
-import { User, Coins, BookOpen, X, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import supabase from '../lib/supabaseClient'
+import { User, BookOpen, X, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 
 interface LoreEntry {
   id: string
@@ -22,8 +21,6 @@ export default function ChatMenu({
   userName,
   userDescription,
   onUserChange,
-  lore,
-  onLoreChange,
   onClose,
 }: ChatMenuProps) {
   const [activeTab, setActiveTab] = useState<'user' | 'lore'>('user')
@@ -31,27 +28,6 @@ export default function ChatMenu({
   const [newLoreTitle, setNewLoreTitle] = useState('')
   const [newLoreContent, setNewLoreContent] = useState('')
   const [showLoreModal, setShowLoreModal] = useState(false)
-  const [point, setPoint] = useState(0)
-
-  useEffect(() => {
-    const fetchPoint = async () => {
-      const { data } = await supabase.auth.getSession()
-      const userId = data.session?.user?.id
-      if (!userId) return
-
-      const { data: pointData, error } = await supabase
-        .from('user_points')
-        .select('points')
-        .eq('user_id', userId)
-        .single()
-
-      if (!error && pointData) setPoint(pointData.points)
-    }
-
-    fetchPoint()
-    window.addEventListener('point-update', fetchPoint)
-    return () => window.removeEventListener('point-update', fetchPoint)
-  }, [])
 
   const handleAddLore = () => {
     if (newLoreTitle.trim() === '' || newLoreContent.trim() === '') return
@@ -83,18 +59,10 @@ export default function ChatMenu({
 
   return (
     <div className="w-full max-w-md bg-[#1a1a1a] text-white p-5 space-y-6 h-screen overflow-y-auto relative">
-      {/* 닫기 버튼 */}
       <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white">
         <X className="w-5 h-5" />
       </button>
 
-      {/* 포인트 표시 */}
-      <div className="flex items-center gap-2 text-lg font-semibold text-gray-100">
-        <Coins className="w-5 h-5 text-yellow-400" />
-        보유 포인트: <span className="text-yellow-400">{point}P</span>
-      </div>
-
-      {/* 탭 버튼 */}
       <div className="flex gap-2 mt-2">
         <button
           onClick={() => setActiveTab('user')}
@@ -114,7 +82,6 @@ export default function ChatMenu({
         </button>
       </div>
 
-      {/* 사용자 설정 탭 */}
       {activeTab === 'user' && (
         <div className="space-y-2">
           <h2 className="flex items-center gap-2 text-base font-semibold text-white">
@@ -138,7 +105,6 @@ export default function ChatMenu({
         </div>
       )}
 
-      {/* 로어북 탭 */}
       {activeTab === 'lore' && (
         <div className="space-y-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-white">
@@ -179,7 +145,6 @@ export default function ChatMenu({
         </div>
       )}
 
-      {/* 로어북 작성 모달 */}
       {showLoreModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-[#1e1e1e] text-white p-6 rounded-lg shadow-lg w-full max-w-md space-y-4">

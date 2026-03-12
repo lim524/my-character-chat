@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true, // ✅ 빌드 시 ESLint 에러 무시
   },
   images: {
-    domains: ['whhzgmbuqpsjhhkoywif.supabase.co'], // ✅ Supabase 스토리지 도메인 등록
+    remotePatterns: [{ protocol: 'https', hostname: '**', pathname: '/**' }],
   },
   webpack: (config) => {
     config.resolve.alias = {

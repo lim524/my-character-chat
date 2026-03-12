@@ -2,22 +2,36 @@
 import ChatMenu from '@/components/ChatMenu'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
-import { createClient } from '@supabase/supabase-js'
+import { getLocalCharacter } from '@/lib/localStorage'
+import {
+  getApiModels,
+  getApiProviders,
+  getChatParameters,
+  setChatParameters,
+  getPromptBundles,
+  getModuleBundles,
+  type ProviderId,
+} from '@/lib/appSettings'
 import Image from 'next/image'
-import { Pencil, Trash2, PanelRightOpen, Sparkles, Smile, Bot, Zap, Feather, Gem } from 'lucide-react' // 아이콘 추가
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import {
+  Pencil,
+  Trash2,
+  PanelRightOpen,
+  Sparkles,
+  Smile,
+  Bot,
+  Zap,
+  Feather,
+  Gem,
+} from 'lucide-react'
 
 type Role = 'user' | 'assistant'
 
 type Message = {
-  id: string;
+  id: string
   role: Role
   content: string
-  created_at?: string;
+  created_at?: string
 }
 
 type EmotionImage = {
@@ -32,44 +46,85 @@ type Character = {
   description: string
   situation: string
   firstLine?: string
-  imageUrl?: string // 캐릭터의 메인 이미지 URL
+  imageUrl?: string
   userName?: string
   userRole?: string
   userDescription?: string
-  emotionImages: EmotionImage[] // 감정별 이미지 배열
+  emotionImages: EmotionImage[]
 }
 
-const models = [
-  { id: 'gpt-3.5', label: 'GPT-3.5 Turbo', description: '빠른 속도의 AI 모델', point: 10, icon: <Zap size={16} /> },
-  { id: 'gpt-4o', label: 'GPT-4o', description: '고성능 몰입형 AI', point: 20, icon: <Sparkles size={16} /> },
-  { id: 'claude-haiku', label: 'Claude 3.7 Haiku', description: '가볍고 빠른 답변용 AI', point: 10, icon: <Feather size={16} /> },
-  { id: 'claude-sonnet', label: 'Claude 3.7 Sonnet', description: '고퀄리티 감정 몰입 대화 AI', point: 20, icon: <Smile size={16} /> },
-  { id: 'gemini-flash', label: 'Gemini 2.5 Flash', description: '빠르고 경제적인 구글 AI', point: 10, icon: <Gem size={16} /> },
-  { id: 'gemini-pro', label: 'Gemini 2.5 Pro', description: '고급 지능과 묘사를 가진 구글 AI', point: 20, icon: <Bot size={16} /> },
-]
+type ModelItem = {
+  id: string
+  provider: ProviderId
+  label: string
+  description?: string
+  icon?: React.ReactNode
+}
+
+function providerIcon(provider: ProviderId) {
+  if (provider === 'openai') return <Sparkles size={16} />
+  if (provider === 'openrouter') return <Zap size={16} />
+  if (provider === 'anthropic') return <Feather size={16} />
+  return <Gem size={16} />
+}
+
+function providerLabel(provider: ProviderId) {
+  if (provider === 'openai') return 'OpenAI'
+  if (provider === 'openrouter') return 'OpenRouter'
+  if (provider === 'anthropic') return 'Claude'
+  return 'Gemini'
+}
 
 export default function ChatPage() {
-  const [userId, setUserId] = useState<string | null>(null)
   const router = useRouter()
   const { id, mode } = router.query
 
-  const [sessionId, setSessionId] = useState<string>('')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [characterInfo, setCharacterInfo] = useState<Character | null>(null)
-  const [displayedImage, setDisplayedImage] = useState<string | null>(null) // 감정 이미지
-  const [selectedModel, setSelectedModel] = useState(models[0].id)
+  const [displayedImage, setDisplayedImage] = useState<string | null>(null)
+  const [models, setModels] = useState<ModelItem[]>([])
+  const [selectedModel, setSelectedModel] = useState<string>('')
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>('openai')
   const [showModelModal, setShowModelModal] = useState(false)
   const [editTargetId, setEditTargetId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
-  
-  const bottomRef = useRef<HTMLDivElement>(null) 
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [userName, setUserName] = useState('')
   const [userDescription, setUserDescription] = useState('')
   const [lore, setLore] = useState('')
-  
+
+  const [temperature, setTemperature] = useState(0.7)
+  const [maxOutputChars, setMaxOutputChars] = useState(4000)
+  const [maxInputChars, setMaxInputChars] = useState(4000)
+
+  useEffect(() => {
+    const params = getChatParameters()
+    setTemperature(params.temperature)
+    setMaxInputChars(params.maxInputChars)
+    setMaxOutputChars(params.maxOutputChars)
+
+    const modelsMap = getApiModels()
+    const list: ModelItem[] = []
+    ;(Object.keys(modelsMap) as ProviderId[]).forEach((pid) => {
+      ;(modelsMap[pid] ?? []).forEach((mid) => {
+        list.push({
+          id: mid,
+          provider: pid,
+          label: `${providerLabel(pid)} · ${mid}`,
+          icon: providerIcon(pid),
+        })
+      })
+    })
+    setModels(list)
+    if (list[0]) {
+      setSelectedModel(list[0].id)
+      setSelectedProvider(list[0].provider)
+    }
+  }, [])
+
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => {
@@ -78,201 +133,205 @@ export default function ChatPage() {
   }, [])
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data } = await supabase.auth.getSession()
-      setUserId(data.session?.user?.id ?? null)
-    }
-    getSession()
-  }, [])
+    if (typeof id !== 'string') return
 
-  useEffect(() => {
-    const resolveSessionId = async () => {
-      if (typeof id !== 'string' || !userId) return
-
-      if (mode === 'continue') {
-        const { data: latestSession, error } = await supabase
-          .from('chat_messages')
-          .select('session_id')
-          .eq('user_id', userId)
-          .eq('character_id', id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-
-        if (error) {
-          console.error('❌ 세션 ID 조회 실패:', error)
-          return
-        }
-
-        const lastSessionId = latestSession?.[0]?.session_id
-        if (lastSessionId) {
-          setSessionId(lastSessionId)
-          return
-        }
-      }
-
-      setSessionId(crypto.randomUUID())
+    const localChar = getLocalCharacter(id)
+    if (!localChar) {
+      console.error('캐릭터를 찾을 수 없습니다:', id)
+      return
     }
 
-    resolveSessionId()
-  }, [id, mode, userId])
+    const emotionImages: EmotionImage[] =
+      localChar.emotionImages ?? localChar.emotion_images ?? []
+    const imageUrl =
+      localChar.imageUrl ?? localChar.image_url ?? emotionImages[0]?.imageUrl ?? undefined
 
-  useEffect(() => {
-    if (!userId || !id || !sessionId) return
+    const formattedCharacter: Character & { worldSetting?: string; supporting?: { name: string; description: string }[] } = {
+      id: localChar.id,
+      name: localChar.name,
+      personality: localChar.personality ?? '',
+      description: localChar.description ?? '',
+      situation: localChar.situation ?? '',
+      firstLine: localChar.firstLine,
+      imageUrl: imageUrl || undefined,
+      userName: localChar.userName ?? localChar.user_name,
+      userRole: localChar.userRole ?? localChar.user_role,
+      userDescription: localChar.userDescription ?? localChar.user_description,
+      emotionImages,
+      worldSetting: localChar.worldSetting ?? localChar.world_setting,
+      supporting: localChar.supporting ?? [],
+    }
+    setCharacterInfo(formattedCharacter)
 
-    const fetchCharacter = async () => {
-      const { data, error } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('id', id)
-        .single()
-
-      if (error || !data) {
-        console.error('❌ 캐릭터 불러오기 실패:', error)
-        return
-      }
-
-      const formattedCharacter: Character = {
-        ...data,
-        // data.imageUrl이 null이면 null을 그대로 유지, 그렇지 않으면 data.imageUrl 값 사용
-        imageUrl: data.imageUrl || null, 
-        emotionImages: Array.isArray(data.emotion_images) ? data.emotion_images : [],
-      }
-
-      setCharacterInfo(formattedCharacter)
-      // 디버깅용: 캐릭터 정보 로드 확인
-      console.log('캐릭터 정보 로드:', formattedCharacter);
-      console.log('배경 이미지 URL:', formattedCharacter.imageUrl); // Supabase에서 가져온 imageUrl 값을 그대로 출력
-
-
-      if (mode === 'continue') {
-        const { data: sessionMessages, error } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('character_id', id)
-          .eq('session_id', sessionId)
-          .order('created_at')
-
-        if (error || !sessionMessages) {
-          console.error('❌ 세션 메시지 불러오기 실패:', error)
-          return
-        }
-
-        const cleanMessages: Message[] = sessionMessages.map((m) => ({
-          id: m.id,
-          role: m.role,
-          content: m.content,
-          created_at: m.created_at,
-        }))
-
-        setMessages(cleanMessages)
-        return
-      }
-
-      const savedMessages = typeof window !== 'undefined' ? localStorage.getItem(`chat-${id}`) : null
-      const initialMessages: Message[] = savedMessages
-        ? JSON.parse(savedMessages)
-        : formattedCharacter.situation
-          ? [
-              { id: crypto.randomUUID(), role: 'user', content: `{${formattedCharacter.situation}}` },
-              ...(formattedCharacter.userDescription
-                ? [{ id: crypto.randomUUID(), role: 'user', content: `{${formattedCharacter.userDescription}}` }]
-                : []),
-              ...(formattedCharacter.firstLine
-                ? [{ id: crypto.randomUUID(), role: 'assistant', content: formattedCharacter.firstLine }]
-                : [])
-            ]
-          : []
-
-      setMessages(initialMessages)
-
-      // 초기 감정 이미지 표시 (emotionImages가 있다면 첫 번째 이미지)
-      if (formattedCharacter.emotionImages.length > 0) {
-        setDisplayedImage(formattedCharacter.emotionImages[0].imageUrl)
-      } else {
-        // 감정 이미지가 없다면, 캐릭터의 메인 이미지를 기본으로 설정 (선택적)
-        setDisplayedImage(formattedCharacter.imageUrl || null);
-      }
+    if (emotionImages.length > 0) {
+      setDisplayedImage(emotionImages[0].imageUrl)
+    } else if (imageUrl) {
+      setDisplayedImage(imageUrl)
     }
 
-    fetchCharacter()
-  }, [id, mode, userId, sessionId])
+    const storageKey = `chat-${id}`
+    const saved = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null
+    let initialMessages: Message[]
+
+    if (mode === 'continue' && saved) {
+      try {
+        initialMessages = JSON.parse(saved)
+      } catch {
+        initialMessages = []
+      }
+    } else if (saved && mode !== 'new') {
+      try {
+        initialMessages = JSON.parse(saved)
+      } catch {
+        initialMessages = []
+      }
+    } else {
+      initialMessages = formattedCharacter.situation
+        ? [
+            {
+              id: crypto.randomUUID(),
+              role: 'user',
+              content: `{${formattedCharacter.situation}}`,
+            },
+            ...(formattedCharacter.userDescription
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    role: 'user' as const,
+                    content: `{${formattedCharacter.userDescription}}`,
+                  },
+                ]
+              : []),
+            ...(formattedCharacter.firstLine
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    role: 'assistant' as const,
+                    content: formattedCharacter.firstLine,
+                  },
+                ]
+              : []),
+          ]
+        : []
+    }
+    setMessages(initialMessages)
+  }, [id, mode])
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && id) {
+    if (typeof window !== 'undefined' && id && typeof id === 'string') {
       localStorage.setItem(`chat-${id}`, JSON.stringify(messages))
     }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, id])
 
-
   useEffect(() => {
-    if (!characterInfo || !characterInfo.emotionImages || messages.length === 0) return
-
+    if (!characterInfo?.emotionImages?.length || messages.length === 0) return
     const last = messages[messages.length - 1]
     if (!last || last.role !== 'assistant') return
-
     const matched = characterInfo.emotionImages.find((img) =>
       last.content.includes(img.label)
     )
-
-    if (matched) {
-      setDisplayedImage(matched.imageUrl)
-    } else if (!displayedImage && characterInfo.emotionImages.length > 0) {
+    if (matched) setDisplayedImage(matched.imageUrl)
+    else if (!displayedImage && characterInfo.emotionImages.length > 0)
       setDisplayedImage(characterInfo.emotionImages[0].imageUrl)
-    }
   }, [characterInfo, messages])
 
-  const deductPoint = async (amount: number) => {
-    if (!userId) return false
+  const sendToAI = async (
+    message: string,
+    characterInfo: Character
+  ): Promise<string[]> => {
     try {
-      const res = await fetch('/api/points/deduct', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, amount }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      return true
-    } catch (err) {
-      console.error('❌ 포인트 차감 실패:', err)
-      alert('포인트가 부족하거나 오류가 발생했습니다.')
-      return false
-    }
-  } 
+      if (!selectedModel) return ['모델이 설정되지 않았습니다. 마이페이지에서 Models를 추가해 주세요.']
+      const providers = getApiProviders()
+      const key = providers?.[selectedProvider]?.apiKey ?? ''
+      if (!key) return ['API 키가 비어있습니다. 마이페이지에서 API Key를 입력해 주세요.']
+      const promptBundles = getPromptBundles().filter((b) => b.enabled)
+      const moduleBundles = getModuleBundles().filter((b) => b.enabled)
 
-  const sendToAI = async (message: string, characterInfo: Character): Promise<string[]> => {
-  
-    try {
+      const prompts = {
+        main: promptBundles
+          .map((b) => (b.mainPrompt?.trim() ? `## ${b.name || b.id}\n${b.mainPrompt.trim()}` : ''))
+          .filter(Boolean)
+          .join('\n\n')
+          .trim(),
+        character: promptBundles
+          .map((b) =>
+            b.characterPrompt?.trim() ? `## ${b.name || b.id}\n${b.characterPrompt.trim()}` : ''
+          )
+          .filter(Boolean)
+          .join('\n\n')
+          .trim(),
+        jailbreak: promptBundles
+          .map((b) =>
+            b.jailbreakPrompt?.trim() ? `## ${b.name || b.id}\n${b.jailbreakPrompt.trim()}` : ''
+          )
+          .filter(Boolean)
+          .join('\n\n')
+          .trim(),
+      }
+
+      const systemPromptAppend = promptBundles
+        .map((b) =>
+          b.systemPromptAppend?.trim() ? `## ${b.name || b.id}\n${b.systemPromptAppend.trim()}` : ''
+        )
+        .filter(Boolean)
+        .join('\n\n')
+        .trim()
+
+      const maxTokens = Math.max(256, Math.min(8192, Math.floor((maxOutputChars || 4000) / 4)))
+      const trimmedMessage =
+        typeof message === 'string' && message.length > (maxInputChars || 4000)
+          ? message.slice(0, maxInputChars || 4000)
+          : message
+
       const contextMessages = [
         ...messages,
         {
           id: crypto.randomUUID(),
-          role: 'user',
-          content: message,
+          role: 'user' as const,
+          content: trimmedMessage,
           created_at: new Date().toISOString(),
-        }
+        },
       ]
-
       const recentMessages = contextMessages.slice(-10)
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: recentMessages, characterInfo, selectedModel })
+        body: JSON.stringify({
+          messages: recentMessages,
+          characterInfo,
+          provider: selectedProvider,
+          apiKey: key,
+          selectedModel,
+          temperature,
+          max_tokens: maxTokens,
+          systemPromptAppend,
+          prompts,
+          modules: moduleBundles,
+        }),
       })
 
       if (!res.ok) {
         const errText = await res.text()
-        console.error('❌ AI 응답 오류:', errText)
-        return ['응답 실패 (서버 오류 또는 포맷 문제)']
+        console.error('AI 응답 오류:', errText)
+        return ['응답 실패 (서버 오류 또는 API 키 확인)']
       }
-      
 
       const result = await res.json()
-      if (Array.isArray(result.reply)) return result.reply
-      return (result.reply as string).split('\n').filter((line) => line.trim())
+      const lines = Array.isArray(result.reply)
+        ? (result.reply as string[])
+        : String(result.reply ?? '')
+            .split('\n')
+            .filter((line) => line.trim())
+
+      const joined = lines.join('\n')
+      const clipped =
+        typeof joined === 'string' && joined.length > (maxOutputChars || 4000)
+          ? joined.slice(0, maxOutputChars || 4000)
+          : joined
+      return clipped.split('\n').filter((line) => line.trim())
     } catch (err) {
-      console.error('❌ AI 연결 오류:', err)
+      console.error('AI 연결 오류:', err)
       return ['AI 응답 실패 (네트워크 오류)']
     }
   }
@@ -280,22 +339,12 @@ export default function ChatPage() {
   const sendMessage = async () => {
     if (!input.trim() || !characterInfo) return
 
-    const model = models.find((m) => m.id === selectedModel)
-    const cost = model?.point ?? 0
-
-    const success = await deductPoint(cost)
-    if (!success) return
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('point-update'))
-    }
-    
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
       content: input,
       created_at: new Date().toISOString(),
     }
-
     const newMessages = [...messages, userMessage]
     setMessages(newMessages)
     setInput('')
@@ -306,65 +355,48 @@ export default function ChatPage() {
       role: 'assistant',
       content: line,
     }))
-
     setMessages([...newMessages, ...replyMessages])
-
-    if (userId && characterInfo?.id) {
-      const rowsToInsert = [
-        {
-          id: crypto.randomUUID(),
-          user_id: userId,
-          character_id: characterInfo.id,
-          session_id: sessionId,
-          role: 'user',
-          content: input,
-          created_at: new Date().toISOString(),
-        },
-        ...replyMessages.map((m) => ({
-          id: m.id,
-          user_id: userId,
-          character_id: characterInfo.id,
-          session_id: sessionId,
-          role: m.role,
-          content: m.content,
-          created_at: new Date().toISOString(),
-        })),
-      ]
-
-      await fetch('/api/save-message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: rowsToInsert }),
-      })
-    }
   }
+
+  const handleSaveEdit = () => {
+    if (editTargetId === null) return
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === editTargetId ? { ...m, content: editContent } : m
+      )
+    )
+    setEditTargetId(null)
+  }
+
+  const handleDeleteMessage = (msgId: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== msgId))
+  }
+
+  const isDataUrl = (s: string) => typeof s === 'string' && s.startsWith('data:')
 
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
-      {/* Background Image for Mobile (sm:hidden) */}
-      {/* displayedImage가 있으면 배경으로 사용. displayedImage는 emotionImages[0] 또는 캐릭터 메인 이미지에서 가져올 수 있음 */}
-      {displayedImage && ( 
+      {displayedImage && (
         <div className="sm:hidden absolute inset-0 z-0">
           <Image
-            src={displayedImage} // 감정 이미지 또는 기본 캐릭터 이미지를 사용
-            alt="배경 이미지"
+            src={displayedImage}
+            alt="배경"
             fill
             className="object-cover opacity-15"
             priority
+            unoptimized={isDataUrl(displayedImage)}
           />
         </div>
       )}
 
-      {/* Top Navigation */}
       {characterInfo && (
-        <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50 flex-wrap sm:flex-nowrap">          
+        <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50 flex-wrap sm:flex-nowrap">
           <button
             onClick={() => router.push('/')}
             className="text-white text-xl font-bold mr-2 hover:text-gray-300"
           >
             &lt;
           </button>
-
           {characterInfo.imageUrl && (
             <div className="relative w-10 h-10 flex-shrink-0">
               <Image
@@ -372,18 +404,25 @@ export default function ChatPage() {
                 alt="profile"
                 fill
                 className="rounded-full object-cover"
+                unoptimized={isDataUrl(characterInfo.imageUrl)}
               />
             </div>
           )}
-
           <div className="flex-grow min-w-0">
-            <div className="font-semibold text-white text-base truncate">{characterInfo.name}</div>
-            <div className="text-xs text-gray-400 truncate">{characterInfo.personality}</div>
+            <div className="font-semibold text-white text-base truncate">
+              {characterInfo.name}
+            </div>
+            <div className="text-xs text-gray-400 truncate">
+              {characterInfo.personality}
+            </div>
           </div>
-
           <div className="text-right text-xs text-gray-400 ml-auto flex flex-col items-end sm:items-stretch">
-            {characterInfo.userName && <div className="truncate">👤 {characterInfo.userName}</div>}
-            {characterInfo.userRole && <div className="truncate">역할: {characterInfo.userRole}</div>}
+            {characterInfo.userName && (
+              <div className="truncate">👤 {characterInfo.userName}</div>
+            )}
+            {characterInfo.userRole && (
+              <div className="truncate">역할: {characterInfo.userRole}</div>
+            )}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="mt-1 p-1 text-white hover:text-yellow-300 flex-shrink-0"
@@ -395,11 +434,9 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Main Content Area */}
       <div className="relative flex flex-1 overflow-hidden">
-        {/* Desktop: Fixed Image Area (hidden on mobile) */}
         <div className="hidden sm:flex w-1/2 max-w-[50%] h-full px-6 pt-6 pb-20 flex-col items-center justify-start overflow-y-auto">
-          {characterInfo?.emotionImages && displayedImage && (
+          {characterInfo?.emotionImages?.length && displayedImage && (
             <>
               <div className="relative w-full max-w-md aspect-square">
                 <Image
@@ -407,25 +444,22 @@ export default function ChatPage() {
                   alt="감정 이미지"
                   fill
                   className="object-cover rounded-xl"
+                  unoptimized={isDataUrl(displayedImage)}
                 />
               </div>
-
               <div className="mt-4 text-sm text-gray-300 bg-[#1e1e1e] px-4 py-2 rounded-xl max-w-sm w-full text-center">
-                {
-                  characterInfo.emotionImages.find(img => img.imageUrl === displayedImage)?.label
-                  || '감정 정보 없음'
-                }
+                {characterInfo.emotionImages.find(
+                  (img) => img.imageUrl === displayedImage
+                )?.label || '감정 정보 없음'}
               </div>
             </>
           )}
         </div>
 
-        {/* Chat Area (full width on mobile) */}
-        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10 bg-transparent"> 
+        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10 bg-transparent">
           {messages.map((msg) => {
             const isEditing = editTargetId === msg.id
             const isUser = msg.role === 'user'
-
             return (
               <div key={msg.id} className="group relative p-1">
                 {isEditing ? (
@@ -438,17 +472,7 @@ export default function ChatPage() {
                     />
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={async () => {
-                          await fetch('/api/update-message', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: msg.id, content: editContent }),
-                          })
-                          setMessages((prev) =>
-                            prev.map((m) => (m.id === msg.id ? { ...m, content: editContent } : m))
-                          )
-                          setEditTargetId(null)
-                        }}
+                        onClick={handleSaveEdit}
                         className="text-sm text-yellow-400 hover:text-yellow-300"
                       >
                         저장
@@ -463,13 +487,12 @@ export default function ChatPage() {
                   </div>
                 ) : (
                   <>
-                    <div className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}>
+                    <div
+                      className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}
+                    >
                       {msg.content}
                     </div>
-                    {/* 수정/삭제 버튼 가시성 - 모바일에서 항상 보이게 하려면 opacity-0 group-hover:opacity-100 제거 또는 조정 */}
-                    {/* 현재 코드에서는 group-hover 사용. 모바일에서 기본적으로 보이게 하려면 opacity-100으로 변경 */}
-                    <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition"> 
-                      <span className="mr-4"></span> {/* 스페이스 효과 유지 */}
+                    <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
                       <button
                         onClick={() => {
                           setEditTargetId(msg.id)
@@ -481,14 +504,7 @@ export default function ChatPage() {
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={async () => {
-                          await fetch('/api/delete-message', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: msg.id }),
-                          })
-                          setMessages((prev) => prev.filter((m) => m.id !== msg.id))
-                        }}
+                        onClick={() => handleDeleteMessage(msg.id)}
                         className="text-gray-400 hover:text-red-400"
                         title="삭제"
                       >
@@ -500,31 +516,30 @@ export default function ChatPage() {
               </div>
             )
           })}
-
           <div ref={bottomRef} />
         </div>
       </div>
 
-      {/* Chat Input */}
       <div className="w-full bg-[#111] border-t border-[#333] px-4 py-3 z-50">
         <div className="flex items-center gap-3 max-w-5xl mx-auto flex-wrap sm:flex-nowrap">
           <button
             onClick={() => setShowModelModal(true)}
             className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center justify-center sm:w-auto w-full mb-2 sm:mb-0"
           >
-            {models.find(m => m.id === selectedModel)?.icon}
-            <span className="ml-1">모델 선택: {models.find(m => m.id === selectedModel)?.label || '선택 없음'}</span>
+            {models.find((m) => m.id === selectedModel)?.icon}
+            <span className="ml-1">
+              모델: {models.find((m) => m.id === selectedModel)?.label ?? '선택'}
+            </span>
           </button>
-
           <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2 w-full">
             <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) { // Shift + Enter는 줄바꿈, Enter만 누르면 전송
-                  e.preventDefault();
-                  sendMessage();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  sendMessage()
                 }
               }}
               placeholder="대사를 입력하세요"
@@ -549,27 +564,88 @@ export default function ChatPage() {
 
       {showModelModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1b1b1b] p-6 rounded-2xl w-full max-w-sm space-y-6 relative">
-            <h2 className="text-xl font-bold text-white text-center">AI 모델 선택</h2>
+          <div className="bg-[#1b1b1b] p-6 rounded-2xl w-full max-w-sm space-y-6 relative max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-white text-center">
+              AI 모델 · 옵션
+            </h2>
             <div className="space-y-4">
               {models.map((model) => (
                 <div
                   key={model.id}
-                  onClick={() => setSelectedModel(model.id)}
-                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer
-                    ${selectedModel === model.id ? 'bg-[#e45463]' : 'bg-[#2b2b2b]'}
-                  `}
+                  onClick={() => {
+                    setSelectedModel(model.id)
+                    setSelectedProvider(model.provider)
+                  }}
+                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${
+                    selectedModel === model.id ? 'bg-[#e45463]' : 'bg-[#2b2b2b]'
+                  }`}
                 >
                   <div className="flex items-center">
                     <span className="mr-2">{model.icon}</span>
                     <div className="flex flex-col">
                       <span className="text-white font-semibold">{model.label}</span>
-                      <span className="text-xs text-gray-400">{model.description}</span>
+                      <span className="text-xs text-gray-400">
+                        {model.description}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-sm text-white font-bold">{model.point}P</div>
                 </div>
               ))}
+            </div>
+            <div className="space-y-2 border-t border-gray-700 pt-4">
+              <label className="block text-sm text-gray-300">
+                Temperature (0~2)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={2}
+                step={0.1}
+                value={temperature}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value)
+                  if (!Number.isNaN(v)) {
+                    const next = Math.max(0, Math.min(2, v))
+                    setTemperature(next)
+                    setChatParameters({ temperature: next, maxInputChars, maxOutputChars })
+                  }
+                }}
+                className="w-full bg-[#222] text-white px-3 py-2 rounded"
+              />
+              <label className="block text-sm text-gray-300">
+                Max input chars
+              </label>
+              <input
+                type="number"
+                min={100}
+                max={200000}
+                value={maxInputChars}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10)
+                  if (Number.isNaN(v)) return
+                  const safe = Math.max(100, Math.min(200000, v))
+                  setMaxInputChars(safe)
+                  setChatParameters({ temperature, maxInputChars: safe, maxOutputChars })
+                }}
+                className="w-full bg-[#222] text-white px-3 py-2 rounded"
+              />
+              <label className="block text-sm text-gray-300">
+                Max output chars
+              </label>
+              <input
+                type="number"
+                min={100}
+                max={200000}
+                value={maxOutputChars}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10)
+                  if (Number.isNaN(v)) return
+                  const safe = Math.max(100, Math.min(200000, v))
+                  setMaxOutputChars(safe)
+                  setChatParameters({ temperature, maxInputChars, maxOutputChars: safe })
+                }}
+                className="w-full bg-[#222] text-white px-3 py-2 rounded"
+              />
             </div>
             <button
               onClick={() => setShowModelModal(false)}

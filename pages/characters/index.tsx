@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import supabase from '@/lib/supabaseClient'
+import {
+  getLocalCharacters,
+  deleteLocalCharacter,
+  type LocalCharacter,
+} from '@/lib/localStorage'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
 
 interface Character {
@@ -9,116 +13,83 @@ interface Character {
   description: string
   imageUrl: string
   createdAt: string
-  user_id?: string
   personality: string
   situation: string
+}
+
+function toListCharacter(c: LocalCharacter): Character {
+  const img = c.imageUrl ?? c.image_url
+  const firstEmotion = c.emotionImages?.[0] ?? c.emotion_images?.[0]
+  const imageUrl =
+    typeof img === 'string' && (img.startsWith('http') || img.startsWith('data:'))
+      ? img
+      : firstEmotion?.imageUrl ?? '/default-profile.png'
+  return {
+    id: c.id,
+    name: c.name,
+    description: c.description ?? '',
+    imageUrl,
+    createdAt: c.created_at ?? c.createdAt ?? new Date().toISOString(),
+    personality: c.personality ?? '',
+    situation: c.situation ?? '',
+  }
 }
 
 export default function CharacterList() {
   const [characters, setCharacters] = useState<Character[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [userId, setUserId] = useState<string | null>(null)
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      setUserId(data?.user?.id || null)
-    }
-    getUser()
-  }, [])
+  const loadCharacters = () => {
+    setCharacters(getLocalCharacters().map(toListCharacter))
+  }
 
   useEffect(() => {
-    const fetchCharacters = async () => {
-      const { data, error } = await supabase
-        .from('characters')
-        .select('id, name, description, created_at, user_id, personality, situation, image_url')
-
-      if (error) {
-        console.error('❌ 캐릭터 불러오기 실패:', error)
-      } else {
-        const formatted = (data || []).map((char: any) => ({
-          ...char,
-          imageUrl: char.image_url || '/default-profile.png',
-        }))
-        setCharacters(formatted)
-      }
-    }
-
-    fetchCharacters()
+    loadCharacters()
   }, [])
 
-  const handleEdit = async (id: string) => {
-    const { data, error } = await supabase
-      .from('characters')
-      .select('*')
-      .eq('id', id)
-      .single()
-
-    if (error || !data) {
+  const handleEdit = (id: string) => {
+    const list = getLocalCharacters()
+    const char = list.find((c) => c.id === id)
+    if (!char) {
       alert('캐릭터를 불러오지 못했습니다.')
       return
     }
-
     const draft = {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      firstLine: data.first_line,
-      personality: data.personality,
-      tags: data.tags || [],
-      isPublic: data.is_public ?? true,
-      isCensored: data.is_censored ?? true,
-      imageUrl: data.image_url || '',
-      emotionImages: data.emotion_images || [],
-      userName: data.user_name || '',
-      userRole: data.user_role || '',
-      userDescription: data.user_description || '',
-      situation: data.situation || '',
-      occupation: data.details?.occupation || '',
-      birthplace: data.details?.birthplace || '',
-      age: data.details?.age || '',
-      trauma: data.details?.trauma || '',
-      relationships: data.details?.relationships || '',
-      goal: data.details?.goal || '',
-      worldSetting: data.world_setting || '',
-      details: {
-        occupation: data.details?.occupation || '',
-        birthplace: data.details?.birthplace || '',
-        age: data.details?.age || '',
-        trauma: data.details?.trauma || '',
-        relationships: data.details?.relationships || '',
-        goal: data.details?.goal || '',
-        worldSetting: data.world_setting || '',
-        situation: data.situation || '',
-      },
-      protagonist: data.protagonist || [],
-      supporting: data.supporting || [],
+      id: char.id,
+      name: char.name,
+      description: char.description ?? '',
+      firstLine: char.firstLine ?? '',
+      personality: char.personality ?? '',
+      tags: char.tags ?? [],
+      isPublic: char.isPublic ?? char.is_public ?? true,
+      isCensored: true,
+      imageUrl: char.imageUrl ?? char.image_url ?? '',
+      emotionImages: char.emotionImages ?? char.emotion_images ?? [],
+      userName: char.userName ?? char.user_name ?? '',
+      userRole: char.userRole ?? char.user_role ?? '',
+      userDescription: char.userDescription ?? char.user_description ?? '',
+      situation: char.situation ?? '',
+      worldSetting: char.worldSetting ?? char.world_setting ?? '',
+      details: char.details ?? {},
+      protagonist: char.protagonist ?? [],
+      supporting: char.supporting ?? [],
     }
-
     localStorage.setItem('character-draft', JSON.stringify(draft))
     router.push('/create')
   }
 
-  const handleDelete = async (id: string) => {
-    const confirmed = confirm('정말 이 캐릭터를 삭제하시겠습니까?')
-    if (!confirmed) return
-
-    const { error } = await supabase.from('characters').delete().eq('id', id)
-
-    if (error) {
-      alert('삭제 중 오류가 발생했습니다.')
-      console.error('❌ 삭제 실패:', error)
-      return
-    }
-
+  const handleDelete = (id: string) => {
+    if (!confirm('정말 이 캐릭터를 삭제하시겠습니까?')) return
+    deleteLocalCharacter(id)
     setCharacters((prev) => prev.filter((char) => char.id !== id))
   }
 
-  const filteredCharacters = characters.filter((char) =>
-    char.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    char.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCharacters = characters.filter(
+    (char) =>
+      char.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      char.description.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -159,23 +130,26 @@ export default function CharacterList() {
                   <p className="text-xs text-gray-500 mt-1">
                     생성일: {new Date(char.createdAt).toLocaleDateString()}
                   </p>
-
-                  {char.user_id === userId && (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleEdit(char.id) }}
-                        className="text-sm px-4 py-1 rounded-full bg-white text-black hover:bg-gray-300 transition"
-                      >
-                        수정
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(char.id) }}
-                        className="text-sm px-4 py-1 rounded-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEdit(char.id)
+                      }}
+                      className="text-sm px-4 py-1 rounded-full bg-white text-black hover:bg-gray-300 transition"
+                    >
+                      수정
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(char.id)
+                      }}
+                      className="text-sm px-4 py-1 rounded-full border border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition"
+                    >
+                      삭제
+                    </button>
+                  </div>
                 </div>
               </li>
             ))}
@@ -188,7 +162,7 @@ export default function CharacterList() {
             onClose={() => setSelectedCharacter(null)}
             onStartChat={() => {
               setSelectedCharacter(null)
-              router.push(`/chat/${selectedCharacter.name}`)
+              router.push(`/chat/${encodeURIComponent(selectedCharacter.id)}`)
             }}
           />
         )}
