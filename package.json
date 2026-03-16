@@ -14,7 +14,7 @@
     "clsx": "^2.1.1",
     "formidable": "^3.5.4",
     "lucide-react": "^0.488.0",
-    "next": "15.2.5",
+    "next": "15.2.6",
     "openai": "^4.93.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -30,7 +30,7 @@
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
-    "eslint-config-next": "15.2.5",
+    "eslint-config-next": "15.2.6",
     "tailwindcss": "^4.1.7",
     "typescript": "^5"
   }
