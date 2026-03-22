@@ -114,3 +114,29 @@ export async function kvRemove(key: string): Promise<void> {
     tx.onabort = () => reject(tx.error)
   })
 }
+
+/** 접두사와 일치하는 모든 키 삭제 (캐릭터별 블롭 정리 등) */
+export async function kvRemoveByPrefix(prefix: string): Promise<void> {
+  if (typeof window === 'undefined') return
+  await ensureMigratedFromLocalStorage()
+  const db = await openDb()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    const st = tx.objectStore(STORE)
+    const req = st.openCursor()
+    req.onerror = () => reject(req.error)
+    req.onsuccess = () => {
+      const cursor = req.result
+      if (cursor) {
+        const key = cursor.key
+        if (typeof key === 'string' && key.startsWith(prefix)) {
+          cursor.delete()
+        }
+        cursor.continue()
+      }
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error)
+  })
+}

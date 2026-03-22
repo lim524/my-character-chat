@@ -5,6 +5,12 @@
 export const LOCAL_CHARACTERS_KEY = 'local-characters'
 
 import { type InterfaceConfig } from './interfaceConfig'
+import {
+  characterHasInlineDataUrls,
+  extractCharacterBlobsForStorage,
+  hydrateCharacterBlobs,
+  removeAllBlobsForCharacter,
+} from './characterBlobStorage'
 import { kvGet, kvSet } from './idbKV'
 
 export interface EmotionImageItem {
@@ -45,13 +51,40 @@ export interface LocalCharacter {
   createdAt?: string
 }
 
+/** IDB에 저장되는 형태(블롭은 ref 문자열). 마이그레이션 후 persist. */
+async function readCharacterListStored(): Promise<LocalCharacter[]> {
+  const raw = await kvGet(LOCAL_CHARACTERS_KEY)
+  if (!raw) return []
+  let list: LocalCharacter[] = []
+  try {
+    const parsed = JSON.parse(raw)
+    list = Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+  let changed = false
+  for (let i = 0; i < list.length; i++) {
+    if (characterHasInlineDataUrls(list[i])) {
+      list[i] = await extractCharacterBlobsForStorage(list[i])
+      changed = true
+    }
+  }
+  if (changed) {
+    try {
+      await kvSet(LOCAL_CHARACTERS_KEY, JSON.stringify(list))
+    } catch (e) {
+      console.error('[readCharacterListStored] 마이그레이션 저장 실패', e)
+    }
+  }
+  return list
+}
+
+/** UI·채팅용: 인라인 data URL로 복원 */
 export async function getLocalCharacters(): Promise<LocalCharacter[]> {
   if (typeof window === 'undefined') return []
   try {
-    const raw = await kvGet(LOCAL_CHARACTERS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    const list = await readCharacterListStored()
+    return Promise.all(list.map((c) => hydrateCharacterBlobs(c)))
   } catch {
     return []
   }
@@ -75,7 +108,8 @@ export async function setLocalCharacters(characters: LocalCharacter[]): Promise<
     return { ok: false, error: '브라우저 환경에서만 저장할 수 있습니다.' }
   }
   try {
-    await kvSet(LOCAL_CHARACTERS_KEY, JSON.stringify(characters))
+    const stored = await Promise.all(characters.map((c) => extractCharacterBlobsForStorage(c)))
+    await kvSet(LOCAL_CHARACTERS_KEY, JSON.stringify(stored))
     return { ok: true }
   } catch (e: unknown) {
     console.error('[setLocalCharacters]', e)
@@ -98,10 +132,11 @@ export async function saveLocalCharacter(character: LocalCharacter): Promise<Loc
     return { ok: false, error: '브라우저에서만 저장할 수 있습니다.' }
   }
   try {
-    const list = await getLocalCharacters()
-    const idx = list.findIndex((c) => c.id === character.id)
-    if (idx >= 0) list[idx] = character
-    else list.push(character)
+    const extracted = await extractCharacterBlobsForStorage(character)
+    const list = await readCharacterListStored()
+    const idx = list.findIndex((c) => c.id === extracted.id)
+    if (idx >= 0) list[idx] = extracted
+    else list.push(extracted)
     return setLocalCharacters(list)
   } catch (e: unknown) {
     console.error('[saveLocalCharacter]', e)
@@ -115,8 +150,9 @@ export async function saveLocalCharacter(character: LocalCharacter): Promise<Loc
 }
 
 export async function deleteLocalCharacter(id: string): Promise<void> {
-  const list = await getLocalCharacters()
+  const list = await readCharacterListStored()
   await setLocalCharacters(list.filter((c) => c.id !== id))
+  await removeAllBlobsForCharacter(id)
 }
 
 // ==========================================

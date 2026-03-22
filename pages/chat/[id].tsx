@@ -18,6 +18,7 @@ import {
   type ProviderId,
 } from '@/lib/appSettings'
 import { kvGet, kvSet } from '@/lib/idbKV'
+import { stripDataUrlsFromJsonValue } from '@/lib/stripDataUrlsForApi'
 import {
   effectiveCharacterLiftPx,
   parseMergedCharacterLayoutFromExtraEntries,
@@ -436,21 +437,23 @@ export default function ChatPage() {
         },
       ]
       const recentMessages = contextMessages.slice(-10)
+      const chatPayload = stripDataUrlsFromJsonValue({
+        messages: recentMessages,
+        characterInfo,
+        provider: selectedProvider,
+        apiKey: key,
+        selectedModel,
+        temperature,
+        max_tokens: maxTokens,
+        systemPromptAppend,
+        prompts,
+        modules: moduleBundles,
+      }) as Record<string, unknown>
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: recentMessages,
-          characterInfo,
-          provider: selectedProvider,
-          apiKey: key,
-          selectedModel,
-          temperature,
-          max_tokens: maxTokens,
-          systemPromptAppend,
-          prompts,
-          modules: moduleBundles,
-        }),
+        body: JSON.stringify(chatPayload),
       })
 
       if (!res.ok) {

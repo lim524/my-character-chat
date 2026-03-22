@@ -36,6 +36,8 @@ import {
 } from 'lucide-react'
 import { Code2 } from 'lucide-react'
 import { saveLocalCharacter, type LocalCharacter } from '@/lib/localStorage'
+import { downloadCharacterCardJson } from '@/lib/characterCardInterop'
+import { importCharacterFromFile } from '@/lib/cardImportRouter'
 
 type SidebarTabId =
   | 'profile'
@@ -126,6 +128,7 @@ export default function CreatePage() {
   const [expandedRegexScriptId, setExpandedRegexScriptId] = useState<string | null>(null)
   const [expandedScenarioRuleId, setExpandedScenarioRuleId] = useState<string | null>(null)
   const [expandedExtraInterfaceId, setExpandedExtraInterfaceId] = useState<string | null>(null)
+  const cardImportRef = useRef<HTMLInputElement>(null)
 
   /** 비동기 FileReader 완료 시점의 iface 클로저 오래됨 방지 */
   const ifaceRef = useRef<InterfaceConfig | null>(null)
@@ -195,6 +198,77 @@ export default function CreatePage() {
     if (!(draft as any).id) patchDraft({ id } as any)
     setSaveStatus('saved')
     setTimeout(() => setSaveStatus('idle'), 2000)
+  }
+
+  const handleExportCharacterCard = () => {
+    if (!iface) return
+    const id = ((draft as CharacterDraft & { id?: string }).id as string | undefined) || uuidv4()
+    const withLore = draft as CharacterDraft & { loreEntries?: LoreEntry[] }
+    const exportChar = {
+      ...draft,
+      id,
+      name: String(draft.name ?? '').trim() || 'Unnamed',
+      description: String(draft.description ?? ''),
+      personality: String(draft.personality ?? ''),
+      situation: String(draft.situation ?? ''),
+      firstLine: draft.firstLine,
+      imageUrl: draft.imageUrl,
+      emotionImages: draft.emotionImages,
+      tags: draft.tags,
+      userName: draft.userName,
+      userRole: draft.userRole,
+      userDescription: draft.userDescription,
+      worldSetting: draft.worldSetting,
+      supporting: draft.supporting,
+      protagonist: draft.protagonist,
+      isAdult: draft.isAdult,
+      isPublic: draft.isPublic,
+      details: draft.details ?? {},
+      interfaceConfig: iface,
+      loreEntries: withLore.loreEntries,
+    } as LocalCharacter & { loreEntries?: LoreEntry[] }
+    downloadCharacterCardJson(exportChar)
+  }
+
+  const handleCardImportFile = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+    const file = ev.target.files?.[0]
+    ev.target.value = ''
+    if (!file) return
+    try {
+      const { character, warnings } = await importCharacterFromFile(file)
+      const ic = character.interfaceConfig ?? createInitialInterfaceConfig()
+      const importedLore = character as LocalCharacter & { loreEntries?: LoreEntry[] }
+      const nextDraft: CharacterDraft = {
+        ...draft,
+        id: character.id,
+        name: character.name,
+        description: character.description,
+        firstLine: character.firstLine,
+        personality: character.personality,
+        situation: character.situation,
+        worldSetting: character.worldSetting ?? character.world_setting,
+        tags: character.tags,
+        isPublic: character.isPublic ?? character.is_public ?? true,
+        isAdult: character.isAdult ?? character.is_adult,
+        imageUrl: character.imageUrl ?? character.image_url,
+        emotionImages: character.emotionImages ?? character.emotion_images,
+        userName: character.userName ?? character.user_name,
+        userRole: character.userRole ?? character.user_role,
+        userDescription: character.userDescription ?? character.user_description,
+        supporting: character.supporting,
+        protagonist: character.protagonist,
+        details: character.details ?? {},
+        loreEntries: importedLore.loreEntries,
+        interfaceConfig: ic,
+      }
+      setDraft(nextDraft)
+      setIface(ic)
+      await persistCharacterDraft(nextDraft)
+      if (warnings.length) alert(warnings.join('\n'))
+    } catch (err) {
+      console.error(err)
+      alert(err instanceof Error ? err.message : '카드 가져오기에 실패했습니다.')
+    }
   }
 
   const handleSaveRef = useRef(handleSave)
@@ -1611,7 +1685,30 @@ useEffect에서 onCharacterSpritesChange?.([...detectedCharUrls])`
             </div>
 
             {/* Save Button */}
-            <div className="sticky bottom-0 px-5 py-4 bg-[#050508]/95 border-t border-[#222]">
+            <div className="sticky bottom-0 px-5 py-4 bg-[#050508]/95 border-t border-[#222] space-y-2">
+              <input
+                ref={cardImportRef}
+                type="file"
+                accept=".json,.png,.charx,.zip,application/json,image/png,application/zip"
+                className="hidden"
+                onChange={handleCardImportFile}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => cardImportRef.current?.click()}
+                  className="flex-1 py-2 rounded-xl text-xs font-medium border border-[#444] bg-[#111] hover:bg-[#1a1a1a] text-gray-200"
+                >
+                  카드 가져오기
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportCharacterCard}
+                  className="flex-1 py-2 rounded-xl text-xs font-medium border border-[#444] bg-[#111] hover:bg-[#1a1a1a] text-gray-200"
+                >
+                  카드 보내기 (JSON)
+                </button>
+              </div>
               <button
                 onClick={handleSave}
                 className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all ${
@@ -1622,11 +1719,6 @@ useEffect에서 onCharacterSpritesChange?.([...detectedCharUrls])`
               >
                 {saveStatus === 'saved' ? '✓ 저장되었습니다!' : '캐릭터 저장 (Ctrl+S)'}
               </button>
-              <p className="mt-2 text-[10px] text-gray-500 leading-relaxed text-center">
-                데이터는 이 브라우저의 <strong className="text-gray-400">IndexedDB</strong>에 저장됩니다(용량은
-                localStorage보다 훨씬 넉넉하지만 무제한은 아님). 장 수가 적어도 고해상도 이미지는 base64로 커질 수
-                있습니다. localhost와 배포 URL은 저장소가 따로입니다.
-              </p>
             </div>
           </div>
         )}
