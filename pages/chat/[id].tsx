@@ -2,7 +2,9 @@
 import ChatMenu from '@/components/ChatMenu'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
-import { getLocalCharacter } from '@/lib/localStorage'
+import { getLocalCharacter, saveGameSlot, loadGameSlot, getSaveSlots, deleteGameSlot, saveChatSession, type SaveSlot } from '@/lib/localStorage'
+import MessageParser from '@/components/MessageParser'
+import type { InterfaceConfig } from '@/lib/interfaceConfig'
 import {
   getApiModels,
   getApiProviders,
@@ -23,6 +25,8 @@ import {
   Zap,
   Feather,
   Gem,
+  BookOpen,
+  Settings
 } from 'lucide-react'
 
 type Role = 'user' | 'assistant'
@@ -51,6 +55,7 @@ type Character = {
   userRole?: string
   userDescription?: string
   emotionImages: EmotionImage[]
+  interfaceConfig?: InterfaceConfig
 }
 
 type ModelItem = {
@@ -83,7 +88,13 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [characterInfo, setCharacterInfo] = useState<Character | null>(null)
   const [displayedImage, setDisplayedImage] = useState<string | null>(null)
+  const [activeCharacterSprite, setActiveCharacterSprite] = useState<string | null>(null)
+  const [parsedStats, setParsedStats] = useState<Record<string, number>>({})
   const [models, setModels] = useState<ModelItem[]>([])
+  const [isLogOpen, setIsLogOpen] = useState(false)
+  const [isSaveLoadOpen, setIsSaveLoadOpen] = useState(false)
+  const [saveLoadTab, setSaveLoadTab] = useState<'save'|'load'>('save')
+  const [saveSlots, setSaveSlots] = useState<SaveSlot[]>([])
   const [selectedModel, setSelectedModel] = useState<string>('')
   const [selectedProvider, setSelectedProvider] = useState<ProviderId>('openai')
   const [showModelModal, setShowModelModal] = useState(false)
@@ -92,9 +103,6 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const [userName, setUserName] = useState('')
-  const [userDescription, setUserDescription] = useState('')
-  const [lore, setLore] = useState('')
 
   const [temperature, setTemperature] = useState(0.7)
   const [maxOutputChars, setMaxOutputChars] = useState(4000)
@@ -158,17 +166,24 @@ export default function ChatPage() {
       userRole: localChar.userRole ?? localChar.user_role,
       userDescription: localChar.userDescription ?? localChar.user_description,
       emotionImages,
+      interfaceConfig: localChar.interfaceConfig,
       worldSetting: localChar.worldSetting ?? localChar.world_setting,
       supporting: localChar.supporting ?? [],
     }
     setCharacterInfo(formattedCharacter)
 
-    if (emotionImages.length > 0) {
-      setDisplayedImage(emotionImages[0].imageUrl)
-    } else if (imageUrl) {
-      setDisplayedImage(imageUrl)
+    // Restore initial background and character sprite from interfaceConfig
+    const assets = localChar.interfaceConfig?.assets ?? []
+    const initBgId = localChar.details?.initialBackground as string | undefined
+    const initCharId = localChar.details?.initialCharacter as string | undefined
+    if (initBgId) {
+      const asset = assets.find((a: any) => a.id === initBgId)
+      if (asset?.url) setDisplayedImage(asset.url)
     }
-
+    if (initCharId) {
+      const asset = assets.find((a: any) => a.id === initCharId)
+      if (asset?.url) setActiveCharacterSprite(asset.url)
+    }
     const storageKey = `chat-${id}`
     const saved = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null
     let initialMessages: Message[]
@@ -186,6 +201,15 @@ export default function ChatPage() {
         initialMessages = []
       }
     } else {
+      const initBg = localChar.details?.initialBackground as string | undefined
+      const initChar = localChar.details?.initialCharacter as string | undefined
+      const initTags = [
+        initBg ? `<img=${initBg}:background>` : '',
+        initChar ? `<img=${initChar}>` : '',
+      ].filter(Boolean).join(' ')
+      
+      const firstLineText = [initTags, formattedCharacter.firstLine].filter(Boolean).join('\n')
+
       initialMessages = formattedCharacter.situation
         ? [
             {
@@ -202,12 +226,12 @@ export default function ChatPage() {
                   },
                 ]
               : []),
-            ...(formattedCharacter.firstLine
+            ...(firstLineText
               ? [
                   {
                     id: crypto.randomUUID(),
                     role: 'assistant' as const,
-                    content: formattedCharacter.firstLine,
+                    content: firstLineText,
                   },
                 ]
               : []),
@@ -223,6 +247,56 @@ export default function ChatPage() {
     }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, id])
+
+  const openSaveLoadMenu = (tab: 'save'|'load') => {
+    if (typeof id !== 'string') return
+    setSaveSlots(getSaveSlots(id))
+    setSaveLoadTab(tab)
+    setIsSaveLoadOpen(true)
+  }
+
+  const handleSaveSlot = (slotIndex: number) => {
+    if (typeof id !== 'string') return
+    if (messages.length === 0) {
+      alert('저장할 대화 내역이 없습니다.')
+      return
+    }
+    const lastMsg = messages[messages.length - 1]
+    let previewText = lastMsg.role === 'assistant' 
+      ? lastMsg.content.replace(/<img=[^>]+>/g, '').trim().slice(0, 40) + '...'
+      : lastMsg.content.slice(0, 40) + '...'
+    
+    if (previewText.length < 2) previewText = '대화 시작'
+
+    saveGameSlot(id, slotIndex, messages, previewText)
+    setSaveSlots(getSaveSlots(id))
+    alert(`${slotIndex}번 슬롯에 저장되었습니다.`)
+  }
+
+  const handleLoadSlot = (slotIndex: number) => {
+    if (typeof id !== 'string') return
+    const confirmLoad = window.confirm('해당 지점을 불러오시겠습니까? 현재 진행 상황은 사라집니다.')
+    if (!confirmLoad) return
+
+    const slotData = loadGameSlot(id, slotIndex)
+    if (slotData && slotData.messages) {
+      // Background and stats will automatically react to the newly loaded message history via the MessageParser rendering.
+      setMessages(slotData.messages)
+      setIsSaveLoadOpen(false)
+    } else {
+      alert('세이브 파일을 불러올 수 없습니다.')
+    }
+  }
+
+  const handleDeleteSlot = (e: React.MouseEvent, slotIndex: number) => {
+    e.stopPropagation()
+    if (typeof id !== 'string') return
+    const confirmDelete = window.confirm(`${slotIndex}번 슬롯의 저장 데이터를 정말 삭제하시겠습니까?`)
+    if (!confirmDelete) return
+    
+    deleteGameSlot(id, slotIndex)
+    setSaveSlots(getSaveSlots(id))
+  }
 
   useEffect(() => {
     if (!characterInfo?.emotionImages?.length || messages.length === 0) return
@@ -434,40 +508,114 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div className="relative flex flex-1 overflow-hidden">
-        <div className="hidden sm:flex w-1/2 max-w-[50%] h-full px-6 pt-6 pb-20 flex-col items-center justify-start overflow-y-auto">
-          {characterInfo?.emotionImages?.length && displayedImage && (
-            <>
-              <div className="relative w-full max-w-md aspect-square">
-                <Image
-                  src={displayedImage}
-                  alt="감정 이미지"
-                  fill
-                  className="object-cover rounded-xl"
-                  unoptimized={isDataUrl(displayedImage)}
-                />
-              </div>
-              <div className="mt-4 text-sm text-gray-300 bg-[#1e1e1e] px-4 py-2 rounded-xl max-w-sm w-full text-center">
-                {characterInfo.emotionImages.find(
-                  (img) => img.imageUrl === displayedImage
-                )?.label || '감정 정보 없음'}
-              </div>
-            </>
-          )}
+      {/* 게임 상태 변수 오버레이 (VN Mode) */}
+      {characterInfo?.interfaceConfig?.stats && characterInfo.interfaceConfig.stats.length > 0 && (
+        <div className="absolute top-16 left-0 right-0 z-40 px-4 sm:px-6 pointer-events-none mt-2">
+          <div className="max-w-max mx-auto bg-black/60 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 flex flex-wrap gap-4 items-center justify-center pointer-events-auto shadow-lg">
+            {characterInfo.interfaceConfig.stats.map(st => {
+              const val = parsedStats[st.key] ?? st.initial
+              const percent = Math.max(0, Math.min(100, ((val - st.min) / (st.max - st.min)) * 100))
+              return (
+                <div key={st.key} className="flex items-center gap-2 group relative">
+                  <span className="text-[11px] font-semibold text-gray-300 uppercase tracking-wider">{st.name}</span>
+                  <div className="w-20 h-2 bg-[#222] rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-rose-500 to-pink-500 transition-all duration-500 ease-out"
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-white font-mono">{val}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="relative flex flex-1 overflow-hidden bg-[#050505]">
+        {/* Layer 0: Background */}
+        {displayedImage && (
+          <Image
+            src={displayedImage}
+            alt="배경"
+            fill
+            className="object-cover z-0"
+            unoptimized={isDataUrl(displayedImage)}
+          />
+        )}
+        
+        {/* Layer 1: Character Sprite */}
+        {activeCharacterSprite && (
+          <div className="absolute inset-x-0 bottom-0 top-16 flex justify-center items-end px-4 z-10 pointer-events-none">
+            <div className="relative h-[85%] w-full max-w-2xl">
+              <Image
+                src={activeCharacterSprite}
+                alt="캐릭터 스탠딩"
+                fill
+                className="object-contain object-bottom drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                unoptimized={isDataUrl(activeCharacterSprite)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Layer 2: Hidden parsers for previous messages to maintain state sequentially */}
+        {/* We map through all messages except the last one to ensure side-effects trigger */}
+        <div className="hidden">
+          {messages.slice(0, -1).map((msg) => (
+            <MessageParser 
+              key={msg.id}
+              content={msg.content} 
+              assets={characterInfo?.interfaceConfig?.assets || []}
+              onBackgroundChange={setDisplayedImage}
+              onStatsChange={setParsedStats}
+              onCharacterChange={setActiveCharacterSprite}
+            />
+          ))}
         </div>
 
-        <div className="w-full sm:w-1/2 px-4 sm:px-6 pt-6 pb-32 space-y-4 text-[15px] leading-relaxed font-light overflow-y-auto h-full z-10 bg-transparent">
-          {messages.map((msg) => {
-            const isEditing = editTargetId === msg.id
-            const isUser = msg.role === 'user'
-            return (
-              <div key={msg.id} className="group relative p-1">
+        {/* Layer 3: Main VN Dialogue Box (latest message) */}
+        {!isLogOpen && (() => {
+          const latestMsg = messages[messages.length - 1]
+          if (!latestMsg) return null
+          
+          const isUser = latestMsg.role === 'user'
+          const isEditing = editTargetId === latestMsg.id
+          const uiTheme = characterInfo?.interfaceConfig?.uiTheme as any
+          const { nameColor, textColor, chatBoxStyle, senderStyle, contentStyle, messageStyle, ...flatBoxStyles } = uiTheme || {}
+
+          const boxStyle = !isUser
+            ? { backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', ...flatBoxStyles, ...(chatBoxStyle || {}) }
+            : { backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }
+          const nameLabelStyle = { color: nameColor ?? '#fbcfe8', ...(senderStyle || {}) }
+          const textBodyStyle = { color: textColor ?? '#f3f4f6', ...(contentStyle || {}), ...(messageStyle || {}) }
+
+          return (
+            <div className="absolute bottom-[76px] left-1/2 -translate-x-1/2 w-[95%] max-w-4xl z-20 group">
+              <div
+                className="p-5 sm:p-6 rounded-2xl border border-white/20 shadow-2xl relative transition-all"
+                style={boxStyle}
+              >
+                {!isUser && (
+                  <div 
+                    className="text-sm font-bold tracking-wide mb-2 drop-shadow-md"
+                    style={nameLabelStyle}
+                  >
+                    {characterInfo?.name || '???'}
+                  </div>
+                )}
+                {isUser && (
+                  <div className="text-xs font-semibold text-gray-400 mb-2">
+                    {characterInfo?.userName || 'User'}
+                  </div>
+                )}
+
                 {isEditing ? (
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-2 mt-2">
                     <textarea
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none"
+                      className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none w-full"
                       rows={4}
                     />
                     <div className="flex justify-end gap-2">
@@ -486,53 +634,143 @@ export default function ChatPage() {
                     </div>
                   </div>
                 ) : (
-                  <>
-                    <div
-                      className={`whitespace-pre-wrap ${isUser ? 'text-gray-400 italic' : 'text-white'}`}
-                    >
-                      {msg.content}
-                    </div>
-                    <div className="absolute top-1 right-1 flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                      <button
-                        onClick={() => {
-                          setEditTargetId(msg.id)
-                          setEditContent(msg.content)
-                        }}
-                        className="text-gray-400 hover:text-white"
-                        title="수정"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteMessage(msg.id)}
-                        className="text-gray-400 hover:text-red-400"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </>
+                  <div className={`text-[16px] sm:text-[17px] leading-relaxed font-light min-h-[4rem] ${isUser ? 'italic text-gray-300' : ''}`}
+                    style={!isUser ? textBodyStyle : {}}>
+
+                    {isUser ? latestMsg.content : (
+                      <MessageParser 
+                        content={latestMsg.content} 
+                        assets={characterInfo?.interfaceConfig?.assets || []}
+                        onBackgroundChange={setDisplayedImage}
+                        onStatsChange={setParsedStats}
+                        onCharacterChange={setActiveCharacterSprite}
+                      />
+                    )}
+                  </div>
                 )}
+
+                {!isEditing && (
+                  <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      onClick={() => {
+                        setEditTargetId(latestMsg.id)
+                        setEditContent(latestMsg.content)
+                      }}
+                      className="text-gray-400 hover:text-white"
+                      title="수정"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMessage(latestMsg.id)}
+                      className="text-gray-400 hover:text-red-400"
+                      title="삭제"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setIsLogOpen(true)}
+                  className="absolute -top-8 right-0 px-4 py-1.5 bg-black/60 hover:bg-black/80 rounded-t-lg border-x border-t border-white/20 text-xs text-gray-300 transition-colors backdrop-blur-md"
+                >
+                  Log (대화 기록)
+                </button>
               </div>
-            )
-          })}
-          <div ref={bottomRef} />
-        </div>
+            </div>
+          )
+        })()}
+
+        {/* Layer 4: Chat Log Modal */}
+        {isLogOpen && (
+          <div className="absolute inset-0 z-30 bg-black/85 backdrop-blur-md flex flex-col items-center pt-20 pb-6 px-4">
+            <div className="w-full max-w-4xl flex justify-between items-center mb-6 text-white bg-black/50 py-3 px-6 rounded-2xl border border-white/10">
+              <h3 className="font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5"/> 대화 기록</h3>
+              <button 
+                onClick={() => setIsLogOpen(false)}
+                className="px-4 py-1.5 bg-[#e45463] hover:bg-[#d04352] rounded-lg text-sm transition font-medium"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="w-full max-w-4xl flex-1 overflow-y-auto space-y-4 pr-2 pb-10">
+              {messages.map(msg => {
+                const isUser = msg.role === 'user'
+                const isEditingLog = editTargetId === msg.id
+                return (
+                  <div key={msg.id} className={`p-5 rounded-2xl border border-white/5 relative group transition ${isUser ? 'bg-blue-900/20 ml-10' : 'bg-[#111] mr-10'}`}>
+                    <div className="text-[11px] font-bold tracking-wider text-gray-400 mb-2 uppercase">
+                      {isUser ? (characterInfo?.userName || 'User') : characterInfo?.name}
+                    </div>
+                    
+                    {isEditingLog ? (
+                      <div className="flex flex-col gap-2 mt-2">
+                        <textarea
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="bg-[#222] border border-gray-600 px-3 py-2 text-white rounded resize-none w-full"
+                          rows={4}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button onClick={handleSaveEdit} className="text-sm text-yellow-400 hover:text-yellow-300">저장</button>
+                          <button onClick={() => setEditTargetId(null)} className="text-sm text-gray-400 hover:text-white">취소</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`text-[15px] text-gray-200 whitespace-pre-wrap leading-relaxed ${isUser ? 'italic' : ''}`}>
+                        {isUser ? msg.content : (
+                          // Rerender MessageParser visually inside Log exactly as the original text was
+                          <MessageParser 
+                            content={msg.content} 
+                            assets={characterInfo?.interfaceConfig?.assets || []}
+                            onBackgroundChange={setDisplayedImage}
+                            onStatsChange={setParsedStats}
+                            onCharacterChange={setActiveCharacterSprite}
+                          />
+                        )}
+                      </div>
+                    )}
+                    
+                    {!isEditingLog && (
+                      <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                        <button onClick={() => { setEditTargetId(msg.id); setEditContent(msg.content); }} className="text-gray-400 hover:text-white" title="수정"><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => handleDeleteMessage(msg.id)} className="text-gray-400 hover:text-red-400" title="삭제"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <div ref={bottomRef} className="h-4" />
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="w-full bg-[#111] border-t border-[#333] px-4 py-3 z-50">
-        <div className="flex items-center gap-3 max-w-5xl mx-auto flex-wrap sm:flex-nowrap">
-          <button
-            onClick={() => setShowModelModal(true)}
-            className="text-sm bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full whitespace-nowrap flex items-center justify-center sm:w-auto w-full mb-2 sm:mb-0"
-          >
-            {models.find((m) => m.id === selectedModel)?.icon}
-            <span className="ml-1">
-              모델: {models.find((m) => m.id === selectedModel)?.label ?? '선택'}
-            </span>
-          </button>
-          <div className="flex flex-1 items-center bg-[#222] rounded-xl px-4 py-2 w-full">
-            <Sparkles className="w-4 h-4 text-gray-400 mr-3" />
+      <div className="absolute bottom-0 left-0 w-full px-4 py-3 z-50 bg-gradient-to-t from-black/80 to-transparent">
+        <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openSaveLoadMenu('save')}
+              className="text-xs bg-black/40 hover:bg-black/60 border border-white/10 text-white/70 px-3 py-2.5 rounded-xl backdrop-blur-md flex items-center justify-center transition"
+              title="시스템 설정 (세이브/로드)"
+            >
+              <Settings size={16} />
+              <span className="ml-1 hidden sm:inline">System</span>
+            </button>
+            <button
+              onClick={() => setShowModelModal(true)}
+              className="text-xs bg-black/40 hover:bg-black/60 border border-white/10 text-white/70 px-3 py-2.5 rounded-xl backdrop-blur-md flex items-center justify-center transition"
+              title="모델 변경"
+            >
+              {models.find((m) => m.id === selectedModel)?.icon}
+              <span className="ml-1 hidden sm:inline">
+                {models.find((m) => m.id === selectedModel)?.label?.split('·')[0].trim() ?? 'Select'}
+              </span>
+            </button>
+          </div>
+          
+          <div className="flex flex-1 ml-2 items-center bg-black/40 backdrop-blur-md border border-white/10 rounded-xl px-4 py-2 hover:border-white/20 transition">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -542,19 +780,15 @@ export default function ChatPage() {
                   sendMessage()
                 }
               }}
-              placeholder="대사를 입력하세요"
-              className="flex-1 bg-transparent text-white placeholder-gray-400 text-base focus:outline-none resize-none overflow-hidden h-auto max-h-24"
+              placeholder="행동이나 대사를 입력하세요..."
+              className="flex-1 bg-transparent text-white placeholder-gray-500 text-[15px] focus:outline-none resize-none overflow-hidden h-auto max-h-24 py-1.5"
               rows={1}
             />
             <button
               onClick={sendMessage}
-              className="ml-3 p-1 rounded hover:bg-[#333] flex-shrink-0"
+              className="ml-2 p-2 rounded-lg bg-[#e45463]/80 hover:bg-[#d04352] transition-colors flex-shrink-0"
             >
-              <svg
-                className="w-5 h-5 text-white"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
+              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M2.94 2.94a1.5 1.5 0 0 1 1.67-.3l12.5 5.8a1.5 1.5 0 0 1 0 2.72l-12.5 5.8A1.5 1.5 0 0 1 2 15.8V4.2a1.5 1.5 0 0 1 .94-1.26z" />
               </svg>
             </button>
@@ -658,18 +892,119 @@ export default function ChatPage() {
       )}
 
       {menuOpen && (
-        <div className="fixed top-0 right-0 h-screen w-full max-w-[320px] bg-[#111] border-l border-gray-800 z-50 overflow-y-auto shadow-xl sm:w-[320px]">
-          <ChatMenu
-            userName={userName}
-            userDescription={userDescription}
-            onUserChange={(field, val) => {
-              if (field === 'name') setUserName(val)
-              else setUserDescription(val)
-            }}
-            lore={lore}
-            onLoreChange={setLore}
-            onClose={() => setMenuOpen(false)}
+        <>
+          {/* 배경 딤 */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            onClick={() => setMenuOpen(false)}
           />
+          <div className="fixed top-0 right-0 h-screen w-full max-w-[320px] z-50 shadow-2xl">
+            <ChatMenu
+              characterId={typeof id === 'string' ? id : ''}
+              characterName={characterInfo?.name ?? ''}
+              onClose={() => setMenuOpen(false)}
+              onNewChat={() => {
+                if (!characterInfo) return
+                // 현재 대화를 세션으로 자동 저장
+                if (messages.length > 0 && typeof id === 'string') {
+                  saveChatSession(id, messages)
+                }
+                const assets = characterInfo.interfaceConfig?.assets ?? []
+                const localChar = typeof id === 'string' ? (typeof window !== 'undefined' ? (() => { try { const raw = localStorage.getItem('local-characters'); if (!raw) return null; return (JSON.parse(raw) as any[]).find((c: any) => c.id === id) ?? null } catch { return null } })() : null) : null
+                const initBgId = localChar?.details?.initialBackground as string | undefined
+                const initCharId = localChar?.details?.initialCharacter as string | undefined
+                if (initBgId) { const a = assets.find((x: any) => x.id === initBgId); if (a?.url) setDisplayedImage(a.url) }
+                if (initCharId) { const a = assets.find((x: any) => x.id === initCharId); if (a?.url) setActiveCharacterSprite(a.url) }
+                const initTags = [
+                  initBgId ? `<img=${initBgId}:background>` : '',
+                  initCharId ? `<img=${initCharId}>` : '',
+                ].filter(Boolean).join(' ')
+                const firstLineText = [initTags, characterInfo.firstLine].filter(Boolean).join('\n')
+                const fresh: any[] = characterInfo.situation ? [
+                  { id: crypto.randomUUID(), role: 'user', content: `{${characterInfo.situation}}` },
+                  ...(characterInfo.userDescription ? [{ id: crypto.randomUUID(), role: 'user', content: `{${characterInfo.userDescription}}` }] : []),
+                  ...(firstLineText ? [{ id: crypto.randomUUID(), role: 'assistant', content: firstLineText }] : []),
+                ] : []
+                setMessages(fresh)
+              }}
+              onLoadSession={(msgs: any[]) => setMessages(msgs)}
+            />
+          </div>
+        </>
+      )}
+      {/* Save/Load VN System Modal */}
+      {isSaveLoadOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-[#111] border border-white/10 p-6 rounded-2xl w-full max-w-3xl h-[80vh] flex flex-col relative shadow-2xl">
+            <button 
+              onClick={() => setIsSaveLoadOpen(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              닫기 ✕
+            </button>
+            <div className="flex border-b border-white/10 mb-6 gap-6">
+              <button 
+                onClick={() => setSaveLoadTab('save')}
+                className={`pb-3 px-2 text-lg font-bold transition-colors ${saveLoadTab === 'save' ? 'text-white border-b-2 border-[#e45463]' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                SAVE (진행 상황 저장)
+              </button>
+              <button 
+                onClick={() => setSaveLoadTab('load')}
+                className={`pb-3 px-2 text-lg font-bold transition-colors ${saveLoadTab === 'load' ? 'text-white border-b-2 border-[#e45463]' : 'text-gray-500 hover:text-gray-300'}`}
+              >
+                LOAD (불러오기)
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {Array.from({length: 10}).map((_, i) => {
+                  const sIdx = i + 1
+                  const savedData = saveSlots.find(s => s.slotIndex === sIdx)
+                  
+                  return (
+                    <div 
+                      key={`slot-${sIdx}`}
+                      onClick={() => {
+                        if (saveLoadTab === 'save') handleSaveSlot(sIdx)
+                        else if (saveLoadTab === 'load' && savedData) handleLoadSlot(sIdx)
+                      }}
+                      className={`relative p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden group h-32 flex flex-col justify-center ${
+                        savedData 
+                          ? 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/40' 
+                          : 'border-white/5 bg-black/40 border-dashed hover:border-white/30 text-gray-600'
+                      }`}
+                    >
+                      {/* Optional: Add a miniature background thumbnail here if we capture logic for it later */}
+                      <span className="absolute top-3 left-3 text-[10px] font-bold tracking-widest text-[#e45463] bg-black/50 px-2 py-0.5 rounded">SLOT {sIdx.toString().padStart(2, '0')}</span>
+                      
+                      {savedData && (
+                        <button
+                          onClick={(e) => handleDeleteSlot(e, sIdx)}
+                          className="absolute top-3 right-3 p-1.5 bg-black/50 hover:bg-red-500/80 rounded transition opacity-0 group-hover:opacity-100"
+                          title="슬롯 삭제"
+                        >
+                          <Trash2 size={14} className="text-white" />
+                        </button>
+                      )}
+
+                      {savedData ? (
+                        <div className="mt-4">
+                          <p className="text-xs text-gray-400 mb-1">{new Date(savedData.savedAt).toLocaleString()}</p>
+                          <p className="text-sm font-medium text-white line-clamp-2">{savedData.previewText}</p>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-sm font-medium">EMPTY</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

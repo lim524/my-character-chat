@@ -6,6 +6,7 @@ const steps = [
   { label: '프로필', path: '/create' },
   { label: '상세설정', path: '/create/setting' },
   { label: '기타설정', path: '/create/moresetting' },
+  { label: '인터페이스', path: '/create/interface' },
   { label: '이미지', path: '/create/image' },
 ]
 

@@ -46,10 +46,50 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   } = req.body
 
   const characterInfo = normalizeCharacterInfo(rawCharacterInfo)
-  const appendText =
-    typeof systemPromptAppend === 'string' && systemPromptAppend.trim()
-      ? `\n\n# 추가 지시 (사용자 설정)\n${systemPromptAppend.trim()}`
-      : ''
+  const assets = rawCharacterInfo?.interfaceConfig?.assets || []
+  
+  let tagInstructions = ''
+  if (assets.length > 0) {
+    tagInstructions = `\n\n# 시스템 에셋(태그) 활용 가이드
+상황에 맞춰 아래 태그를 대사/묘사와 함께 출력하여 화면 연출을 할 수 있습니다. 반드시 정해진 태그 형식 <img=에셋아이디> 또는 <img=에셋아이디:타입> 을 출력하세요.
+[등록된 에셋 목록]
+${assets.map((a: any) => `- ID: ${a.id} (이름: ${a.label}, 타입: ${a.type})`).join('\n')}
+
+[태그 사용법]
+- 캐릭터 표시: <img=ASSET_ID>
+- 배경 변경: <img=ASSET_ID:background>
+- CG/아이템 표시: <img=ASSET_ID:etc>
+
+예시 출력:
+<img=${assets[0]?.id || 'bg-room'}:background> 내 앞에는 그녀가 서있었다. <img=${assets.find((a:any) => a.type === 'character')?.id || 'char-1'}>`
+  }
+
+  const customRules = rawCharacterInfo?.interfaceConfig?.dialogueScript?.trim() || ''
+  const rulesSection = customRules ? `# 시나리오 및 게임 규칙\n${customRules}` : ''
+
+  const statsDefinition = rawCharacterInfo?.interfaceConfig?.stats || []
+  let statsSection = ''
+  if (statsDefinition.length > 0) {
+    const statsDesc = statsDefinition.map((s: any) => `- ${s.name} (Key: "${s.key}", 범위: ${s.min}~${s.max}, 시작: ${s.initial})`).join('\n')
+    statsSection = `# 게임 스탯 (Status Variables) 추적 가이드
+당신은 시스템(게임 마스터) 역할을 겸합니다. 대화 내용과 유저의 행동에 따라 아래 스탯 수치를 합리적으로 변화시키세요.
+그리고 매 응답(대사/묘사)의 **제일 마지막 줄**에 반드시 현재 스탯 상태를 순수한 JSON 형태로만 출력해야 합니다. 백틱이나 다른 설명 없이 오직 중괄호로 감싼 JSON 한 줄만 출력하세요.
+
+[현재 추적 중인 스탯 목록]
+${statsDesc}
+
+[출력 예시 - 응답의 가장 마지막 줄에 단 한 줄로 작성]
+{"${statsDefinition[0]?.key || 'hp'}": ${Math.min(statsDefinition[0]?.initial + 5 || 100, statsDefinition[0]?.max || 100)}${statsDefinition[1] ? `, "${statsDefinition[1].key}": ${statsDefinition[1].initial}` : ''}}`
+  }
+
+  const appendList = [
+    typeof systemPromptAppend === 'string' && systemPromptAppend.trim() ? `# 추가 지시 (사용자 설정)\n${systemPromptAppend.trim()}` : '',
+    rulesSection,
+    statsSection,
+    tagInstructions.trim()
+  ].filter(Boolean)
+
+  const appendText = appendList.length > 0 ? `\n\n${appendList.join('\n\n')}` : ''
 
   const prompts = {
     main: typeof rawPrompts?.main === 'string' ? rawPrompts.main : '',

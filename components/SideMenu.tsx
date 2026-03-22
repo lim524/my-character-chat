@@ -86,7 +86,7 @@ export default function SideMenu({ isOpen, onClose }: Props) {
           onClick={onClose}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          <List size={18} /> 캐릭터 목록
+          <List size={18} /> 목록
         </Link>
       </nav>
     </div>

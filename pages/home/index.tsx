@@ -103,13 +103,12 @@ export default function HomePage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="캐릭터 검색..."
+            placeholder="검색..."
             className="w-full px-4 py-2 rounded bg-[#1c1c1c] text-white border border-[#444] placeholder-gray-500"
           />
         </div>
       )}
 
-      <h2 className="text-xl font-bold mb-4">캐릭터</h2>
       <div className="flex gap-4 overflow-x-auto pb-2">
         {filteredCharacters.map((char) => (
           <CharacterCard key={char.id} char={char} />
