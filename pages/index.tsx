@@ -1,7 +1,6 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import CharacterProfileModal from '@/components/CharacterProfileModal'
 import { getLocalCharacters, type LocalCharacter } from '@/lib/localStorage'
 import { useSearch } from '@/context/SearchContext'
 
@@ -40,7 +39,6 @@ function toDisplayCharacter(c: LocalCharacter): Character {
 export default function HomePage() {
   const router = useRouter()
   const [characters, setCharacters] = useState<Character[]>([])
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const { searchQuery, setSearchQuery, showSearch } = useSearch()
 
   useEffect(() => {
@@ -49,12 +47,7 @@ export default function HomePage() {
     setCharacters(showPublic.map(toDisplayCharacter))
   }, [])
 
-  const openProfile = (char: Character) => {
-    setSelectedCharacter(char)
-  }
-
   const goToChat = (id: string) => {
-    setSelectedCharacter(null)
     router.push(`/chat/${encodeURIComponent(id)}`)
   }
 
@@ -66,7 +59,7 @@ export default function HomePage() {
   function CharacterCard({ char }: { char: Character }) {
     return (
       <div
-        onClick={() => openProfile(char)}
+        onClick={() => goToChat(char.id)}
         className="w-64 bg-[#222] rounded-2xl shadow-lg cursor-pointer hover:bg-[#242428] transition-all relative flex flex-col pb-3"
         style={{ minWidth: '256px' }}
       >
@@ -119,13 +112,6 @@ export default function HomePage() {
         ))}
       </div>
 
-      {selectedCharacter && (
-        <CharacterProfileModal
-          character={selectedCharacter}
-          onClose={() => setSelectedCharacter(null)}
-          onStartChat={() => goToChat(selectedCharacter.id)}
-        />
-      )}
     </main>
   )
 }
