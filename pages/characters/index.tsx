@@ -58,6 +58,18 @@ export default function CharacterList() {
       alert('캐릭터를 불러오지 못했습니다.')
       return
     }
+    const rawCfg = char.interfaceConfig
+    let interfaceConfig = rawCfg
+    if (rawCfg && typeof structuredClone === 'function') {
+      try {
+        interfaceConfig = structuredClone(rawCfg)
+      } catch {
+        interfaceConfig = JSON.parse(JSON.stringify(rawCfg)) as typeof rawCfg
+      }
+    } else if (rawCfg) {
+      interfaceConfig = JSON.parse(JSON.stringify(rawCfg)) as typeof rawCfg
+    }
+
     const draft = {
       id: char.id,
       name: char.name,
@@ -67,6 +79,7 @@ export default function CharacterList() {
       tags: char.tags ?? [],
       isPublic: char.isPublic ?? char.is_public ?? true,
       isCensored: true,
+      isAdult: char.isAdult ?? char.is_adult ?? false,
       imageUrl: char.imageUrl ?? char.image_url ?? '',
       emotionImages: char.emotionImages ?? char.emotion_images ?? [],
       userName: char.userName ?? char.user_name ?? '',
@@ -77,6 +90,10 @@ export default function CharacterList() {
       details: char.details ?? {},
       protagonist: char.protagonist ?? [],
       supporting: char.supporting ?? [],
+      /** 저장된 캐릭터의 에셋·UI·스크립트 등 — 없으면 생성 화면에서 초기화됨 */
+      interfaceConfig,
+      /** 로어북 등 draft 전용 필드(저장 시 spread 되어 있을 수 있음) */
+      loreEntries: (char as LocalCharacter & { loreEntries?: unknown }).loreEntries,
     }
     try {
       await kvSet(CHARACTER_DRAFT_KEY, JSON.stringify(draft))

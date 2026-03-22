@@ -564,14 +564,14 @@ export default function ChatPage() {
         
         {/* Layer 1: Character Sprite */}
         {activeCharacterSprite && (
-          <div className="absolute inset-x-0 bottom-0 top-12 sm:top-14 flex justify-center items-end px-2 sm:px-4 z-10 pointer-events-none">
-            <div className="relative h-[min(92%,88vh)] w-full max-w-5xl min-h-[240px]">
+          <div className="absolute inset-x-0 bottom-0 top-16 sm:top-[4.5rem] flex justify-center items-end px-4 z-10 pointer-events-none">
+            <div className="relative w-full max-w-md sm:max-w-lg md:max-w-xl h-[42vh] sm:h-[min(52vh,380px)] max-h-[400px] min-h-[120px]">
               <Image
                 src={activeCharacterSprite}
                 alt="캐릭터 스탠딩"
                 fill
-                sizes="(max-width: 768px) 100vw, 80vw"
-                className="object-contain object-bottom drop-shadow-[0_24px_60px_rgba(0,0,0,0.55)]"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 32rem, 36rem"
+                className="object-contain object-bottom drop-shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
                 unoptimized={isDataUrl(activeCharacterSprite)}
               />
             </div>
