@@ -23,6 +23,10 @@ import {
   effectiveCharacterLiftPx,
   parseMergedCharacterLayoutFromExtraEntries,
 } from '@/lib/interfaceRuntime'
+import {
+  paginateAssistantContent,
+  VN_DEFAULT_CHARS_PER_PAGE,
+} from '@/lib/vnDialogPagination'
 import Image from 'next/image'
 import {
   Pencil,
@@ -35,7 +39,9 @@ import {
   Feather,
   Gem,
   BookOpen,
-  Settings
+  Settings,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 
 type Role = 'user' | 'assistant'
@@ -109,7 +115,11 @@ export default function ChatPage() {
   const [showModelModal, setShowModelModal] = useState(false)
   const [editTargetId, setEditTargetId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
+  const [assistantDialogPageIndex, setAssistantDialogPageIndex] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
+  const assistantPageIndexRef = useRef(0)
+  assistantPageIndexRef.current = assistantDialogPageIndex
 
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -565,6 +575,59 @@ export default function ChatPage() {
   const alignItemsFlex: React.CSSProperties['alignItems'] =
     multi?.align === 'start' ? 'flex-start' : multi?.align === 'center' ? 'center' : 'flex-end'
 
+  /** 대화창·입력줄 위에 스프라이트가 겹치지 않도록 최소 여유 (px, 하단에서) */
+  const VN_DIALOG_STACK_RESERVE_PX = 300
+  const spriteBottomPx = useMemo(() => {
+    const last = messages[messages.length - 1]
+    const showAssistantBox = !isLogOpen && last?.role === 'assistant'
+    if (showAssistantBox) {
+      return Math.min(400, Math.max(effectiveLiftPx, VN_DIALOG_STACK_RESERVE_PX))
+    }
+    return effectiveLiftPx
+  }, [messages, isLogOpen, effectiveLiftPx])
+
+  const latestTurn = messages[messages.length - 1]
+  const assistantPagesForLatest = useMemo(() => {
+    if (!latestTurn || latestTurn.role !== 'assistant') return null
+    return paginateAssistantContent(latestTurn.content, VN_DEFAULT_CHARS_PER_PAGE)
+  }, [latestTurn?.id, latestTurn?.content])
+
+  useEffect(() => {
+    setAssistantDialogPageIndex(0)
+  }, [latestTurn?.id])
+
+  useEffect(() => {
+    if (!assistantPagesForLatest?.length) return
+    setAssistantDialogPageIndex((i) =>
+      Math.min(i, Math.max(0, assistantPagesForLatest.length - 1))
+    )
+  }, [assistantPagesForLatest?.length])
+
+  useEffect(() => {
+    if (!assistantPagesForLatest || assistantPagesForLatest.length <= 1) return
+    if (isLogOpen || editTargetId !== null) return
+
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement
+      if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) return
+      const n = assistantPagesForLatest.length
+      const idx = assistantPageIndexRef.current
+      if (e.key === ' ' || e.key === 'Enter') {
+        if (idx < n - 1) {
+          e.preventDefault()
+          setAssistantDialogPageIndex(idx + 1)
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+        if (idx > 0) {
+          e.preventDefault()
+          setAssistantDialogPageIndex(idx - 1)
+        }
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [assistantPagesForLatest, isLogOpen, editTargetId])
+
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {displayedImage && (
@@ -665,7 +728,7 @@ export default function ChatPage() {
         {nSprites > 0 && (
           <div
             className="absolute inset-x-0 top-16 sm:top-[4.5rem] flex justify-center items-end px-4 z-10 pointer-events-none"
-            style={{ bottom: effectiveLiftPx }}
+            style={{ bottom: spriteBottomPx }}
           >
             <div
               className="w-full flex justify-center"
@@ -757,6 +820,13 @@ export default function ChatPage() {
           const nameLabelStyle = { color: nameColor ?? '#fbcfe8', ...(senderStyle || {}) }
           const textBodyStyle = { color: textColor ?? '#f3f4f6', ...(contentStyle || {}), ...(messageStyle || {}) }
 
+          const vnPages = assistantPagesForLatest
+          const vnPageIdx = vnPages?.length
+            ? Math.min(assistantDialogPageIndex, Math.max(0, vnPages.length - 1))
+            : 0
+          const assistantDisplayContent =
+            !isUser && vnPages && vnPages.length > 0 ? vnPages[vnPageIdx] : latestMsg.content
+
           return (
             <div className="absolute bottom-[76px] left-1/2 -translate-x-1/2 w-[95%] max-w-4xl z-20 group">
               <div
@@ -801,12 +871,35 @@ export default function ChatPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className={`text-[16px] sm:text-[17px] leading-relaxed font-light min-h-[4rem] ${isUser ? 'italic text-gray-300' : ''}`}
-                    style={!isUser ? textBodyStyle : {}}>
-
-                    {isUser ? latestMsg.content : (
-                      <MessageParser 
-                        content={latestMsg.content} 
+                  <div
+                    className={`text-[16px] sm:text-[17px] leading-relaxed font-light min-h-[4rem] ${
+                      isUser ? 'italic text-gray-300' : 'max-h-[min(38vh,380px)] overflow-y-auto overflow-x-hidden pr-1'
+                    }`}
+                    style={!isUser ? textBodyStyle : {}}
+                  >
+                    {isUser ? (
+                      latestMsg.content
+                    ) : vnPages && vnPages.length > 1 ? (
+                      <>
+                        <div className="hidden" aria-hidden>
+                          <MessageParser
+                            content={latestMsg.content}
+                            assets={characterInfo?.interfaceConfig?.assets || []}
+                            regexScripts={regexScripts}
+                            onBackgroundChange={setDisplayedImage}
+                            onStatsChange={setParsedStats}
+                            onCharacterSpritesChange={setActiveCharacterSprites}
+                          />
+                        </div>
+                        <MessageParser
+                          content={assistantDisplayContent}
+                          assets={characterInfo?.interfaceConfig?.assets || []}
+                          regexScripts={regexScripts}
+                        />
+                      </>
+                    ) : (
+                      <MessageParser
+                        content={latestMsg.content}
                         assets={characterInfo?.interfaceConfig?.assets || []}
                         regexScripts={regexScripts}
                         onBackgroundChange={setDisplayedImage}
@@ -814,6 +907,46 @@ export default function ChatPage() {
                         onCharacterSpritesChange={setActiveCharacterSprites}
                       />
                     )}
+                  </div>
+                )}
+
+                {!isEditing && !isUser && vnPages && vnPages.length > 1 && (
+                  <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3">
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        disabled={vnPageIdx <= 0}
+                        onClick={() => setAssistantDialogPageIndex((i) => Math.max(0, i - 1))}
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white/10 text-xs text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-white/15"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        이전
+                      </button>
+                      <span className="text-xs text-gray-400 tabular-nums min-w-[4rem] text-center">
+                        {vnPageIdx + 1} / {vnPages.length}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={vnPageIdx >= vnPages.length - 1}
+                        onClick={() =>
+                          setAssistantDialogPageIndex((i) => Math.min(vnPages.length - 1, i + 1))
+                        }
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-[#e45463]/85 text-xs text-white disabled:opacity-30 disabled:pointer-events-none hover:bg-[#d04352]"
+                      >
+                        다음
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-500 text-center leading-snug">
+                      <span className="hidden sm:inline">
+                        키보드: <kbd className="px-1 rounded bg-white/10">Space</kbd> /{' '}
+                        <kbd className="px-1 rounded bg-white/10">Enter</kbd> → 다음 ·{' '}
+                        <kbd className="px-1 rounded bg-white/10">←</kbd> /{' '}
+                        <kbd className="px-1 rounded bg-white/10">Backspace</kbd> → 이전 (입력창에 포커스일 때는
+                        적용되지 않음)
+                      </span>
+                      <span className="sm:hidden">긴 대사는「이전 / 다음」으로 넘깁니다.</span>
+                    </p>
                   </div>
                 )}
 
@@ -941,6 +1074,7 @@ export default function ChatPage() {
           
           <div className="flex flex-1 ml-2 items-center bg-black/40 backdrop-blur-md border border-white/10 rounded-xl px-4 py-2 hover:border-white/20 transition">
             <textarea
+              ref={chatInputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
