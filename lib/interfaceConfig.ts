@@ -128,6 +128,11 @@ export interface InterfaceConfig {
   scenarioRules?: ScenarioRuleEntry[]
   /** 추가 인터페이스 설정 (JSON 행 목록) */
   extraInterfaceEntries?: ExtraInterfaceEntry[]
+  /**
+   * 채팅방 스탠딩 캐릭터를 화면 아래에서 위로 올리는 거리(px).
+   * 0이면 기본(대화창 바로 위), 값을 키울수록 대화창·하단에서 더 위로 배치됩니다.
+   */
+  characterSpriteLiftPx?: number
 }
 
 export type CharacterDraft = {

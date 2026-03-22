@@ -305,6 +305,7 @@ export default function CreatePage() {
                   uiTheme={iface.uiTheme}
                   extraInterfaceEntries={iface.extraInterfaceEntries}
                   regexScripts={iface.regexScripts}
+                  characterSpriteLiftPx={iface.characterSpriteLiftPx}
                 />
               )
             })()}
@@ -895,6 +896,42 @@ export default function CreatePage() {
                         </select>
                       </div>
                     </div>
+
+                    <div className="space-y-2 pt-2">
+                      <label className="text-sm font-semibold">채팅방 캐릭터 위치 (위로 올리기)</label>
+                      <p className="text-[11px] text-gray-500">
+                        숫자를 키우면 스탠딩이 대화창 쪽으로 더 올라갑니다. (0 = 기본)
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={0}
+                          max={280}
+                          step={4}
+                          value={iface.characterSpriteLiftPx ?? 0}
+                          onChange={(e) =>
+                            patchInterface({ characterSpriteLiftPx: Number(e.target.value) || 0 })
+                          }
+                          className="flex-1 accent-[#e45463]"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          max={400}
+                          value={iface.characterSpriteLiftPx ?? 0}
+                          onChange={(e) =>
+                            patchInterface({
+                              characterSpriteLiftPx: Math.max(
+                                0,
+                                Math.min(400, Math.floor(Number(e.target.value) || 0))
+                              ),
+                            })
+                          }
+                          className="w-20 bg-[#111] border border-[#333] rounded px-2 py-1.5 text-sm text-white"
+                        />
+                        <span className="text-xs text-gray-500 w-8">px</span>
+                      </div>
+                    </div>
                     
                     <div className="rounded-lg bg-[#0d0d10] border border-[#333] p-3 text-[11px] text-gray-300 mt-4">
                       <p className="font-medium text-blue-300 mb-1">💡 작동 원리</p>
@@ -1348,7 +1385,7 @@ export default function CreatePage() {
                   const row: ExtraInterfaceEntry = {
                     id: uuidv4(),
                     name: `설정 ${entries.length + 1}`,
-                    json: '{\n  "icons": []\n}',
+                    json: '{\n  "icons": [],\n  "characterLayout": {}\n}',
                   }
                   setEntries([...entries, row])
                   setExpandedExtraInterfaceId(row.id)
@@ -1368,6 +1405,19 @@ export default function CreatePage() {
   "icons": [
     { "id": "inventory", "label": "가방", "position": "bottom-right", "lucide": "Backpack" }
   ],
+  "characterLayout": {
+    "liftPx": 96,
+    "scale": 0.95,
+    "maxWidthPx": 280,
+    "heightVh": 40,
+    "multi": {
+      "sideBySide": true,
+      "gapPx": 20,
+      "maxPerRow": 3,
+      "align": "end",
+      "justify": "center"
+    }
+  },
   "overlays": []
 }`
 
@@ -1384,8 +1434,12 @@ export default function CreatePage() {
                       </button>
                     </div>
                     <p className="text-[11px] text-gray-400 leading-relaxed">
-                      채팅·게임 화면에 올릴 <b>아이콘, 버튼, 오버레이</b> 등을 JSON으로 정의합니다. 행을 눌러 JSON을
-                      펼쳐 편집하세요. (실제 렌더링은 /chat 등에서 이 배열을 읽어 적용하면 됩니다.)
+                      채팅·게임 화면에 올릴 <b>아이콘, 버튼, 오버레이</b> 등을 JSON으로 정의합니다.{' '}
+                      <b className="text-gray-300">characterLayout</b>으로 스프라이트 <b>위치(liftPx)</b>,{' '}
+                      <b>크기(scale, heightVh, maxWidthPx)</b>를 조정할 수 있고, 한 메시지에{' '}
+                      <code className="text-[10px] text-pink-300/90">&lt;img=…&gt;</code> 캐릭터 태그가 여러 개일 때{' '}
+                      <b>multi.sideBySide</b> 등으로 <b>옆으로 나열·줄바꿈(maxPerRow)</b>할 수 있습니다. 행을 눌러 JSON을
+                      펼쳐 편집하세요. (항목이 여러 개면 뒤쪽 JSON이 앞쪽 characterLayout을 덮어씁니다.)
                     </p>
                     <button
                       type="button"

@@ -1,6 +1,6 @@
 'use client'
 import ChatMenu from '@/components/ChatMenu'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { getLocalCharacter, saveGameSlot, loadGameSlot, getSaveSlots, deleteGameSlot, saveChatSession, type SaveSlot } from '@/lib/localStorage'
 import MessageParser from '@/components/MessageParser'
@@ -16,6 +16,10 @@ import {
   type ProviderId,
 } from '@/lib/appSettings'
 import { kvGet, kvSet } from '@/lib/idbKV'
+import {
+  effectiveCharacterLiftPx,
+  parseMergedCharacterLayoutFromExtraEntries,
+} from '@/lib/interfaceRuntime'
 import Image from 'next/image'
 import {
   Pencil,
@@ -90,7 +94,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [characterInfo, setCharacterInfo] = useState<Character | null>(null)
   const [displayedImage, setDisplayedImage] = useState<string | null>(null)
-  const [activeCharacterSprite, setActiveCharacterSprite] = useState<string | null>(null)
+  const [activeCharacterSprites, setActiveCharacterSprites] = useState<string[]>([])
   const [parsedStats, setParsedStats] = useState<Record<string, number>>({})
   const [models, setModels] = useState<ModelItem[]>([])
   const [isLogOpen, setIsLogOpen] = useState(false)
@@ -189,7 +193,10 @@ export default function ChatPage() {
       }
       if (initCharId) {
         const asset = assets.find((a: any) => a.id === initCharId)
-        if (asset?.url) setActiveCharacterSprite(asset.url)
+        if (asset?.url) setActiveCharacterSprites([asset.url])
+        else setActiveCharacterSprites([])
+      } else {
+        setActiveCharacterSprites([])
       }
       const storageKey = `chat-${id}`
       const saved = typeof window !== 'undefined' ? await kvGet(storageKey) : null
@@ -466,6 +473,50 @@ export default function ChatPage() {
 
   const regexScripts = characterInfo?.interfaceConfig?.regexScripts
 
+  const characterLayout = useMemo(
+    () => parseMergedCharacterLayoutFromExtraEntries(characterInfo?.interfaceConfig?.extraInterfaceEntries),
+    [characterInfo?.interfaceConfig?.extraInterfaceEntries]
+  )
+
+  const effectiveLiftPx = useMemo(
+    () => effectiveCharacterLiftPx(characterInfo?.interfaceConfig?.characterSpriteLiftPx, characterLayout),
+    [characterInfo?.interfaceConfig?.characterSpriteLiftPx, characterLayout]
+  )
+
+  const nSprites = activeCharacterSprites.length
+  const multi = characterLayout.multi
+  const sideBySide = !!(multi?.sideBySide && nSprites > 1)
+  const gapPx =
+    typeof multi?.gapPx === 'number' && Number.isFinite(multi.gapPx) ? Math.max(0, multi.gapPx) : 12
+  const spriteScale =
+    typeof characterLayout.scale === 'number' && Number.isFinite(characterLayout.scale)
+      ? Math.min(2, Math.max(0.35, characterLayout.scale))
+      : 1
+  const spriteHeightVh =
+    typeof characterLayout.heightVh === 'number' && Number.isFinite(characterLayout.heightVh)
+      ? Math.min(85, Math.max(12, characterLayout.heightVh))
+      : null
+  const spriteMaxWidthPx =
+    typeof characterLayout.maxWidthPx === 'number' && Number.isFinite(characterLayout.maxWidthPx)
+      ? Math.max(64, characterLayout.maxWidthPx)
+      : null
+  const maxPerRow =
+    typeof multi?.maxPerRow === 'number' && multi.maxPerRow > 0 ? Math.floor(multi.maxPerRow) : null
+  const gridColumnCount =
+    sideBySide && maxPerRow ? maxPerRow : sideBySide ? nSprites : 1
+  const justifyContent: React.CSSProperties['justifyContent'] =
+    multi?.justify === 'start'
+      ? 'flex-start'
+      : multi?.justify === 'end'
+        ? 'flex-end'
+        : multi?.justify === 'between'
+          ? 'space-between'
+          : multi?.justify === 'around'
+            ? 'space-around'
+            : 'center'
+  const alignItemsFlex: React.CSSProperties['alignItems'] =
+    multi?.align === 'start' ? 'flex-start' : multi?.align === 'center' ? 'center' : 'flex-end'
+
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {displayedImage && (
@@ -562,18 +613,64 @@ export default function ChatPage() {
           />
         )}
         
-        {/* Layer 1: Character Sprite */}
-        {activeCharacterSprite && (
-          <div className="absolute inset-x-0 bottom-0 top-16 sm:top-[4.5rem] flex justify-center items-end px-4 z-10 pointer-events-none">
-            <div className="relative w-full max-w-md sm:max-w-lg md:max-w-xl h-[42vh] sm:h-[min(52vh,380px)] max-h-[400px] min-h-[120px]">
-              <Image
-                src={activeCharacterSprite}
-                alt="캐릭터 스탠딩"
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 32rem, 36rem"
-                className="object-contain object-bottom drop-shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
-                unoptimized={isDataUrl(activeCharacterSprite)}
-              />
+        {/* Layer 1: Character Sprite(s) — lift/scale/나란히 배치는 추가 인터페이스 characterLayout + 초기 화면 lift */}
+        {nSprites > 0 && (
+          <div
+            className="absolute inset-x-0 top-16 sm:top-[4.5rem] flex justify-center items-end px-4 z-10 pointer-events-none"
+            style={{ bottom: effectiveLiftPx }}
+          >
+            <div
+              className="w-full flex justify-center"
+              style={{
+                transform: spriteScale !== 1 ? `scale(${spriteScale})` : undefined,
+                transformOrigin: 'bottom center',
+              }}
+            >
+              <div
+                className="w-full max-w-[min(96vw,80rem)] mx-auto"
+                style={{
+                  display: nSprites === 1 ? 'block' : sideBySide ? 'grid' : 'flex',
+                  flexDirection: !sideBySide && nSprites > 1 ? 'column' : undefined,
+                  gridTemplateColumns: sideBySide
+                    ? `repeat(${gridColumnCount}, minmax(0, 1fr))`
+                    : undefined,
+                  gap: gapPx,
+                  justifyItems: sideBySide ? 'center' : undefined,
+                  justifyContent: sideBySide ? justifyContent : undefined,
+                  alignItems:
+                    !sideBySide && nSprites > 1 ? 'center' : sideBySide ? alignItemsFlex : undefined,
+                }}
+              >
+                {activeCharacterSprites.map((spriteUrl, i) => (
+                  <div
+                    key={`${i}-${spriteUrl.slice(0, 48)}`}
+                    className={`min-w-0 flex justify-center ${nSprites === 1 ? 'mx-auto' : ''}`}
+                    style={spriteMaxWidthPx != null ? { maxWidth: spriteMaxWidthPx } : undefined}
+                  >
+                    <div
+                      className={
+                        spriteHeightVh == null
+                          ? 'relative w-full max-w-md sm:max-w-lg md:max-w-xl h-[42vh] sm:h-[min(52vh,380px)] max-h-[400px] min-h-[120px]'
+                          : 'relative w-full max-w-md sm:max-w-lg md:max-w-xl min-h-[120px]'
+                      }
+                      style={
+                        spriteHeightVh != null
+                          ? { height: `${spriteHeightVh}vh`, maxHeight: 'min(80vh, 520px)' }
+                          : undefined
+                      }
+                    >
+                      <Image
+                        src={spriteUrl}
+                        alt={nSprites > 1 ? `캐릭터 ${i + 1}` : '캐릭터 스탠딩'}
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 32rem, 36rem"
+                        className="object-contain object-bottom drop-shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
+                        unoptimized={isDataUrl(spriteUrl)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -591,7 +688,7 @@ export default function ChatPage() {
               regexScripts={regexScripts}
               onBackgroundChange={setDisplayedImage}
               onStatsChange={setParsedStats}
-              onCharacterChange={setActiveCharacterSprite}
+              onCharacterSpritesChange={setActiveCharacterSprites}
             />
           ))}
         </div>
@@ -666,7 +763,7 @@ export default function ChatPage() {
                         regexScripts={regexScripts}
                         onBackgroundChange={setDisplayedImage}
                         onStatsChange={setParsedStats}
-                        onCharacterChange={setActiveCharacterSprite}
+                        onCharacterSpritesChange={setActiveCharacterSprites}
                       />
                     )}
                   </div>
@@ -750,7 +847,7 @@ export default function ChatPage() {
                             regexScripts={regexScripts}
                             onBackgroundChange={setDisplayedImage}
                             onStatsChange={setParsedStats}
-                            onCharacterChange={setActiveCharacterSprite}
+                            onCharacterSpritesChange={setActiveCharacterSprites}
                           />
                         )}
                       </div>
@@ -943,7 +1040,9 @@ export default function ChatPage() {
                   }
                   if (initCharId) {
                     const a = assets.find((x: any) => x.id === initCharId)
-                    if (a?.url) setActiveCharacterSprite(a.url)
+                    if (a?.url) setActiveCharacterSprites([a.url])
+                  } else {
+                    setActiveCharacterSprites([])
                   }
                   const initTags = [
                     initBgId ? `<img=${initBgId}:background>` : '',

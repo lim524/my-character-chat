@@ -8,6 +8,9 @@ interface MessageParserProps {
   regexScripts?: RegexScriptEntry[]
   onBackgroundChange?: (url: string) => void
   onStatsChange?: (stats: Record<string, number>) => void
+  /** 메시지에 `<img=캐릭터>` 태그가 여러 개면 순서대로 모두 전달 */
+  onCharacterSpritesChange?: (urls: string[]) => void
+  /** 단일 URL만 필요할 때 (스프라이트 콜백이 없으면 마지막 태그만 전달) */
   onCharacterChange?: (url: string) => void
 }
 
@@ -17,6 +20,7 @@ export default function MessageParser({
   regexScripts,
   onBackgroundChange,
   onStatsChange,
+  onCharacterSpritesChange,
   onCharacterChange,
 }: MessageParserProps) {
   // Regex to match <img=assetId> or <img=assetId:type>
@@ -48,7 +52,7 @@ export default function MessageParser({
   let match: RegExpExecArray | null
   
   let detectedBgUrl: string | null = null
-  let detectedCharUrl: string | null = null
+  const detectedCharUrls: string[] = []
 
   while ((match = tagRegex.exec(displayContent)) !== null) {
     if (match.index > lastIndex) {
@@ -66,7 +70,7 @@ export default function MessageParser({
       } else {
         const isCharacter = asset.type === 'character' || typeHint === 'character'
         if (isCharacter) {
-          detectedCharUrl = asset.url
+          detectedCharUrls.push(asset.url)
           // Don't render inline for character tags either!
         } else {
           // Render etc inline
@@ -93,17 +97,31 @@ export default function MessageParser({
     segments.push(<span key={`text-${lastIndex}`}>{displayContent.slice(lastIndex)}</span>)
   }
 
+  const characterUrlsKey = detectedCharUrls.join('\0')
+
   useEffect(() => {
     if (detectedBgUrl && onBackgroundChange) {
       onBackgroundChange(detectedBgUrl)
     }
-    if (detectedCharUrl && onCharacterChange) {
-      onCharacterChange(detectedCharUrl)
+    if (detectedCharUrls.length > 0) {
+      if (onCharacterSpritesChange) {
+        onCharacterSpritesChange([...detectedCharUrls])
+      } else if (onCharacterChange) {
+        onCharacterChange(detectedCharUrls[detectedCharUrls.length - 1]!)
+      }
     }
     if (parsedStats && onStatsChange) {
       onStatsChange(parsedStats)
     }
-  }, [detectedBgUrl, detectedCharUrl, parsedStats, onBackgroundChange, onCharacterChange, onStatsChange])
+  }, [
+    detectedBgUrl,
+    characterUrlsKey,
+    parsedStats,
+    onBackgroundChange,
+    onCharacterSpritesChange,
+    onCharacterChange,
+    onStatsChange,
+  ])
 
   return <>{segments.length > 0 ? segments : displayContent}</>
 }

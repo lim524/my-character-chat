@@ -10,6 +10,8 @@ type Props = {
   uiTheme?: InterfaceConfig['uiTheme']
   extraInterfaceEntries?: InterfaceConfig['extraInterfaceEntries']
   regexScripts?: RegexScriptEntry[]
+  /** 채팅방과 동일: 캐릭터를 위로 올리는 px (미리보기에도 반영) */
+  characterSpriteLiftPx?: number
 }
 
 function findAssetUrl(assets: AssetRef[], id?: string) {
@@ -28,6 +30,7 @@ export default function DatingSimScreenPreview({
   uiTheme,
   extraInterfaceEntries,
   regexScripts,
+  characterSpriteLiftPx = 0,
 }: Props) {
   const backgroundUrl = findAssetUrl(assets, screen?.background)
   
@@ -60,7 +63,14 @@ export default function DatingSimScreenPreview({
       <ExtraInterfaceOverlay entries={extraInterfaceEntries} />
 
       {/* 캐릭터들 */}
-      <div className="absolute inset-0 flex items-end justify-center gap-6 px-6 pb-32 pointer-events-none">
+      <div
+        className="absolute inset-0 flex items-end justify-center gap-6 px-6 pb-32 pointer-events-none"
+        style={
+          characterSpriteLiftPx > 0
+            ? { transform: `translateY(-${Math.min(280, characterSpriteLiftPx)}px)` }
+            : undefined
+        }
+      >
         {(screen?.characters ?? []).map((ch) => {
           const url = findAssetUrl(assets, ch.assetId)
           if (!url) return null
