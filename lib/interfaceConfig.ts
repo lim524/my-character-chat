@@ -167,8 +167,8 @@ export function saveCharacterDraft(patch: Partial<CharacterDraft>): void {
     const current = loadCharacterDraft()
     const next: CharacterDraft = { ...current, ...patch }
     window.localStorage.setItem(CHARACTER_DRAFT_KEY, JSON.stringify(next))
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error('[saveCharacterDraft] localStorage 실패 (용량 초과 가능)', e)
   }
 }
 
@@ -177,8 +177,8 @@ export function persistCharacterDraft(draft: CharacterDraft): void {
   if (typeof window === 'undefined') return
   try {
     window.localStorage.setItem(CHARACTER_DRAFT_KEY, JSON.stringify(draft))
-  } catch {
-    // ignore
+  } catch (e) {
+    console.error('[persistCharacterDraft] localStorage 실패 (용량 초과 가능)', e)
   }
 }
 

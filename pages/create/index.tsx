@@ -35,7 +35,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { Code2 } from 'lucide-react'
-import { saveLocalCharacter } from '@/lib/localStorage'
+import { saveLocalCharacter, type LocalCharacter } from '@/lib/localStorage'
 
 type SidebarTabId =
   | 'profile'
@@ -171,10 +171,25 @@ export default function CreatePage() {
   }
 
   const handleSave = () => {
-    if (!iface) return
+    if (typeof window === 'undefined' || !iface) return
     const id = ((draft as any).id as string | undefined) || uuidv4()
-    const character = { ...draft, id, interfaceConfig: iface } as any
-    saveLocalCharacter(character)
+    const character = {
+      ...draft,
+      id,
+      name: String((draft as any).name ?? '').trim() || '제목 없음',
+      description: String((draft as any).description ?? ''),
+      personality: String((draft as any).personality ?? ''),
+      situation: String((draft as any).situation ?? ''),
+      interfaceConfig: iface,
+      isPublic: (draft as any).isPublic ?? (draft as any).is_public ?? true,
+      is_public: (draft as any).is_public ?? (draft as any).isPublic ?? true,
+    } as LocalCharacter
+
+    const result = saveLocalCharacter(character)
+    if (!result.ok) {
+      alert(result.error)
+      return
+    }
     if (!(draft as any).id) patchDraft({ id } as any)
     setSaveStatus('saved')
     setTimeout(() => setSaveStatus('idle'), 2000)
@@ -1479,6 +1494,10 @@ export default function CreatePage() {
               >
                 {saveStatus === 'saved' ? '✓ 저장되었습니다!' : '캐릭터 저장 (Ctrl+S)'}
               </button>
+              <p className="mt-2 text-[10px] text-gray-500 leading-relaxed text-center">
+                저장은 이 브라우저(localStorage)에만 됩니다. 배포 URL(예: Vercel)은 localhost와 저장소가
+                다릅니다. 이미지를 많이 넣으면 용량 한도(약 수 MB)를 넘겨 저장이 실패할 수 있습니다.
+              </p>
             </div>
           </div>
         )}

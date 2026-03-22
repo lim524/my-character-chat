@@ -26,7 +26,7 @@ function toDisplayCharacter(c: LocalCharacter): Character {
       : firstEmotion?.imageUrl ?? '/default-profile.png'
   return {
     id: c.id,
-    name: c.name,
+    name: c.name ?? '',
     personality: c.personality ?? '',
     description: c.description ?? '',
     situation: c.situation ?? '',
@@ -54,9 +54,11 @@ export default function HomePage() {
     router.push(`/chat/${encodeURIComponent(id)}`)
   }
 
-  const filteredCharacters = characters.filter((char) =>
-    char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    char.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const q = searchQuery.toLowerCase()
+  const filteredCharacters = characters.filter(
+    (char) =>
+      (char.name ?? '').toLowerCase().includes(q) ||
+      (char.description ?? '').toLowerCase().includes(q)
   )
 
   function CharacterCard({ char }: { char: Character }) {

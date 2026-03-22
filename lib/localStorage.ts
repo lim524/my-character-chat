@@ -53,21 +53,60 @@ export function getLocalCharacters(): LocalCharacter[] {
   }
 }
 
-export function setLocalCharacters(characters: LocalCharacter[]): void {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(LOCAL_CHARACTERS_KEY, JSON.stringify(characters))
+function isQuotaExceededError(e: unknown): boolean {
+  const err = e as { name?: string; code?: number; message?: string }
+  return (
+    err?.name === 'QuotaExceededError' ||
+    err?.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    err?.code === 22 ||
+    err?.code === 1014 ||
+    (typeof err?.message === 'string' && /quota/i.test(err.message))
+  )
+}
+
+export type LocalStorageWriteResult = { ok: true } | { ok: false; error: string }
+
+export function setLocalCharacters(characters: LocalCharacter[]): LocalStorageWriteResult {
+  if (typeof window === 'undefined') {
+    return { ok: false, error: '브라우저 환경에서만 저장할 수 있습니다.' }
+  }
+  try {
+    localStorage.setItem(LOCAL_CHARACTERS_KEY, JSON.stringify(characters))
+    return { ok: true }
+  } catch (e: unknown) {
+    console.error('[setLocalCharacters]', e)
+    return {
+      ok: false,
+      error: isQuotaExceededError(e)
+        ? '저장 공간이 부족합니다. 캐릭터에 넣은 이미지(특히 업로드한 고해상도 파일)가 많으면 브라우저 localStorage 한도(대략 5MB 전후)를 넘을 수 있습니다. 이미지를 줄이거나 용량을 낮춘 뒤 다시 저장해 주세요.'
+        : '캐릭터 목록을 저장하지 못했습니다.',
+    }
+  }
 }
 
 export function getLocalCharacter(id: string): LocalCharacter | null {
   return getLocalCharacters().find((c) => c.id === id) ?? null
 }
 
-export function saveLocalCharacter(character: LocalCharacter): void {
-  const list = getLocalCharacters()
-  const idx = list.findIndex((c) => c.id === character.id)
-  if (idx >= 0) list[idx] = character
-  else list.push(character)
-  setLocalCharacters(list)
+export function saveLocalCharacter(character: LocalCharacter): LocalStorageWriteResult {
+  if (typeof window === 'undefined') {
+    return { ok: false, error: '브라우저에서만 저장할 수 있습니다.' }
+  }
+  try {
+    const list = getLocalCharacters()
+    const idx = list.findIndex((c) => c.id === character.id)
+    if (idx >= 0) list[idx] = character
+    else list.push(character)
+    return setLocalCharacters(list)
+  } catch (e: unknown) {
+    console.error('[saveLocalCharacter]', e)
+    return {
+      ok: false,
+      error: isQuotaExceededError(e)
+        ? '저장 공간이 부족합니다. 이미지 에셋이 너무 크면 localStorage 한도를 넘을 수 있습니다. 이미지 수·해상도를 줄인 뒤 다시 시도해 주세요.'
+        : '캐릭터 저장 중 오류가 발생했습니다.',
+    }
+  }
 }
 
 export function deleteLocalCharacter(id: string): void {

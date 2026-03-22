@@ -26,7 +26,7 @@ function toListCharacter(c: LocalCharacter): Character {
       : firstEmotion?.imageUrl ?? '/default-profile.png'
   return {
     id: c.id,
-    name: c.name,
+    name: c.name ?? '',
     description: c.description ?? '',
     imageUrl,
     createdAt: c.created_at ?? c.createdAt ?? new Date().toISOString(),
@@ -76,7 +76,15 @@ export default function CharacterList() {
       protagonist: char.protagonist ?? [],
       supporting: char.supporting ?? [],
     }
-    localStorage.setItem('character-draft', JSON.stringify(draft))
+    try {
+      localStorage.setItem('character-draft', JSON.stringify(draft))
+    } catch (e) {
+      console.error(e)
+      alert(
+        '편집용 임시 데이터를 저장하지 못했습니다. 캐릭터·이미지 용량이 너무 크면 브라우저 저장 한도를 넘을 수 있습니다.'
+      )
+      return
+    }
     router.push('/create')
   }
 
@@ -86,10 +94,11 @@ export default function CharacterList() {
     setCharacters((prev) => prev.filter((char) => char.id !== id))
   }
 
+  const q = searchTerm.toLowerCase()
   const filteredCharacters = characters.filter(
     (char) =>
-      char.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      char.description.toLowerCase().includes(searchTerm.toLowerCase())
+      (char.name ?? '').toLowerCase().includes(q) ||
+      (char.description ?? '').toLowerCase().includes(q)
   )
 
   return (
