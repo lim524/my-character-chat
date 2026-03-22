@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import Image from 'next/image'
+import { kvGet, kvSet } from '@/lib/idbKV'
 
 const PROFILE_KEY = 'local-profile'
 
@@ -29,20 +30,22 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(PROFILE_KEY)
-      if (raw) {
-        const profile: LocalProfile = JSON.parse(raw)
-        setEmail(profile.email ?? '')
-        setNickname(profile.nickname ?? generateRandomNickname())
-        setGender(profile.gender ?? '남성')
-        setImage(profile.image ?? '/default-profile.png')
-      } else {
+    void (async () => {
+      try {
+        const raw = await kvGet(PROFILE_KEY)
+        if (raw) {
+          const profile: LocalProfile = JSON.parse(raw)
+          setEmail(profile.email ?? '')
+          setNickname(profile.nickname ?? generateRandomNickname())
+          setGender(profile.gender ?? '남성')
+          setImage(profile.image ?? '/default-profile.png')
+        } else {
+          setNickname(generateRandomNickname())
+        }
+      } catch {
         setNickname(generateRandomNickname())
       }
-    } catch {
-      setNickname(generateRandomNickname())
-    }
+    })()
   }, [])
 
   const checkNicknameDuplicate = () => {
@@ -61,7 +64,7 @@ export default function SettingsPage() {
     reader.readAsDataURL(file)
   }
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     if (!nickname.trim()) {
       alert('닉네임을 입력해 주세요.')
       return
@@ -72,8 +75,14 @@ export default function SettingsPage() {
       gender,
       image: image || '/default-profile.png',
     }
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile))
-    localStorage.setItem('profile-nickname', profile.nickname)
+    try {
+      await kvSet(PROFILE_KEY, JSON.stringify(profile))
+      await kvSet('profile-nickname', profile.nickname)
+    } catch (e) {
+      console.error(e)
+      alert('프로필을 저장하지 못했습니다.')
+      return
+    }
     alert('프로필이 저장되었습니다.')
     router.push('/mypage')
   }

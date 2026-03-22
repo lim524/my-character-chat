@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { Home, Sparkles, User, List } from 'lucide-react'
+import { kvRemove } from '@/lib/idbKV'
+import { CHARACTER_DRAFT_KEY } from '@/lib/interfaceConfig'
 
 type Props = {
   isOpen: boolean
@@ -11,9 +13,11 @@ export default function SideMenu({ isOpen, onClose }: Props) {
   const router = useRouter()
 
   const handleCreate = () => {
-    localStorage.removeItem('character-draft') // ✅ 수정 데이터 제거
-    onClose() // ✅ 사이드 메뉴 닫기
-    router.push('/create') // ✅ 생성 페이지로 이동
+    void (async () => {
+      await kvRemove(CHARACTER_DRAFT_KEY)
+      onClose()
+      router.push('/create')
+    })()
   }
 
   return (

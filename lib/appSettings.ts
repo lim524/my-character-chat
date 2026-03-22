@@ -1,4 +1,6 @@
-/** localStorage keys for mypage/settings (RisuAI-style). */
+import { kvGet, kvSet } from './idbKV'
+
+/** IndexedDB(kv) 키 — 마이페이지/설정 (RisuAI-style). */
 export const APP_LANGUAGE_KEY = 'app-language'
 export const ENABLED_MODULES_KEY = 'enabled-modules'
 export const CHAT_OPTIONS_KEY = 'chat-options'
@@ -27,21 +29,21 @@ export const DEFAULT_ENABLED_MODULES: EnabledModules = {
   gemini: true,
 }
 
-export function getAppLanguage(): AppLanguage {
+export async function getAppLanguage(): Promise<AppLanguage> {
   if (typeof window === 'undefined') return 'ko'
-  const v = localStorage.getItem(APP_LANGUAGE_KEY)
+  const v = await kvGet(APP_LANGUAGE_KEY)
   return v === 'en' ? 'en' : 'ko'
 }
 
-export function setAppLanguage(lang: AppLanguage): void {
+export async function setAppLanguage(lang: AppLanguage): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(APP_LANGUAGE_KEY, lang)
+  await kvSet(APP_LANGUAGE_KEY, lang)
 }
 
-export function getEnabledModules(): EnabledModules {
+export async function getEnabledModules(): Promise<EnabledModules> {
   if (typeof window === 'undefined') return DEFAULT_ENABLED_MODULES
   try {
-    const raw = localStorage.getItem(ENABLED_MODULES_KEY)
+    const raw = await kvGet(ENABLED_MODULES_KEY)
     if (!raw) return DEFAULT_ENABLED_MODULES
     const parsed = JSON.parse(raw)
     return {
@@ -54,19 +56,19 @@ export function getEnabledModules(): EnabledModules {
   }
 }
 
-export function setEnabledModules(m: EnabledModules): void {
+export async function setEnabledModules(m: EnabledModules): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(ENABLED_MODULES_KEY, JSON.stringify(m))
+  await kvSet(ENABLED_MODULES_KEY, JSON.stringify(m))
 }
 
-export function getBotSystemPromptAppend(): string {
+export async function getBotSystemPromptAppend(): Promise<string> {
   if (typeof window === 'undefined') return ''
-  return localStorage.getItem(BOT_SYSTEM_PROMPT_APPEND_KEY) ?? ''
+  return (await kvGet(BOT_SYSTEM_PROMPT_APPEND_KEY)) ?? ''
 }
 
-export function setBotSystemPromptAppend(s: string): void {
+export async function setBotSystemPromptAppend(s: string): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(BOT_SYSTEM_PROMPT_APPEND_KEY, s)
+  await kvSet(BOT_SYSTEM_PROMPT_APPEND_KEY, s)
 }
 
 export interface Prompts {
@@ -81,10 +83,10 @@ export const DEFAULT_PROMPTS: Prompts = {
   jailbreak: '',
 }
 
-export function getPrompts(): Prompts {
+export async function getPrompts(): Promise<Prompts> {
   if (typeof window === 'undefined') return DEFAULT_PROMPTS
   try {
-    const raw = localStorage.getItem(PROMPTS_KEY)
+    const raw = await kvGet(PROMPTS_KEY)
     if (!raw) return DEFAULT_PROMPTS
     const parsed = JSON.parse(raw)
     return {
@@ -97,9 +99,9 @@ export function getPrompts(): Prompts {
   }
 }
 
-export function setPrompts(p: Prompts): void {
+export async function setPrompts(p: Prompts): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(PROMPTS_KEY, JSON.stringify(p))
+  await kvSet(PROMPTS_KEY, JSON.stringify(p))
 }
 
 export type LorebookEntry = {
@@ -143,10 +145,10 @@ export const DEFAULT_MODULES_CONFIG: ModulesConfig = {
   assets: { enabled: false, items: [] },
 }
 
-export function getModulesConfig(): ModulesConfig {
+export async function getModulesConfig(): Promise<ModulesConfig> {
   if (typeof window === 'undefined') return DEFAULT_MODULES_CONFIG
   try {
-    const raw = localStorage.getItem(MODULES_CONFIG_KEY)
+    const raw = await kvGet(MODULES_CONFIG_KEY)
     if (!raw) return DEFAULT_MODULES_CONFIG
     const parsed = JSON.parse(raw)
     return {
@@ -168,9 +170,9 @@ export function getModulesConfig(): ModulesConfig {
   }
 }
 
-export function setModulesConfig(cfg: ModulesConfig): void {
+export async function setModulesConfig(cfg: ModulesConfig): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(MODULES_CONFIG_KEY, JSON.stringify(cfg))
+  await kvSet(MODULES_CONFIG_KEY, JSON.stringify(cfg))
 }
 
 // --- Provider API keys + models ---
@@ -199,10 +201,10 @@ export const DEFAULT_API_MODELS: ApiModels = {
   anthropic: ['claude-3-5-haiku-20241022', 'claude-3-7-sonnet-20250219'],
 }
 
-export function getApiProviders(): ApiProviders {
+export async function getApiProviders(): Promise<ApiProviders> {
   if (typeof window === 'undefined') return DEFAULT_API_PROVIDERS
   try {
-    const raw = localStorage.getItem(API_PROVIDERS_KEY)
+    const raw = await kvGet(API_PROVIDERS_KEY)
     if (!raw) return DEFAULT_API_PROVIDERS
     const p = JSON.parse(raw)
     const getKey = (k: unknown) => (typeof k === 'string' ? k : '')
@@ -217,15 +219,15 @@ export function getApiProviders(): ApiProviders {
   }
 }
 
-export function setApiProviders(providers: ApiProviders): void {
+export async function setApiProviders(providers: ApiProviders): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(API_PROVIDERS_KEY, JSON.stringify(providers))
+  await kvSet(API_PROVIDERS_KEY, JSON.stringify(providers))
 }
 
-export function getApiModels(): ApiModels {
+export async function getApiModels(): Promise<ApiModels> {
   if (typeof window === 'undefined') return DEFAULT_API_MODELS
   try {
-    const raw = localStorage.getItem(API_MODELS_KEY)
+    const raw = await kvGet(API_MODELS_KEY)
     if (!raw) return DEFAULT_API_MODELS
     const m = JSON.parse(raw)
     const clean = (arr: unknown) =>
@@ -243,9 +245,9 @@ export function getApiModels(): ApiModels {
   }
 }
 
-export function setApiModels(models: ApiModels): void {
+export async function setApiModels(models: ApiModels): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(API_MODELS_KEY, JSON.stringify(models))
+  await kvSet(API_MODELS_KEY, JSON.stringify(models))
 }
 
 // --- Chat parameters ---
@@ -261,10 +263,10 @@ export const DEFAULT_CHAT_PARAMETERS: ChatParameters = {
   maxOutputChars: 4000,
 }
 
-export function getChatParameters(): ChatParameters {
+export async function getChatParameters(): Promise<ChatParameters> {
   if (typeof window === 'undefined') return DEFAULT_CHAT_PARAMETERS
   try {
-    const raw = localStorage.getItem(CHAT_PARAMETERS_KEY)
+    const raw = await kvGet(CHAT_PARAMETERS_KEY)
     if (!raw) return DEFAULT_CHAT_PARAMETERS
     const p = JSON.parse(raw)
     const t = Number(p?.temperature)
@@ -280,9 +282,9 @@ export function getChatParameters(): ChatParameters {
   }
 }
 
-export function setChatParameters(params: ChatParameters): void {
+export async function setChatParameters(params: ChatParameters): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(CHAT_PARAMETERS_KEY, JSON.stringify(params))
+  await kvSet(CHAT_PARAMETERS_KEY, JSON.stringify(params))
 }
 
 // --- Bundles (Prompts) ---
@@ -297,10 +299,10 @@ export interface PromptBundle {
   systemPromptAppend: string
 }
 
-export function getPromptBundles(): PromptBundle[] {
+export async function getPromptBundles(): Promise<PromptBundle[]> {
   if (typeof window === 'undefined') return []
   try {
-    const raw = localStorage.getItem(PROMPTS_BUNDLES_KEY)
+    const raw = await kvGet(PROMPTS_BUNDLES_KEY)
     if (!raw) return []
     const arr = JSON.parse(raw)
     if (!Array.isArray(arr)) return []
@@ -321,9 +323,9 @@ export function getPromptBundles(): PromptBundle[] {
   }
 }
 
-export function setPromptBundles(bundles: PromptBundle[]): void {
+export async function setPromptBundles(bundles: PromptBundle[]): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(PROMPTS_BUNDLES_KEY, JSON.stringify(bundles))
+  await kvSet(PROMPTS_BUNDLES_KEY, JSON.stringify(bundles))
 }
 
 // --- Bundles (Modules) ---
@@ -337,10 +339,10 @@ export interface ModuleBundle {
   assets: ModulesConfig['assets']
 }
 
-export function getModuleBundles(): ModuleBundle[] {
+export async function getModuleBundles(): Promise<ModuleBundle[]> {
   if (typeof window === 'undefined') return []
   try {
-    const raw = localStorage.getItem(MODULES_BUNDLES_KEY)
+    const raw = await kvGet(MODULES_BUNDLES_KEY)
     if (!raw) return []
     const arr = JSON.parse(raw)
     if (!Array.isArray(arr)) return []
@@ -360,7 +362,7 @@ export function getModuleBundles(): ModuleBundle[] {
   }
 }
 
-export function setModuleBundles(bundles: ModuleBundle[]): void {
+export async function setModuleBundles(bundles: ModuleBundle[]): Promise<void> {
   if (typeof window === 'undefined') return
-  localStorage.setItem(MODULES_BUNDLES_KEY, JSON.stringify(bundles))
+  await kvSet(MODULES_BUNDLES_KEY, JSON.stringify(bundles))
 }

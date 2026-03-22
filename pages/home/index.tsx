@@ -44,9 +44,11 @@ export default function HomePage() {
   const { searchQuery, setSearchQuery, showSearch } = useSearch()
 
   useEffect(() => {
-    const list = getLocalCharacters()
-    const showPublic = list.filter((c) => c.is_public !== false && c.isPublic !== false)
-    setCharacters(showPublic.map(toDisplayCharacter))
+    void (async () => {
+      const list = await getLocalCharacters()
+      const showPublic = list.filter((c) => c.is_public !== false && c.isPublic !== false)
+      setCharacters(showPublic.map(toDisplayCharacter))
+    })()
   }, [])
 
   const goToChat = (id: string) => {

@@ -1,7 +1,11 @@
-/** localStorage key for the list of characters (local-only). */
+/**
+ * 캐릭터 목록, 채팅 세션, 세이브 슬롯 등 로컬 전용 데이터.
+ * 실제 저장은 `lib/idbKV.ts` IndexedDB 단일 object store에 문자열(JSON)로 보관합니다.
+ */
 export const LOCAL_CHARACTERS_KEY = 'local-characters'
 
 import { type InterfaceConfig } from './interfaceConfig'
+import { kvGet, kvSet } from './idbKV'
 
 export interface EmotionImageItem {
   id: string
@@ -41,10 +45,10 @@ export interface LocalCharacter {
   createdAt?: string
 }
 
-export function getLocalCharacters(): LocalCharacter[] {
+export async function getLocalCharacters(): Promise<LocalCharacter[]> {
   if (typeof window === 'undefined') return []
   try {
-    const raw = localStorage.getItem(LOCAL_CHARACTERS_KEY)
+    const raw = await kvGet(LOCAL_CHARACTERS_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
@@ -66,34 +70,35 @@ function isQuotaExceededError(e: unknown): boolean {
 
 export type LocalStorageWriteResult = { ok: true } | { ok: false; error: string }
 
-export function setLocalCharacters(characters: LocalCharacter[]): LocalStorageWriteResult {
+export async function setLocalCharacters(characters: LocalCharacter[]): Promise<LocalStorageWriteResult> {
   if (typeof window === 'undefined') {
     return { ok: false, error: '브라우저 환경에서만 저장할 수 있습니다.' }
   }
   try {
-    localStorage.setItem(LOCAL_CHARACTERS_KEY, JSON.stringify(characters))
+    await kvSet(LOCAL_CHARACTERS_KEY, JSON.stringify(characters))
     return { ok: true }
   } catch (e: unknown) {
     console.error('[setLocalCharacters]', e)
     return {
       ok: false,
       error: isQuotaExceededError(e)
-        ? '저장 공간이 부족합니다. 캐릭터에 넣은 이미지(특히 업로드한 고해상도 파일)가 많으면 브라우저 localStorage 한도(대략 5MB 전후)를 넘을 수 있습니다. 이미지를 줄이거나 용량을 낮춘 뒤 다시 저장해 주세요.'
+        ? '저장 공간이 부족합니다. 브라우저(IndexedDB) 할당 한도를 넘었을 수 있습니다. 이미지·대화 데이터를 줄인 뒤 다시 시도해 주세요.'
         : '캐릭터 목록을 저장하지 못했습니다.',
     }
   }
 }
 
-export function getLocalCharacter(id: string): LocalCharacter | null {
-  return getLocalCharacters().find((c) => c.id === id) ?? null
+export async function getLocalCharacter(id: string): Promise<LocalCharacter | null> {
+  const list = await getLocalCharacters()
+  return list.find((c) => c.id === id) ?? null
 }
 
-export function saveLocalCharacter(character: LocalCharacter): LocalStorageWriteResult {
+export async function saveLocalCharacter(character: LocalCharacter): Promise<LocalStorageWriteResult> {
   if (typeof window === 'undefined') {
     return { ok: false, error: '브라우저에서만 저장할 수 있습니다.' }
   }
   try {
-    const list = getLocalCharacters()
+    const list = await getLocalCharacters()
     const idx = list.findIndex((c) => c.id === character.id)
     if (idx >= 0) list[idx] = character
     else list.push(character)
@@ -103,14 +108,15 @@ export function saveLocalCharacter(character: LocalCharacter): LocalStorageWrite
     return {
       ok: false,
       error: isQuotaExceededError(e)
-        ? '저장 공간이 부족합니다. 이미지 에셋이 너무 크면 localStorage 한도를 넘을 수 있습니다. 이미지 수·해상도를 줄인 뒤 다시 시도해 주세요.'
+        ? '저장 공간이 부족합니다. IndexedDB 한도를 넘었을 수 있습니다. 데이터를 줄인 뒤 다시 시도해 주세요.'
         : '캐릭터 저장 중 오류가 발생했습니다.',
     }
   }
 }
 
-export function deleteLocalCharacter(id: string): void {
-  setLocalCharacters(getLocalCharacters().filter((c) => c.id !== id))
+export async function deleteLocalCharacter(id: string): Promise<void> {
+  const list = await getLocalCharacters()
+  await setLocalCharacters(list.filter((c) => c.id !== id))
 }
 
 // ==========================================
@@ -121,13 +127,13 @@ export interface SaveSlot {
   slotIndex: number
   savedAt: string
   previewText: string
-  messages: any[] // We use any[] here to avoid circular dependency with Message type in chat/[id].tsx, or we can just trust the shape.
+  messages: any[]
 }
 
-export function getSaveSlots(characterId: string): SaveSlot[] {
+export async function getSaveSlots(characterId: string): Promise<SaveSlot[]> {
   if (typeof window === 'undefined') return []
   try {
-    const raw = localStorage.getItem(`save-${characterId}`)
+    const raw = await kvGet(`save-${characterId}`)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
@@ -136,15 +142,20 @@ export function getSaveSlots(characterId: string): SaveSlot[] {
   }
 }
 
-export function saveGameSlot(characterId: string, slotIndex: number, messages: any[], previewText: string): void {
-  const slots = getSaveSlots(characterId)
-  const existingIdx = slots.findIndex(s => s.slotIndex === slotIndex)
-  
+export async function saveGameSlot(
+  characterId: string,
+  slotIndex: number,
+  messages: any[],
+  previewText: string
+): Promise<void> {
+  const slots = await getSaveSlots(characterId)
+  const existingIdx = slots.findIndex((s) => s.slotIndex === slotIndex)
+
   const newSlot: SaveSlot = {
     slotIndex,
     savedAt: new Date().toISOString(),
     previewText,
-    messages
+    messages,
   }
 
   if (existingIdx >= 0) {
@@ -153,21 +164,19 @@ export function saveGameSlot(characterId: string, slotIndex: number, messages: a
     slots.push(newSlot)
   }
 
-  // Optional: sort by slot index
   slots.sort((a, b) => a.slotIndex - b.slotIndex)
-
-  localStorage.setItem(`save-${characterId}`, JSON.stringify(slots))
+  await kvSet(`save-${characterId}`, JSON.stringify(slots))
 }
 
-export function loadGameSlot(characterId: string, slotIndex: number): SaveSlot | null {
-  const slots = getSaveSlots(characterId)
-  return slots.find(s => s.slotIndex === slotIndex) || null
+export async function loadGameSlot(characterId: string, slotIndex: number): Promise<SaveSlot | null> {
+  const slots = await getSaveSlots(characterId)
+  return slots.find((s) => s.slotIndex === slotIndex) || null
 }
 
-export function deleteGameSlot(characterId: string, slotIndex: number): void {
-  const slots = getSaveSlots(characterId)
-  const filtered = slots.filter(s => s.slotIndex !== slotIndex)
-  localStorage.setItem(`save-${characterId}`, JSON.stringify(filtered))
+export async function deleteGameSlot(characterId: string, slotIndex: number): Promise<void> {
+  const slots = await getSaveSlots(characterId)
+  const filtered = slots.filter((s) => s.slotIndex !== slotIndex)
+  await kvSet(`save-${characterId}`, JSON.stringify(filtered))
 }
 
 // ==========================================
@@ -175,17 +184,17 @@ export function deleteGameSlot(characterId: string, slotIndex: number): void {
 // ==========================================
 
 export interface ChatSession {
-  id: string          // uuid
-  savedAt: string     // ISO 날짜
-  previewText: string // 마지막 메시지 미리보기
+  id: string
+  savedAt: string
+  previewText: string
   messageCount: number
   messages: any[]
 }
 
-export function getChatSessions(characterId: string): ChatSession[] {
+export async function getChatSessions(characterId: string): Promise<ChatSession[]> {
   if (typeof window === 'undefined') return []
   try {
-    const raw = localStorage.getItem(`chat-sessions-${characterId}`)
+    const raw = await kvGet(`chat-sessions-${characterId}`)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
@@ -194,16 +203,17 @@ export function getChatSessions(characterId: string): ChatSession[] {
   }
 }
 
-export function saveChatSession(characterId: string, messages: any[]): ChatSession | null {
+export async function saveChatSession(characterId: string, messages: any[]): Promise<ChatSession | null> {
   if (typeof window === 'undefined') return null
   if (!messages || messages.length === 0) return null
-  // 마지막 어시스턴트 혹은 마지막 메시지 기준 preview
-  const lastMsg = [...messages].reverse().find(m => m.role === 'assistant') ?? messages[messages.length - 1]
-  const preview = (lastMsg?.content ?? '')
-    .replace(/<img=[^>]+>/g, '')
-    .replace(/\{[^}]+\}/g, '')
-    .trim()
-    .slice(0, 60) || '(대화 내용 없음)'
+  const lastMsg =
+    [...messages].reverse().find((m) => m.role === 'assistant') ?? messages[messages.length - 1]
+  const preview =
+    (lastMsg?.content ?? '')
+      .replace(/<img=[^>]+>/g, '')
+      .replace(/\{[^}]+\}/g, '')
+      .trim()
+      .slice(0, 60) || '(대화 내용 없음)'
 
   const session: ChatSession = {
     id: crypto.randomUUID(),
@@ -212,17 +222,15 @@ export function saveChatSession(characterId: string, messages: any[]): ChatSessi
     messageCount: messages.length,
     messages,
   }
-  const sessions = getChatSessions(characterId)
-  sessions.unshift(session) // 최신 순으로 앞에 추가
-  // 최대 50개 유지
+  const sessions = await getChatSessions(characterId)
+  sessions.unshift(session)
   if (sessions.length > 50) sessions.splice(50)
-  localStorage.setItem(`chat-sessions-${characterId}`, JSON.stringify(sessions))
+  await kvSet(`chat-sessions-${characterId}`, JSON.stringify(sessions))
   return session
 }
 
-export function deleteChatSession(characterId: string, sessionId: string): void {
+export async function deleteChatSession(characterId: string, sessionId: string): Promise<void> {
   if (typeof window === 'undefined') return
-  const sessions = getChatSessions(characterId).filter(s => s.id !== sessionId)
-  localStorage.setItem(`chat-sessions-${characterId}`, JSON.stringify(sessions))
+  const sessions = (await getChatSessions(characterId)).filter((s) => s.id !== sessionId)
+  await kvSet(`chat-sessions-${characterId}`, JSON.stringify(sessions))
 }
-

@@ -132,26 +132,28 @@ export default function CreatePage() {
   ifaceRef.current = iface
 
   useEffect(() => {
-    const loaded = loadCharacterDraft()
-    let baseIface = (loaded.interfaceConfig as InterfaceConfig | undefined) ?? createInitialInterfaceConfig()
-    const ds = baseIface.dialogueScript?.trim()
-    if (ds && (!baseIface.scenarioRules || baseIface.scenarioRules.length === 0)) {
-      baseIface = {
-        ...baseIface,
-        scenarioRules: [{ id: uuidv4(), name: '규칙 1', content: ds }],
+    void (async () => {
+      const loaded = await loadCharacterDraft()
+      let baseIface = (loaded.interfaceConfig as InterfaceConfig | undefined) ?? createInitialInterfaceConfig()
+      const ds = baseIface.dialogueScript?.trim()
+      if (ds && (!baseIface.scenarioRules || baseIface.scenarioRules.length === 0)) {
+        baseIface = {
+          ...baseIface,
+          scenarioRules: [{ id: uuidv4(), name: '규칙 1', content: ds }],
+        }
+        await saveCharacterDraft({ interfaceConfig: baseIface })
       }
-      saveCharacterDraft({ interfaceConfig: baseIface })
-    }
-    const draftSynced = { ...loaded, interfaceConfig: baseIface }
-    setDraft(draftSynced)
-    persistCharacterDraft(draftSynced)
-    setIface(baseIface)
+      const draftSynced = { ...loaded, interfaceConfig: baseIface }
+      setDraft(draftSynced)
+      await persistCharacterDraft(draftSynced)
+      setIface(baseIface)
+    })()
   }, [])
 
   const patchDraft = (patch: Partial<CharacterDraft>) => {
     setDraft((prev) => {
       const next = { ...prev, ...patch }
-      persistCharacterDraft(next)
+      void persistCharacterDraft(next)
       return next
     })
   }
@@ -165,12 +167,12 @@ export default function CreatePage() {
       const ifaceBase = dPrev.interfaceConfig ?? createInitialInterfaceConfig()
       const nextIface: InterfaceConfig = { ...ifaceBase, ...patch }
       const dNext = { ...dPrev, interfaceConfig: nextIface }
-      persistCharacterDraft(dNext)
+      void persistCharacterDraft(dNext)
       return dNext
     })
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (typeof window === 'undefined' || !iface) return
     const id = ((draft as any).id as string | undefined) || uuidv4()
     const character = {
@@ -185,7 +187,7 @@ export default function CreatePage() {
       is_public: (draft as any).is_public ?? (draft as any).isPublic ?? true,
     } as LocalCharacter
 
-    const result = saveLocalCharacter(character)
+    const result = await saveLocalCharacter(character)
     if (!result.ok) {
       alert(result.error)
       return
@@ -202,7 +204,7 @@ export default function CreatePage() {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key?.toLowerCase() === 's') {
         e.preventDefault()
-        handleSaveRef.current()
+        void handleSaveRef.current()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -1495,8 +1497,9 @@ export default function CreatePage() {
                 {saveStatus === 'saved' ? '✓ 저장되었습니다!' : '캐릭터 저장 (Ctrl+S)'}
               </button>
               <p className="mt-2 text-[10px] text-gray-500 leading-relaxed text-center">
-                저장은 이 브라우저(localStorage)에만 됩니다. 배포 URL(예: Vercel)은 localhost와 저장소가
-                다릅니다. 이미지를 많이 넣으면 용량 한도(약 수 MB)를 넘겨 저장이 실패할 수 있습니다.
+                데이터는 이 브라우저의 <strong className="text-gray-400">IndexedDB</strong>에 저장됩니다(용량은
+                localStorage보다 훨씬 넉넉하지만 무제한은 아님). 장 수가 적어도 고해상도 이미지는 base64로 커질 수
+                있습니다. localhost와 배포 URL은 저장소가 따로입니다.
               </p>
             </div>
           </div>

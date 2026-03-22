@@ -5,6 +5,8 @@ import {
   deleteLocalCharacter,
   type LocalCharacter,
 } from '@/lib/localStorage'
+import { kvSet } from '@/lib/idbKV'
+import { CHARACTER_DRAFT_KEY } from '@/lib/interfaceConfig'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
 
 interface Character {
@@ -42,15 +44,15 @@ export default function CharacterList() {
   const router = useRouter()
 
   const loadCharacters = () => {
-    setCharacters(getLocalCharacters().map(toListCharacter))
+    void getLocalCharacters().then((list) => setCharacters(list.map(toListCharacter)))
   }
 
   useEffect(() => {
     loadCharacters()
   }, [])
 
-  const handleEdit = (id: string) => {
-    const list = getLocalCharacters()
+  const handleEdit = async (id: string) => {
+    const list = await getLocalCharacters()
     const char = list.find((c) => c.id === id)
     if (!char) {
       alert('캐릭터를 불러오지 못했습니다.')
@@ -77,11 +79,11 @@ export default function CharacterList() {
       supporting: char.supporting ?? [],
     }
     try {
-      localStorage.setItem('character-draft', JSON.stringify(draft))
+      await kvSet(CHARACTER_DRAFT_KEY, JSON.stringify(draft))
     } catch (e) {
       console.error(e)
       alert(
-        '편집용 임시 데이터를 저장하지 못했습니다. 캐릭터·이미지 용량이 너무 크면 브라우저 저장 한도를 넘을 수 있습니다.'
+        '편집용 임시 데이터를 저장하지 못했습니다. IndexedDB 용량 또는 브라우저 정책을 확인해 주세요.'
       )
       return
     }
@@ -90,8 +92,9 @@ export default function CharacterList() {
 
   const handleDelete = (id: string) => {
     if (!confirm('정말 이 캐릭터를 삭제하시겠습니까?')) return
-    deleteLocalCharacter(id)
-    setCharacters((prev) => prev.filter((char) => char.id !== id))
+    void deleteLocalCharacter(id).then(() =>
+      setCharacters((prev) => prev.filter((char) => char.id !== id))
+    )
   }
 
   const q = searchTerm.toLowerCase()
@@ -143,7 +146,7 @@ export default function CharacterList() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleEdit(char.id)
+                        void handleEdit(char.id)
                       }}
                       className="text-sm px-4 py-1 rounded-full bg-white text-black hover:bg-gray-300 transition"
                     >

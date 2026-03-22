@@ -15,6 +15,7 @@ import {
   getModuleBundles,
   type ProviderId,
 } from '@/lib/appSettings'
+import { kvGet, kvSet } from '@/lib/idbKV'
 import Image from 'next/image'
 import {
   Pencil,
@@ -110,28 +111,30 @@ export default function ChatPage() {
   const [maxInputChars, setMaxInputChars] = useState(4000)
 
   useEffect(() => {
-    const params = getChatParameters()
-    setTemperature(params.temperature)
-    setMaxInputChars(params.maxInputChars)
-    setMaxOutputChars(params.maxOutputChars)
+    void (async () => {
+      const params = await getChatParameters()
+      setTemperature(params.temperature)
+      setMaxInputChars(params.maxInputChars)
+      setMaxOutputChars(params.maxOutputChars)
 
-    const modelsMap = getApiModels()
-    const list: ModelItem[] = []
-    ;(Object.keys(modelsMap) as ProviderId[]).forEach((pid) => {
-      ;(modelsMap[pid] ?? []).forEach((mid) => {
-        list.push({
-          id: mid,
-          provider: pid,
-          label: `${providerLabel(pid)} · ${mid}`,
-          icon: providerIcon(pid),
+      const modelsMap = await getApiModels()
+      const list: ModelItem[] = []
+      ;(Object.keys(modelsMap) as ProviderId[]).forEach((pid) => {
+        ;(modelsMap[pid] ?? []).forEach((mid) => {
+          list.push({
+            id: mid,
+            provider: pid,
+            label: `${providerLabel(pid)} · ${mid}`,
+            icon: providerIcon(pid),
+          })
         })
       })
-    })
-    setModels(list)
-    if (list[0]) {
-      setSelectedModel(list[0].id)
-      setSelectedProvider(list[0].provider)
-    }
+      setModels(list)
+      if (list[0]) {
+        setSelectedModel(list[0].id)
+        setSelectedProvider(list[0].provider)
+      }
+    })()
   }, [])
 
   useEffect(() => {
@@ -144,116 +147,122 @@ export default function ChatPage() {
   useEffect(() => {
     if (typeof id !== 'string') return
 
-    const localChar = getLocalCharacter(id)
-    if (!localChar) {
-      console.error('캐릭터를 찾을 수 없습니다:', id)
-      return
-    }
-
-    const emotionImages: EmotionImage[] =
-      localChar.emotionImages ?? localChar.emotion_images ?? []
-    const imageUrl =
-      localChar.imageUrl ?? localChar.image_url ?? emotionImages[0]?.imageUrl ?? undefined
-
-    const formattedCharacter: Character & { worldSetting?: string; supporting?: { name: string; description: string }[] } = {
-      id: localChar.id,
-      name: localChar.name,
-      personality: localChar.personality ?? '',
-      description: localChar.description ?? '',
-      situation: localChar.situation ?? '',
-      firstLine: localChar.firstLine,
-      imageUrl: imageUrl || undefined,
-      userName: localChar.userName ?? localChar.user_name,
-      userRole: localChar.userRole ?? localChar.user_role,
-      userDescription: localChar.userDescription ?? localChar.user_description,
-      emotionImages,
-      interfaceConfig: localChar.interfaceConfig,
-      worldSetting: localChar.worldSetting ?? localChar.world_setting,
-      supporting: localChar.supporting ?? [],
-    }
-    setCharacterInfo(formattedCharacter)
-
-    // Restore initial background and character sprite from interfaceConfig
-    const assets = localChar.interfaceConfig?.assets ?? []
-    const initBgId = localChar.details?.initialBackground as string | undefined
-    const initCharId = localChar.details?.initialCharacter as string | undefined
-    if (initBgId) {
-      const asset = assets.find((a: any) => a.id === initBgId)
-      if (asset?.url) setDisplayedImage(asset.url)
-    }
-    if (initCharId) {
-      const asset = assets.find((a: any) => a.id === initCharId)
-      if (asset?.url) setActiveCharacterSprite(asset.url)
-    }
-    const storageKey = `chat-${id}`
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null
-    let initialMessages: Message[]
-
-    if (mode === 'continue' && saved) {
-      try {
-        initialMessages = JSON.parse(saved)
-      } catch {
-        initialMessages = []
+    void (async () => {
+      const localChar = await getLocalCharacter(id)
+      if (!localChar) {
+        console.error('캐릭터를 찾을 수 없습니다:', id)
+        return
       }
-    } else if (saved && mode !== 'new') {
-      try {
-        initialMessages = JSON.parse(saved)
-      } catch {
-        initialMessages = []
-      }
-    } else {
-      const initBg = localChar.details?.initialBackground as string | undefined
-      const initChar = localChar.details?.initialCharacter as string | undefined
-      const initTags = [
-        initBg ? `<img=${initBg}:background>` : '',
-        initChar ? `<img=${initChar}>` : '',
-      ].filter(Boolean).join(' ')
-      
-      const firstLineText = [initTags, formattedCharacter.firstLine].filter(Boolean).join('\n')
 
-      initialMessages = formattedCharacter.situation
-        ? [
-            {
-              id: crypto.randomUUID(),
-              role: 'user',
-              content: `{${formattedCharacter.situation}}`,
-            },
-            ...(formattedCharacter.userDescription
-              ? [
-                  {
-                    id: crypto.randomUUID(),
-                    role: 'user' as const,
-                    content: `{${formattedCharacter.userDescription}}`,
-                  },
-                ]
-              : []),
-            ...(firstLineText
-              ? [
-                  {
-                    id: crypto.randomUUID(),
-                    role: 'assistant' as const,
-                    content: firstLineText,
-                  },
-                ]
-              : []),
-          ]
-        : []
-    }
-    setMessages(initialMessages)
+      const emotionImages: EmotionImage[] =
+        localChar.emotionImages ?? localChar.emotion_images ?? []
+      const imageUrl =
+        localChar.imageUrl ?? localChar.image_url ?? emotionImages[0]?.imageUrl ?? undefined
+
+      const formattedCharacter: Character & {
+        worldSetting?: string
+        supporting?: { name: string; description: string }[]
+      } = {
+        id: localChar.id,
+        name: localChar.name,
+        personality: localChar.personality ?? '',
+        description: localChar.description ?? '',
+        situation: localChar.situation ?? '',
+        firstLine: localChar.firstLine,
+        imageUrl: imageUrl || undefined,
+        userName: localChar.userName ?? localChar.user_name,
+        userRole: localChar.userRole ?? localChar.user_role,
+        userDescription: localChar.userDescription ?? localChar.user_description,
+        emotionImages,
+        interfaceConfig: localChar.interfaceConfig,
+        worldSetting: localChar.worldSetting ?? localChar.world_setting,
+        supporting: localChar.supporting ?? [],
+      }
+      setCharacterInfo(formattedCharacter)
+
+      const assets = localChar.interfaceConfig?.assets ?? []
+      const initBgId = localChar.details?.initialBackground as string | undefined
+      const initCharId = localChar.details?.initialCharacter as string | undefined
+      if (initBgId) {
+        const asset = assets.find((a: any) => a.id === initBgId)
+        if (asset?.url) setDisplayedImage(asset.url)
+      }
+      if (initCharId) {
+        const asset = assets.find((a: any) => a.id === initCharId)
+        if (asset?.url) setActiveCharacterSprite(asset.url)
+      }
+      const storageKey = `chat-${id}`
+      const saved = typeof window !== 'undefined' ? await kvGet(storageKey) : null
+      let initialMessages: Message[]
+
+      if (mode === 'continue' && saved) {
+        try {
+          initialMessages = JSON.parse(saved)
+        } catch {
+          initialMessages = []
+        }
+      } else if (saved && mode !== 'new') {
+        try {
+          initialMessages = JSON.parse(saved)
+        } catch {
+          initialMessages = []
+        }
+      } else {
+        const initBg = localChar.details?.initialBackground as string | undefined
+        const initChar = localChar.details?.initialCharacter as string | undefined
+        const initTags = [
+          initBg ? `<img=${initBg}:background>` : '',
+          initChar ? `<img=${initChar}>` : '',
+        ].filter(Boolean).join(' ')
+
+        const firstLineText = [initTags, formattedCharacter.firstLine].filter(Boolean).join('\n')
+
+        initialMessages = formattedCharacter.situation
+          ? [
+              {
+                id: crypto.randomUUID(),
+                role: 'user',
+                content: `{${formattedCharacter.situation}}`,
+              },
+              ...(formattedCharacter.userDescription
+                ? [
+                    {
+                      id: crypto.randomUUID(),
+                      role: 'user' as const,
+                      content: `{${formattedCharacter.userDescription}}`,
+                    },
+                  ]
+                : []),
+              ...(firstLineText
+                ? [
+                    {
+                      id: crypto.randomUUID(),
+                      role: 'assistant' as const,
+                      content: firstLineText,
+                    },
+                  ]
+                : []),
+            ]
+          : []
+      }
+      setMessages(initialMessages)
+    })()
   }, [id, mode])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && id && typeof id === 'string') {
-      localStorage.setItem(`chat-${id}`, JSON.stringify(messages))
+      void kvSet(`chat-${id}`, JSON.stringify(messages))
     }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, id])
 
-  const openSaveLoadMenu = (tab: 'save'|'load') => {
+  const openSaveLoadMenu = (tab: 'save' | 'load') => {
     if (typeof id !== 'string') return
-    setSaveSlots(getSaveSlots(id))
-    setSaveLoadTab(tab)
-    setIsSaveLoadOpen(true)
+    void (async () => {
+      setSaveSlots(await getSaveSlots(id))
+      setSaveLoadTab(tab)
+      setIsSaveLoadOpen(true)
+    })()
   }
 
   const handleSaveSlot = (slotIndex: number) => {
@@ -263,15 +272,18 @@ export default function ChatPage() {
       return
     }
     const lastMsg = messages[messages.length - 1]
-    let previewText = lastMsg.role === 'assistant' 
-      ? lastMsg.content.replace(/<img=[^>]+>/g, '').trim().slice(0, 40) + '...'
-      : lastMsg.content.slice(0, 40) + '...'
-    
+    let previewText =
+      lastMsg.role === 'assistant'
+        ? lastMsg.content.replace(/<img=[^>]+>/g, '').trim().slice(0, 40) + '...'
+        : lastMsg.content.slice(0, 40) + '...'
+
     if (previewText.length < 2) previewText = '대화 시작'
 
-    saveGameSlot(id, slotIndex, messages, previewText)
-    setSaveSlots(getSaveSlots(id))
-    alert(`${slotIndex}번 슬롯에 저장되었습니다.`)
+    void (async () => {
+      await saveGameSlot(id, slotIndex, messages, previewText)
+      setSaveSlots(await getSaveSlots(id))
+      alert(`${slotIndex}번 슬롯에 저장되었습니다.`)
+    })()
   }
 
   const handleLoadSlot = (slotIndex: number) => {
@@ -279,14 +291,15 @@ export default function ChatPage() {
     const confirmLoad = window.confirm('해당 지점을 불러오시겠습니까? 현재 진행 상황은 사라집니다.')
     if (!confirmLoad) return
 
-    const slotData = loadGameSlot(id, slotIndex)
-    if (slotData && slotData.messages) {
-      // Background and stats will automatically react to the newly loaded message history via the MessageParser rendering.
-      setMessages(slotData.messages)
-      setIsSaveLoadOpen(false)
-    } else {
-      alert('세이브 파일을 불러올 수 없습니다.')
-    }
+    void (async () => {
+      const slotData = await loadGameSlot(id, slotIndex)
+      if (slotData && slotData.messages) {
+        setMessages(slotData.messages)
+        setIsSaveLoadOpen(false)
+      } else {
+        alert('세이브 파일을 불러올 수 없습니다.')
+      }
+    })()
   }
 
   const handleDeleteSlot = (e: React.MouseEvent, slotIndex: number) => {
@@ -294,9 +307,11 @@ export default function ChatPage() {
     if (typeof id !== 'string') return
     const confirmDelete = window.confirm(`${slotIndex}번 슬롯의 저장 데이터를 정말 삭제하시겠습니까?`)
     if (!confirmDelete) return
-    
-    deleteGameSlot(id, slotIndex)
-    setSaveSlots(getSaveSlots(id))
+
+    void (async () => {
+      await deleteGameSlot(id, slotIndex)
+      setSaveSlots(await getSaveSlots(id))
+    })()
   }
 
   useEffect(() => {
@@ -317,11 +332,11 @@ export default function ChatPage() {
   ): Promise<string[]> => {
     try {
       if (!selectedModel) return ['모델이 설정되지 않았습니다. 마이페이지에서 Models를 추가해 주세요.']
-      const providers = getApiProviders()
+      const providers = await getApiProviders()
       const key = providers?.[selectedProvider]?.apiKey ?? ''
       if (!key) return ['API 키가 비어있습니다. 마이페이지에서 API Key를 입력해 주세요.']
-      const promptBundles = getPromptBundles().filter((b) => b.enabled)
-      const moduleBundles = getModuleBundles().filter((b) => b.enabled)
+      const promptBundles = (await getPromptBundles()).filter((b) => b.enabled)
+      const moduleBundles = (await getModuleBundles()).filter((b) => b.enabled)
 
       const prompts = {
         main: promptBundles
@@ -850,7 +865,7 @@ export default function ChatPage() {
                   if (!Number.isNaN(v)) {
                     const next = Math.max(0, Math.min(2, v))
                     setTemperature(next)
-                    setChatParameters({ temperature: next, maxInputChars, maxOutputChars })
+                    void setChatParameters({ temperature: next, maxInputChars, maxOutputChars })
                   }
                 }}
                 className="w-full bg-[#222] text-white px-3 py-2 rounded"
@@ -868,7 +883,7 @@ export default function ChatPage() {
                   if (Number.isNaN(v)) return
                   const safe = Math.max(100, Math.min(200000, v))
                   setMaxInputChars(safe)
-                  setChatParameters({ temperature, maxInputChars: safe, maxOutputChars })
+                  void setChatParameters({ temperature, maxInputChars: safe, maxOutputChars })
                 }}
                 className="w-full bg-[#222] text-white px-3 py-2 rounded"
               />
@@ -885,7 +900,7 @@ export default function ChatPage() {
                   if (Number.isNaN(v)) return
                   const safe = Math.max(100, Math.min(200000, v))
                   setMaxOutputChars(safe)
-                  setChatParameters({ temperature, maxInputChars, maxOutputChars: safe })
+                  void setChatParameters({ temperature, maxInputChars, maxOutputChars: safe })
                 }}
                 className="w-full bg-[#222] text-white px-3 py-2 rounded"
               />
@@ -913,28 +928,41 @@ export default function ChatPage() {
               characterName={characterInfo?.name ?? ''}
               onClose={() => setMenuOpen(false)}
               onNewChat={() => {
-                if (!characterInfo) return
-                // 현재 대화를 세션으로 자동 저장
-                if (messages.length > 0 && typeof id === 'string') {
-                  saveChatSession(id, messages)
-                }
-                const assets = characterInfo.interfaceConfig?.assets ?? []
-                const localChar = typeof id === 'string' ? (typeof window !== 'undefined' ? (() => { try { const raw = localStorage.getItem('local-characters'); if (!raw) return null; return (JSON.parse(raw) as any[]).find((c: any) => c.id === id) ?? null } catch { return null } })() : null) : null
-                const initBgId = localChar?.details?.initialBackground as string | undefined
-                const initCharId = localChar?.details?.initialCharacter as string | undefined
-                if (initBgId) { const a = assets.find((x: any) => x.id === initBgId); if (a?.url) setDisplayedImage(a.url) }
-                if (initCharId) { const a = assets.find((x: any) => x.id === initCharId); if (a?.url) setActiveCharacterSprite(a.url) }
-                const initTags = [
-                  initBgId ? `<img=${initBgId}:background>` : '',
-                  initCharId ? `<img=${initCharId}>` : '',
-                ].filter(Boolean).join(' ')
-                const firstLineText = [initTags, characterInfo.firstLine].filter(Boolean).join('\n')
-                const fresh: any[] = characterInfo.situation ? [
-                  { id: crypto.randomUUID(), role: 'user', content: `{${characterInfo.situation}}` },
-                  ...(characterInfo.userDescription ? [{ id: crypto.randomUUID(), role: 'user', content: `{${characterInfo.userDescription}}` }] : []),
-                  ...(firstLineText ? [{ id: crypto.randomUUID(), role: 'assistant', content: firstLineText }] : []),
-                ] : []
-                setMessages(fresh)
+                if (!characterInfo || typeof id !== 'string') return
+                void (async () => {
+                  if (messages.length > 0) {
+                    await saveChatSession(id, messages)
+                  }
+                  const assets = characterInfo.interfaceConfig?.assets ?? []
+                  const localChar = await getLocalCharacter(id)
+                  const initBgId = localChar?.details?.initialBackground as string | undefined
+                  const initCharId = localChar?.details?.initialCharacter as string | undefined
+                  if (initBgId) {
+                    const a = assets.find((x: any) => x.id === initBgId)
+                    if (a?.url) setDisplayedImage(a.url)
+                  }
+                  if (initCharId) {
+                    const a = assets.find((x: any) => x.id === initCharId)
+                    if (a?.url) setActiveCharacterSprite(a.url)
+                  }
+                  const initTags = [
+                    initBgId ? `<img=${initBgId}:background>` : '',
+                    initCharId ? `<img=${initCharId}>` : '',
+                  ].filter(Boolean).join(' ')
+                  const firstLineText = [initTags, characterInfo.firstLine].filter(Boolean).join('\n')
+                  const fresh: any[] = characterInfo.situation
+                    ? [
+                        { id: crypto.randomUUID(), role: 'user', content: `{${characterInfo.situation}}` },
+                        ...(characterInfo.userDescription
+                          ? [{ id: crypto.randomUUID(), role: 'user', content: `{${characterInfo.userDescription}}` }]
+                          : []),
+                        ...(firstLineText
+                          ? [{ id: crypto.randomUUID(), role: 'assistant', content: firstLineText }]
+                          : []),
+                      ]
+                    : []
+                  setMessages(fresh)
+                })()
               }}
               onLoadSession={(msgs: any[]) => setMessages(msgs)}
             />

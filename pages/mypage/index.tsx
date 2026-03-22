@@ -127,21 +127,23 @@ export default function MyPage() {
   const [moduleDraft, setModuleDraft] = useState<ModuleBundle | null>(null)
 
   useEffect(() => {
-    setLanguage(getAppLanguage())
-    setProvidersState(getApiProviders())
-    setModelsState(getApiModels())
-    setParamsState(getChatParameters())
-    setPromptBundlesState(getPromptBundles())
-    setModuleBundlesState(getModuleBundles())
+    void (async () => {
+      setLanguage(await getAppLanguage())
+      setProvidersState(await getApiProviders())
+      setModelsState(await getApiModels())
+      setParamsState(await getChatParameters())
+      setPromptBundlesState(await getPromptBundles())
+      setModuleBundlesState(await getModuleBundles())
+    })()
   }, [])
 
-  const handleSave = () => {
-    setAppLanguage(language)
-    setApiProviders(providers)
-    setApiModels(models)
-    setChatParameters(params)
-    setPromptBundles(promptBundles)
-    setModuleBundles(moduleBundles)
+  const handleSave = async () => {
+    await setAppLanguage(language)
+    await setApiProviders(providers)
+    await setApiModels(models)
+    await setChatParameters(params)
+    await setPromptBundles(promptBundles)
+    await setModuleBundles(moduleBundles)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -243,7 +245,7 @@ export default function MyPage() {
                                     [pid]: { apiKey: e.target.value },
                                   }))
                                 }
-                                placeholder="localStorage에 평문 저장"
+                                placeholder="IndexedDB에 평문 저장"
                                 className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white"
                               />
                             </div>

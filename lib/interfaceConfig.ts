@@ -1,3 +1,5 @@
+import { kvGet, kvSet } from './idbKV'
+
 export type AssetType = 'background' | 'character' | 'ui'
 
 export type AssetSourceType = 'upload' | 'url'
@@ -150,10 +152,10 @@ export type CharacterDraft = {
 
 export const CHARACTER_DRAFT_KEY = 'character-draft'
 
-export function loadCharacterDraft(): CharacterDraft {
+export async function loadCharacterDraft(): Promise<CharacterDraft> {
   if (typeof window === 'undefined') return {}
   try {
-    const raw = window.localStorage.getItem(CHARACTER_DRAFT_KEY)
+    const raw = await kvGet(CHARACTER_DRAFT_KEY)
     if (!raw) return {}
     return JSON.parse(raw) as CharacterDraft
   } catch {
@@ -161,24 +163,24 @@ export function loadCharacterDraft(): CharacterDraft {
   }
 }
 
-export function saveCharacterDraft(patch: Partial<CharacterDraft>): void {
+export async function saveCharacterDraft(patch: Partial<CharacterDraft>): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    const current = loadCharacterDraft()
+    const current = await loadCharacterDraft()
     const next: CharacterDraft = { ...current, ...patch }
-    window.localStorage.setItem(CHARACTER_DRAFT_KEY, JSON.stringify(next))
+    await kvSet(CHARACTER_DRAFT_KEY, JSON.stringify(next))
   } catch (e) {
-    console.error('[saveCharacterDraft] localStorage 실패 (용량 초과 가능)', e)
+    console.error('[saveCharacterDraft] IndexedDB 저장 실패 (용량 초과 가능)', e)
   }
 }
 
 /** setState에서 병합한 전체 드래프트를 그대로 저장 (patch만 저장하면 상태와 어긋날 수 있음) */
-export function persistCharacterDraft(draft: CharacterDraft): void {
+export async function persistCharacterDraft(draft: CharacterDraft): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(CHARACTER_DRAFT_KEY, JSON.stringify(draft))
+    await kvSet(CHARACTER_DRAFT_KEY, JSON.stringify(draft))
   } catch (e) {
-    console.error('[persistCharacterDraft] localStorage 실패 (용량 초과 가능)', e)
+    console.error('[persistCharacterDraft] IndexedDB 저장 실패 (용량 초과 가능)', e)
   }
 }
 

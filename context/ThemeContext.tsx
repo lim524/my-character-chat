@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { kvGet, kvSet } from '@/lib/idbKV'
 
 type ThemeId = 'light' | 'dark' | 'violet'
 
@@ -21,29 +22,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const saved = window.localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null
-      if (saved === 'light' || saved === 'dark' || saved === 'violet') {
-        setThemeState(saved)
-        applyThemeToDocument(saved)
-      } else {
+    void (async () => {
+      try {
+        const saved = (await kvGet(THEME_STORAGE_KEY)) as ThemeId | null
+        if (saved === 'light' || saved === 'dark' || saved === 'violet') {
+          setThemeState(saved)
+          applyThemeToDocument(saved)
+        } else {
+          setThemeState('light')
+          applyThemeToDocument('light')
+        }
+      } catch {
         setThemeState('light')
         applyThemeToDocument('light')
       }
-    } catch {
-      setThemeState('light')
-      applyThemeToDocument('light')
-    }
+    })()
   }, [])
 
   const setTheme = (t: ThemeId) => {
     setThemeState(t)
     if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem(THEME_STORAGE_KEY, t)
-      } catch {
-        // ignore
-      }
+      void kvSet(THEME_STORAGE_KEY, t).catch(() => {})
     }
     applyThemeToDocument(t)
   }

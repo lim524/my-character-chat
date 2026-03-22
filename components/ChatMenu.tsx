@@ -20,14 +20,16 @@ export default function ChatMenu({
   const [sessions, setSessions] = useState<ChatSession[]>([])
 
   useEffect(() => {
-    setSessions(getChatSessions(characterId))
+    void getChatSessions(characterId).then(setSessions)
   }, [characterId])
 
   const handleDelete = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation()
     if (!window.confirm('이 대화 기록을 삭제하시겠습니까?')) return
-    deleteChatSession(characterId, sessionId)
-    setSessions(getChatSessions(characterId))
+    void (async () => {
+      await deleteChatSession(characterId, sessionId)
+      setSessions(await getChatSessions(characterId))
+    })()
   }
 
   const handleLoad = (session: ChatSession) => {
@@ -38,8 +40,9 @@ export default function ChatMenu({
 
   const handleNewChat = () => {
     onNewChat()
-    // 새 채팅 시작 후 세션 목록 갱신
-    setTimeout(() => setSessions(getChatSessions(characterId)), 50)
+    setTimeout(() => {
+      void getChatSessions(characterId).then(setSessions)
+    }, 50)
     onClose()
   }
 
