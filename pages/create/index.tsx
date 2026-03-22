@@ -3,6 +3,7 @@ import TopNav from '@/components/TopNav'
 import DatingSimScreenPreview from '@/components/DatingSimScreenPreview'
 import {
   loadCharacterDraft,
+  persistCharacterDraft,
   saveCharacterDraft,
   type AssetRef,
   type AssetType,
@@ -45,6 +46,63 @@ type SidebarTabId =
   | 'script'
   | 'extraInterface'
 
+/** 렌더 안에서 정의하면 매번 새 컴포넌트 타입이 되어 입력란이 리마운트되고(한 글자만 입력됨) — 반드시 모듈 스코프에 둠 */
+function ImageAssetCard({
+  asset,
+  onLabelChange,
+  onRemove,
+  onReplaceImage,
+}: {
+  asset: AssetRef
+  onLabelChange: (assetId: string, label: string) => void
+  onRemove: (assetId: string) => void
+  onReplaceImage: (assetId: string) => void
+}) {
+  return (
+    <div className="flex items-start gap-3 border border-[#333] rounded-lg p-2 bg-[#0c0c0f]">
+      <div className="shrink-0 w-[7.5rem] space-y-1.5">
+        <div className="aspect-square w-[7.5rem] rounded-md overflow-hidden bg-[#111] border border-[#333]">
+          {asset.url ? (
+            <img
+              src={asset.url}
+              alt={asset.label}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-500">
+              <ImageIcon size={28} />
+            </div>
+          )}
+        </div>
+        <input
+          value={asset.label ?? ''}
+          onChange={(e) => onLabelChange(asset.id, e.target.value)}
+          placeholder="이름"
+          className="w-full bg-[#111] border border-[#333] rounded px-2 py-1 text-[11px]"
+        />
+      </div>
+      <div className="flex flex-col gap-1 shrink-0 mt-0.5">
+        <button
+          type="button"
+          onClick={() => onRemove(asset.id)}
+          className="p-1.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+          title="삭제"
+        >
+          <Trash2 size={14} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onReplaceImage(asset.id)}
+          className="p-1.5 rounded hover:bg-[#222] text-gray-400 hover:text-white"
+          title="이미지 변경"
+        >
+          <ImageIcon size={14} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function CreatePage() {
   const [draft, setDraft] = useState<CharacterDraft>({})
   const [iface, setIface] = useState<InterfaceConfig | null>(null)
@@ -69,6 +127,10 @@ export default function CreatePage() {
   const [expandedScenarioRuleId, setExpandedScenarioRuleId] = useState<string | null>(null)
   const [expandedExtraInterfaceId, setExpandedExtraInterfaceId] = useState<string | null>(null)
 
+  /** 비동기 FileReader 완료 시점의 iface 클로저 오래됨 방지 */
+  const ifaceRef = useRef<InterfaceConfig | null>(null)
+  ifaceRef.current = iface
+
   useEffect(() => {
     const loaded = loadCharacterDraft()
     let baseIface = (loaded.interfaceConfig as InterfaceConfig | undefined) ?? createInitialInterfaceConfig()
@@ -80,14 +142,16 @@ export default function CreatePage() {
       }
       saveCharacterDraft({ interfaceConfig: baseIface })
     }
-    setDraft(loaded)
+    const draftSynced = { ...loaded, interfaceConfig: baseIface }
+    setDraft(draftSynced)
+    persistCharacterDraft(draftSynced)
     setIface(baseIface)
   }, [])
 
   const patchDraft = (patch: Partial<CharacterDraft>) => {
     setDraft((prev) => {
       const next = { ...prev, ...patch }
-      saveCharacterDraft(patch)
+      persistCharacterDraft(next)
       return next
     })
   }
@@ -95,9 +159,14 @@ export default function CreatePage() {
   const patchInterface = (patch: Partial<InterfaceConfig>) => {
     setIface((prev) => {
       const base = prev ?? createInitialInterfaceConfig()
-      const next: InterfaceConfig = { ...base, ...patch }
-      patchDraft({ interfaceConfig: next })
-      return next
+      return { ...base, ...patch }
+    })
+    setDraft((dPrev) => {
+      const ifaceBase = dPrev.interfaceConfig ?? createInitialInterfaceConfig()
+      const nextIface: InterfaceConfig = { ...ifaceBase, ...patch }
+      const dNext = { ...dPrev, interfaceConfig: nextIface }
+      persistCharacterDraft(dNext)
+      return dNext
     })
   }
 
@@ -110,6 +179,20 @@ export default function CreatePage() {
     setSaveStatus('saved')
     setTimeout(() => setSaveStatus('idle'), 2000)
   }
+
+  const handleSaveRef = useRef(handleSave)
+  handleSaveRef.current = handleSave
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key?.toLowerCase() === 's') {
+        e.preventDefault()
+        handleSaveRef.current()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   const handleCodeChange = (value: string) => {
     patchInterface({ code: value })
@@ -134,6 +217,8 @@ export default function CreatePage() {
         })
     )
     Promise.all(promises).then((results) => {
+      const cur = ifaceRef.current
+      if (!cur) return
       const newRefs: AssetRef[] = results.map(({ file, url }) => ({
         id: uuidv4(),
         type: targetType,
@@ -141,7 +226,7 @@ export default function CreatePage() {
         url,
         label: file.name.replace(/\.[^/.]+$/, '') || file.name,
       }))
-      patchInterface({ assets: [...iface.assets, ...newRefs] })
+      patchInterface({ assets: [...cur.assets, ...newRefs] })
     }).catch(() => alert('파일을 읽는 중 오류가 발생했습니다.'))
   }
 
@@ -160,7 +245,9 @@ export default function CreatePage() {
     const reader = new FileReader()
     reader.onload = () => {
       const url = reader.result as string
-      const next = iface.assets.map((a) =>
+      const cur = ifaceRef.current
+      if (!cur) return
+      const next = cur.assets.map((a) =>
         a.id === targetId ? { ...a, url, sourceType: 'upload' as const } : a
       )
       patchInterface({ assets: next })
@@ -584,63 +671,6 @@ export default function CreatePage() {
                 const characterAssets = iface.assets.filter((a) => a.type === 'character')
                 const otherAssets = iface.assets.filter((a) => a.type === 'ui')
 
-                const AssetCard = ({ asset }: { asset: AssetRef }) => {
-                  const globalIndex = iface!.assets.findIndex((a) => a.id === asset.id)
-                  return (
-                    <div
-                      key={asset.id}
-                      className="flex items-start gap-3 border border-[#333] rounded-lg p-2 bg-[#0c0c0f]"
-                    >
-                      <div className="shrink-0 w-20 space-y-1.5">
-                        <div className="aspect-square w-20 rounded-md overflow-hidden bg-[#111] border border-[#333]">
-                          {asset.url ? (
-                            <img
-                              src={asset.url}
-                              alt={asset.label}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-500">
-                              <ImageIcon size={20} />
-                            </div>
-                          )}
-                        </div>
-                        <input
-                          value={asset.label}
-                          onChange={(e) => {
-                            const next = [...iface!.assets]
-                            next[globalIndex] = { ...asset, label: e.target.value }
-                            patchInterface({ assets: next })
-                          }}
-                          placeholder="이름"
-                          className="w-full bg-[#111] border border-[#333] rounded px-2 py-1 text-[11px]"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1 shrink-0 mt-0.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = iface!.assets.filter((_, i) => i !== globalIndex)
-                            patchInterface({ assets: next })
-                          }}
-                          className="p-1.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
-                          title="삭제"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => startReplaceAssetImage(asset.id)}
-                          className="p-1.5 rounded hover:bg-[#222] text-gray-400 hover:text-white"
-                          title="이미지 변경"
-                        >
-                          <ImageIcon size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                }
-
                 const selectImageCategory = (t: AssetType) => {
                   setImageCategoryTab(t)
                   setAddAssetType(t)
@@ -781,7 +811,25 @@ export default function CreatePage() {
                             아직 없습니다. 위에서 추가하세요.
                           </p>
                         ) : (
-                          listForTab.map((asset) => <AssetCard key={asset.id} asset={asset} />)
+                          listForTab.map((asset) => (
+                            <ImageAssetCard
+                              key={asset.id}
+                              asset={asset}
+                              onLabelChange={(id, label) => {
+                                patchInterface({
+                                  assets: iface!.assets.map((a) =>
+                                    a.id === id ? { ...a, label } : a
+                                  ),
+                                })
+                              }}
+                              onRemove={(id) => {
+                                patchInterface({
+                                  assets: iface!.assets.filter((a) => a.id !== id),
+                                })
+                              }}
+                              onReplaceImage={startReplaceAssetImage}
+                            />
+                          ))
                         )}
                       </div>
                     </section>
@@ -1429,7 +1477,7 @@ export default function CreatePage() {
                     : 'bg-[#e45463] hover:bg-[#d04352] text-white'
                 }`}
               >
-                {saveStatus === 'saved' ? '✓ 저장되었습니다!' : '캐릭터 저장'}
+                {saveStatus === 'saved' ? '✓ 저장되었습니다!' : '캐릭터 저장 (Ctrl+S)'}
               </button>
             </div>
           </div>

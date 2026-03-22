@@ -18,6 +18,10 @@ function findAssetUrl(assets: AssetRef[], id?: string) {
   return found?.url ?? ''
 }
 
+function isDataUrl(url: string) {
+  return typeof url === 'string' && url.startsWith('data:')
+}
+
 export default function DatingSimScreenPreview({
   screen,
   assets,
@@ -61,7 +65,7 @@ export default function DatingSimScreenPreview({
           const url = findAssetUrl(assets, ch.assetId)
           if (!url) return null
           const baseClass =
-            'relative w-28 h-40 md:w-32 md:h-48 drop-shadow-[0_0_18px_rgba(0,0,0,0.8)]'
+            'relative w-44 h-[13.5rem] sm:w-52 sm:h-[17rem] md:w-60 md:h-[19rem] drop-shadow-[0_0_22px_rgba(0,0,0,0.85)]'
           const alignClass =
             ch.slot === 'left'
               ? 'self-end translate-x-[-40%]'
@@ -76,6 +80,7 @@ export default function DatingSimScreenPreview({
                 alt={ch.expression || '캐릭터'}
                 fill
                 className="object-contain object-bottom"
+                unoptimized={isDataUrl(url)}
               />
             </div>
           )

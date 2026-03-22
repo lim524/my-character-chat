@@ -172,3 +172,13 @@ export function saveCharacterDraft(patch: Partial<CharacterDraft>): void {
   }
 }
 
+/** setState에서 병합한 전체 드래프트를 그대로 저장 (patch만 저장하면 상태와 어긋날 수 있음) */
+export function persistCharacterDraft(draft: CharacterDraft): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(CHARACTER_DRAFT_KEY, JSON.stringify(draft))
+  } catch {
+    // ignore
+  }
+}
+

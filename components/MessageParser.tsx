@@ -71,7 +71,7 @@ export default function MessageParser({
         } else {
           // Render etc inline
           segments.push(
-            <div key={`img-${match.index}`} className="inline-block my-2 mx-1 align-bottom max-w-xs">
+            <div key={`img-${match.index}`} className="inline-block my-2 mx-1 align-bottom max-w-md sm:max-w-lg">
               <img 
                 src={asset.url} 
                 alt={asset.label || assetId} 
