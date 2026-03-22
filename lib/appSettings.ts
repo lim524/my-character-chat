@@ -11,6 +11,8 @@ export const MODULES_CONFIG_KEY = 'modules.config'
 // New (bundle + api inputs)
 export const API_PROVIDERS_KEY = 'api.providers'
 export const API_MODELS_KEY = 'api.models'
+/** 채팅 화면에서 마지막으로 고른 모델(Provider + model id 문자열) */
+export const LAST_CHAT_MODEL_KEY = 'chat.lastModelSelection'
 export const CHAT_PARAMETERS_KEY = 'chat.parameters'
 export const PROMPTS_BUNDLES_KEY = 'bundles.prompts'
 export const MODULES_BUNDLES_KEY = 'bundles.modules'
@@ -248,6 +250,30 @@ export async function getApiModels(): Promise<ApiModels> {
 export async function setApiModels(models: ApiModels): Promise<void> {
   if (typeof window === 'undefined') return
   await kvSet(API_MODELS_KEY, JSON.stringify(models))
+}
+
+export type LastChatModelSelection = { provider: ProviderId; modelId: string }
+
+export async function getLastChatModelSelection(): Promise<LastChatModelSelection | null> {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = await kvGet(LAST_CHAT_MODEL_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw) as Record<string, unknown>
+    const modelId = typeof p?.modelId === 'string' ? p.modelId.trim() : ''
+    const pr = p?.provider
+    const ok =
+      pr === 'openai' || pr === 'openrouter' || pr === 'gemini' || pr === 'anthropic'
+    if (!modelId || !ok) return null
+    return { provider: pr as ProviderId, modelId }
+  } catch {
+    return null
+  }
+}
+
+export async function setLastChatModelSelection(sel: LastChatModelSelection): Promise<void> {
+  if (typeof window === 'undefined') return
+  await kvSet(LAST_CHAT_MODEL_KEY, JSON.stringify(sel))
 }
 
 // --- Chat parameters ---

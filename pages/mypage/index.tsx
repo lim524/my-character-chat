@@ -138,14 +138,21 @@ export default function MyPage() {
   }, [])
 
   const handleSave = async () => {
-    await setAppLanguage(language)
-    await setApiProviders(providers)
-    await setApiModels(models)
-    await setChatParameters(params)
-    await setPromptBundles(promptBundles)
-    await setModuleBundles(moduleBundles)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    try {
+      await setAppLanguage(language)
+      await setApiProviders(providers)
+      await setApiModels(models)
+      await setChatParameters(params)
+      await setPromptBundles(promptBundles)
+      await setModuleBundles(moduleBundles)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      console.error('[mypage] 설정 저장 실패', e)
+      alert(
+        '저장에 실패했습니다. 브라우저가 IndexedDB를 허용하는지, 사이트 데이터가 차단되지 않았는지 확인해 주세요.'
+      )
+    }
   }
 
   return (
@@ -211,6 +218,10 @@ export default function MyPage() {
                         <p className="text-sm text-gray-400 mt-2">
                           로컬 전용입니다. 여기서 API 키와 사용할 모델 목록을 입력하세요.
                         </p>
+                        <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
+                          <b>모델</b>은 <b>＋ 추가 / 삭제 시마다 IndexedDB에 바로 저장</b>됩니다. API 키·프롬프트 번들 등
+                          나머지는 하단 <b>「설정 저장」</b>을 눌러야 반영됩니다.
+                        </p>
                       </div>
 
                       <div className="space-y-4">
@@ -263,10 +274,19 @@ export default function MyPage() {
                                   onClick={() => {
                                     const v = newModel[pid].trim()
                                     if (!v) return
-                                    setModelsState((prev) => ({
-                                      ...prev,
-                                      [pid]: Array.from(new Set([...(prev[pid] ?? []), v])),
-                                    }))
+                                    setModelsState((prev) => {
+                                      const next: ApiModels = {
+                                        ...prev,
+                                        [pid]: Array.from(new Set([...(prev[pid] ?? []), v])),
+                                      }
+                                      void setApiModels(next).catch((err) => {
+                                        console.error(err)
+                                        alert(
+                                          '모델 목록 저장에 실패했습니다. IndexedDB(사이트 데이터)를 확인해 주세요.'
+                                        )
+                                      })
+                                      return next
+                                    })
                                     setNewModel((prev) => ({ ...prev, [pid]: '' }))
                                   }}
                                   className="px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
@@ -284,10 +304,19 @@ export default function MyPage() {
                                     {m}
                                     <button
                                       onClick={() =>
-                                        setModelsState((prev) => ({
-                                          ...prev,
-                                          [pid]: (prev[pid] ?? []).filter((x) => x !== m),
-                                        }))
+                                        setModelsState((prev) => {
+                                          const next: ApiModels = {
+                                            ...prev,
+                                            [pid]: (prev[pid] ?? []).filter((x) => x !== m),
+                                          }
+                                          void setApiModels(next).catch((err) => {
+                                            console.error(err)
+                                            alert(
+                                              '모델 목록 저장에 실패했습니다. IndexedDB(사이트 데이터)를 확인해 주세요.'
+                                            )
+                                          })
+                                          return next
+                                        })
                                       }
                                       className="text-gray-400 hover:text-white"
                                       title="삭제"

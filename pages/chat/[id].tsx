@@ -10,7 +10,9 @@ import {
   getApiModels,
   getApiProviders,
   getChatParameters,
+  getLastChatModelSelection,
   setChatParameters,
+  setLastChatModelSelection,
   getPromptBundles,
   getModuleBundles,
   type ProviderId,
@@ -114,31 +116,74 @@ export default function ChatPage() {
   const [maxOutputChars, setMaxOutputChars] = useState(4000)
   const [maxInputChars, setMaxInputChars] = useState(4000)
 
+  const selectedModelRef = useRef(selectedModel)
+  const selectedProviderRef = useRef(selectedProvider)
   useEffect(() => {
-    void (async () => {
-      const params = await getChatParameters()
-      setTemperature(params.temperature)
-      setMaxInputChars(params.maxInputChars)
-      setMaxOutputChars(params.maxOutputChars)
+    selectedModelRef.current = selectedModel
+    selectedProviderRef.current = selectedProvider
+  }, [selectedModel, selectedProvider])
 
-      const modelsMap = await getApiModels()
-      const list: ModelItem[] = []
-      ;(Object.keys(modelsMap) as ProviderId[]).forEach((pid) => {
-        ;(modelsMap[pid] ?? []).forEach((mid) => {
-          list.push({
-            id: mid,
-            provider: pid,
-            label: `${providerLabel(pid)} · ${mid}`,
-            icon: providerIcon(pid),
+  useEffect(() => {
+    let cancelled = false
+    const refreshModelsAndParams = async () => {
+      try {
+        const params = await getChatParameters()
+        if (cancelled) return
+        setTemperature(params.temperature)
+        setMaxInputChars(params.maxInputChars)
+        setMaxOutputChars(params.maxOutputChars)
+
+        const modelsMap = await getApiModels()
+        if (cancelled) return
+        const list: ModelItem[] = []
+        ;(Object.keys(modelsMap) as ProviderId[]).forEach((pid) => {
+          ;(modelsMap[pid] ?? []).forEach((mid) => {
+            list.push({
+              id: mid,
+              provider: pid,
+              label: `${providerLabel(pid)} · ${mid}`,
+              icon: providerIcon(pid),
+            })
           })
         })
-      })
-      setModels(list)
-      if (list[0]) {
-        setSelectedModel(list[0].id)
-        setSelectedProvider(list[0].provider)
+        setModels(list)
+
+        const curId = selectedModelRef.current
+        const curProv = selectedProviderRef.current
+        let chosen: ModelItem | undefined = curId
+          ? list.find((m) => m.id === curId && m.provider === curProv)
+          : undefined
+
+        if (!chosen) {
+          const saved = await getLastChatModelSelection()
+          if (cancelled) return
+          if (saved) {
+            chosen = list.find((m) => m.id === saved.modelId && m.provider === saved.provider)
+          }
+        }
+
+        if (!chosen && list[0]) chosen = list[0]
+
+        if (chosen) {
+          setSelectedModel(chosen.id)
+          setSelectedProvider(chosen.provider)
+        } else {
+          setSelectedModel('')
+        }
+      } catch (e) {
+        console.error('[chat] 모델/파라미터 로드 실패', e)
       }
-    })()
+    }
+
+    void refreshModelsAndParams()
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void refreshModelsAndParams()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [])
 
   useEffect(() => {
@@ -930,6 +975,10 @@ export default function ChatPage() {
                   onClick={() => {
                     setSelectedModel(model.id)
                     setSelectedProvider(model.provider)
+                    void setLastChatModelSelection({
+                      provider: model.provider,
+                      modelId: model.id,
+                    })
                   }}
                   className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${
                     selectedModel === model.id ? 'bg-[#e45463]' : 'bg-[#2b2b2b]'

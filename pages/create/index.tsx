@@ -1421,6 +1421,69 @@ export default function CreatePage() {
   "overlays": []
 }`
 
+                const characterLayoutImplementationRef = `【적용 흐름】
+extraInterfaceEntries[].json → parseMergedCharacterLayoutFromExtraEntries → 채팅 pages/chat/[id].tsx 스프라이트 레이어 + MessageParser 다중 URL
+
+──────── lib/interfaceRuntime.ts (저장소와 동일) ────────
+export function parseMergedCharacterLayoutFromExtraEntries(
+  entries: ExtraInterfaceEntry[] | undefined
+): ExtraInterfaceCharacterLayout {
+  let merged: ExtraInterfaceCharacterLayout = {}
+  if (!entries?.length) return merged
+  for (const e of entries) {
+    const raw = e.json?.trim()
+    if (!raw) continue
+    try {
+      const data = JSON.parse(raw) as { characterLayout?: ExtraInterfaceCharacterLayout }
+      const cl = data.characterLayout
+      if (!cl || typeof cl !== 'object') continue
+      merged = {
+        ...merged,
+        ...cl,
+        multi: mergeMulti(merged.multi, cl.multi),
+      }
+    } catch {
+      // invalid JSON
+    }
+  }
+  return merged
+}
+
+export function effectiveCharacterLiftPx(
+  interfaceLift: number | undefined,
+  extra: ExtraInterfaceCharacterLayout
+): number {
+  const fromExtra = extra.liftPx
+  if (typeof fromExtra === 'number' && Number.isFinite(fromExtra)) {
+    return Math.min(400, Math.max(0, fromExtra))
+  }
+  return Math.min(400, Math.max(0, interfaceLift ?? 0))
+}
+
+──────── pages/chat/[id].tsx (핵심 변수·스타일) ────────
+const characterLayout = useMemo(
+  () => parseMergedCharacterLayoutFromExtraEntries(
+    characterInfo?.interfaceConfig?.extraInterfaceEntries),
+  [characterInfo?.interfaceConfig?.extraInterfaceEntries])
+
+const effectiveLiftPx = useMemo(
+  () => effectiveCharacterLiftPx(
+    characterInfo?.interfaceConfig?.characterSpriteLiftPx, characterLayout),
+  [characterInfo?.interfaceConfig?.characterSpriteLiftPx, characterLayout])
+
+const sideBySide = !!(multi?.sideBySide && nSprites > 1)
+const gapPx = … // multi.gapPx 또는 기본 12
+const spriteScale = … // characterLayout.scale 클램프 0.35~2
+// 스프라이트 영역: style={{ bottom: effectiveLiftPx }}
+// 바깥 래퍼: transform: spriteScale !== 1 ? \`scale(\${spriteScale})\` : undefined, transformOrigin: 'bottom center'
+// 나란히: display: 'grid', gridTemplateColumns: \`repeat(\${gridColumnCount}, minmax(0, 1fr))\`, gap: gapPx,
+//         justifyContent / alignItems ← multi.justify, multi.align 매핑
+// 각 셀: maxWidthPx, heightVh → style 반영
+
+──────── components/MessageParser.tsx ────────
+캐릭터 태그마다 detectedCharUrls.push(asset.url)
+useEffect에서 onCharacterSpritesChange?.([...detectedCharUrls])`
+
                 return (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1457,6 +1520,15 @@ export default function CreatePage() {
                     >
                       예시 JSON 항목 추가
                     </button>
+
+                    <details className="rounded-lg border border-[#333] bg-[#0f0f12] px-3 py-2">
+                      <summary className="cursor-pointer text-[11px] font-semibold text-gray-300 select-none">
+                        characterLayout 이 채팅에 적용되는 실제 코드 경로·발췌 (참고)
+                      </summary>
+                      <pre className="mt-2 max-h-[min(70vh,28rem)] overflow-auto text-[10px] leading-snug text-gray-400 whitespace-pre-wrap font-mono border-t border-[#222] pt-2">
+                        {characterLayoutImplementationRef}
+                      </pre>
+                    </details>
 
                     <div className="border border-[#333] rounded-lg overflow-hidden">
                       <table className="w-full text-xs">
