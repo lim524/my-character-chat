@@ -1,10 +1,15 @@
 import Image from 'next/image'
-import type { ScreenConfig, AssetRef, InterfaceConfig } from '@/lib/interfaceConfig'
+import type { ScreenConfig, AssetRef, InterfaceConfig, RegexScriptEntry } from '@/lib/interfaceConfig'
+import { applyRegexScripts } from '@/lib/interfaceRuntime'
+import ExtraInterfaceOverlay from '@/components/ExtraInterfaceOverlay'
+import MessageParser from '@/components/MessageParser'
 
 type Props = {
   screen: ScreenConfig | null
   assets: AssetRef[]
   uiTheme?: InterfaceConfig['uiTheme']
+  extraInterfaceEntries?: InterfaceConfig['extraInterfaceEntries']
+  regexScripts?: RegexScriptEntry[]
 }
 
 function findAssetUrl(assets: AssetRef[], id?: string) {
@@ -13,7 +18,13 @@ function findAssetUrl(assets: AssetRef[], id?: string) {
   return found?.url ?? ''
 }
 
-export default function DatingSimScreenPreview({ screen, assets, uiTheme }: Props) {
+export default function DatingSimScreenPreview({
+  screen,
+  assets,
+  uiTheme,
+  extraInterfaceEntries,
+  regexScripts,
+}: Props) {
   const backgroundUrl = findAssetUrl(assets, screen?.background)
   
   // Support both flat and nested JSON structures:
@@ -41,6 +52,8 @@ export default function DatingSimScreenPreview({ screen, assets, uiTheme }: Prop
 
       {/* 어둡게 오버레이 */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+      <ExtraInterfaceOverlay entries={extraInterfaceEntries} />
 
       {/* 캐릭터들 */}
       <div className="absolute inset-0 flex items-end justify-center gap-6 px-6 pb-32 pointer-events-none">
@@ -83,11 +96,15 @@ export default function DatingSimScreenPreview({ screen, assets, uiTheme }: Prop
               {screen?.dialogue?.speakerName || '???'}
             </div>
           </div>
-          <div 
+          <div
             className="text-sm md:text-base min-h-[3rem] whitespace-pre-wrap leading-relaxed"
             style={textBodyStyle}
           >
-            {screen?.dialogue?.text || '여기에 대사가 표시됩니다.'}
+            <MessageParser
+              content={screen?.dialogue?.text || '여기에 대사가 표시됩니다.'}
+              assets={assets}
+              regexScripts={regexScripts}
+            />
           </div>
 
           {screen?.choices && screen.choices.length > 0 && (
@@ -98,7 +115,7 @@ export default function DatingSimScreenPreview({ screen, assets, uiTheme }: Prop
                   type="button"
                   className="text-left text-xs md:text-sm px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-gray-100 transition"
                 >
-                  {choice.label}
+                  {applyRegexScripts(choice.label, regexScripts, 'modify_display')}
                 </button>
               ))}
             </div>

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { getLocalCharacter, saveGameSlot, loadGameSlot, getSaveSlots, deleteGameSlot, saveChatSession, type SaveSlot } from '@/lib/localStorage'
 import MessageParser from '@/components/MessageParser'
+import ExtraInterfaceOverlay from '@/components/ExtraInterfaceOverlay'
 import type { InterfaceConfig } from '@/lib/interfaceConfig'
 import {
   getApiModels,
@@ -448,6 +449,8 @@ export default function ChatPage() {
 
   const isDataUrl = (s: string) => typeof s === 'string' && s.startsWith('data:')
 
+  const regexScripts = characterInfo?.interfaceConfig?.regexScripts
+
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       {displayedImage && (
@@ -559,6 +562,8 @@ export default function ChatPage() {
           </div>
         )}
 
+        <ExtraInterfaceOverlay entries={characterInfo?.interfaceConfig?.extraInterfaceEntries} />
+
         {/* Layer 2: Hidden parsers for previous messages to maintain state sequentially */}
         {/* We map through all messages except the last one to ensure side-effects trigger */}
         <div className="hidden">
@@ -567,6 +572,7 @@ export default function ChatPage() {
               key={msg.id}
               content={msg.content} 
               assets={characterInfo?.interfaceConfig?.assets || []}
+              regexScripts={regexScripts}
               onBackgroundChange={setDisplayedImage}
               onStatsChange={setParsedStats}
               onCharacterChange={setActiveCharacterSprite}
@@ -641,6 +647,7 @@ export default function ChatPage() {
                       <MessageParser 
                         content={latestMsg.content} 
                         assets={characterInfo?.interfaceConfig?.assets || []}
+                        regexScripts={regexScripts}
                         onBackgroundChange={setDisplayedImage}
                         onStatsChange={setParsedStats}
                         onCharacterChange={setActiveCharacterSprite}
@@ -724,6 +731,7 @@ export default function ChatPage() {
                           <MessageParser 
                             content={msg.content} 
                             assets={characterInfo?.interfaceConfig?.assets || []}
+                            regexScripts={regexScripts}
                             onBackgroundChange={setDisplayedImage}
                             onStatsChange={setParsedStats}
                             onCharacterChange={setActiveCharacterSprite}

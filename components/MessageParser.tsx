@@ -1,22 +1,31 @@
 import React, { useEffect } from 'react'
-import type { AssetRef } from '@/lib/interfaceConfig'
+import type { AssetRef, RegexScriptEntry } from '@/lib/interfaceConfig'
+import { applyRegexScripts } from '@/lib/interfaceRuntime'
 
 interface MessageParserProps {
   content: string
   assets: AssetRef[]
+  regexScripts?: RegexScriptEntry[]
   onBackgroundChange?: (url: string) => void
   onStatsChange?: (stats: Record<string, number>) => void
   onCharacterChange?: (url: string) => void
 }
 
-export default function MessageParser({ content, assets, onBackgroundChange, onStatsChange, onCharacterChange }: MessageParserProps) {
+export default function MessageParser({
+  content,
+  assets,
+  regexScripts,
+  onBackgroundChange,
+  onStatsChange,
+  onCharacterChange,
+}: MessageParserProps) {
   // Regex to match <img=assetId> or <img=assetId:type>
   const tagRegex = /<img=([^>]+)>/g
 
   // Regex to match trailing JSON payload `{ "key": 100 }`
   const jsonRegex = /({[\s\S]*?})$/
 
-  let displayContent = content
+  let displayContent = applyRegexScripts(content, regexScripts, 'modify_display')
   let parsedStats: Record<string, number> | null = null
 
   // Extract JSON if it exists at the end

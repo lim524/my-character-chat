@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources'
+import { applyRegexScripts } from '@/lib/interfaceRuntime'
+import type { RegexScriptEntry } from '@/lib/interfaceConfig'
 
 type Role = 'user' | 'assistant' | 'model'
 
@@ -67,6 +69,25 @@ ${assets.map((a: any) => `- ID: ${a.id} (이름: ${a.label}, 타입: ${a.type})`
   const customRules = rawCharacterInfo?.interfaceConfig?.dialogueScript?.trim() || ''
   const rulesSection = customRules ? `# 시나리오 및 게임 규칙\n${customRules}` : ''
 
+  const backgroundEmbedding =
+    rawCharacterInfo?.interfaceConfig?.backgroundEmbedding?.trim() || ''
+  const embeddingSection = backgroundEmbedding
+    ? `# 백그라운드 임베딩 (항상 준수)\n${backgroundEmbedding}`
+    : ''
+
+  const regexScripts = (rawCharacterInfo?.interfaceConfig?.regexScripts || []) as RegexScriptEntry[]
+
+  function pipelineForApi(role: string, content: string): string {
+    let t = content
+    if (role === 'user') t = applyRegexScripts(t, regexScripts, 'modify_input')
+    t = applyRegexScripts(t, regexScripts, 'modify_request')
+    return t
+  }
+
+  function pipelineModelOut(text: string): string {
+    return applyRegexScripts(text, regexScripts, 'modify_output')
+  }
+
   const statsDefinition = rawCharacterInfo?.interfaceConfig?.stats || []
   let statsSection = ''
   if (statsDefinition.length > 0) {
@@ -83,10 +104,13 @@ ${statsDesc}
   }
 
   const appendList = [
-    typeof systemPromptAppend === 'string' && systemPromptAppend.trim() ? `# 추가 지시 (사용자 설정)\n${systemPromptAppend.trim()}` : '',
+    embeddingSection,
+    typeof systemPromptAppend === 'string' && systemPromptAppend.trim()
+      ? `# 추가 지시 (사용자 설정)\n${systemPromptAppend.trim()}`
+      : '',
     rulesSection,
     statsSection,
-    tagInstructions.trim()
+    tagInstructions.trim(),
   ].filter(Boolean)
 
   const appendText = appendList.length > 0 ? `\n\n${appendList.join('\n\n')}` : ''
@@ -162,10 +186,13 @@ ${promptsSection}${appendText}
 
   try {
     const plainMessages = (messages as { role: string; content: string }[]).map(
-      (msg: { role: string; content: string }) => ({
-        role: msg.role === 'assistant' ? ('assistant' as const) : ('user' as const),
-        content: msg.content,
-      })
+      (msg: { role: string; content: string }) => {
+        const role = msg.role === 'assistant' ? ('assistant' as const) : ('user' as const)
+        return {
+          role,
+          content: pipelineForApi(role, msg.content),
+        }
+      }
     )
 
     // Gemini (use provided API key)
@@ -193,7 +220,9 @@ ${promptsSection}${appendText}
       if (!gemRes.ok || !text) {
         return res.status(500).json({ reply: [`Gemini 응답 실패: ${JSON.stringify(data)}`] })
       }
-      const lines = String(text).split('\n').filter((line) => line.trim())
+      const lines = pipelineModelOut(String(text))
+        .split('\n')
+        .filter((line) => line.trim())
       return res.status(200).json({ reply: lines })
     }
 
@@ -203,10 +232,16 @@ ${promptsSection}${appendText}
       if (!key) return res.status(400).json({ reply: ['Anthropic API key가 필요합니다.'] })
       const claudeMessages: { role: 'user' | 'assistant'; content: string }[] = (
         messages as { role: string; content: string }[]
-      ).map((msg) => ({
-        role: validateRole(msg.role) === 'model' ? 'assistant' : (validateRole(msg.role) as 'user' | 'assistant'),
-        content: msg.content,
-      }))
+      ).map((msg) => {
+        const role =
+          validateRole(msg.role) === 'model'
+            ? 'assistant'
+            : (validateRole(msg.role) as 'user' | 'assistant')
+        return {
+          role,
+          content: pipelineForApi(role, msg.content),
+        }
+      })
 
       const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -232,7 +267,9 @@ ${promptsSection}${appendText}
 
       const data = await claudeRes.json()
       const raw = data.content?.[0]?.text || ''
-      const lines = raw.split('\n').filter((line: string) => line.trim())
+      const lines = pipelineModelOut(String(raw))
+        .split('\n')
+        .filter((line: string) => line.trim())
       return res.status(200).json({ reply: lines })
     }
 
@@ -248,7 +285,12 @@ ${promptsSection}${appendText}
       ...(messages as { role: string; content: string }[]).flatMap((msg) => {
         const role = validateRole(msg.role)
         if (role === 'user' || role === 'assistant')
-          return [{ role, content: msg.content } as ChatCompletionMessageParam]
+          return [
+            {
+              role,
+              content: pipelineForApi(role, msg.content),
+            } as ChatCompletionMessageParam,
+          ]
         return []
       }),
     ]
@@ -261,7 +303,9 @@ ${promptsSection}${appendText}
     })
 
     const text = gptRes.choices[0]?.message?.content || ''
-    const lines = text.split('\n').filter((line: string) => line.trim())
+    const lines = pipelineModelOut(text)
+      .split('\n')
+      .filter((line: string) => line.trim())
     return res.status(200).json({ reply: lines })
   } catch (error) {
     console.error('API 통신 실패:', error)

@@ -9,6 +9,10 @@ import {
   type CharacterDraft,
   type InterfaceConfig,
   type LoreEntry,
+  type RegexScriptEntry,
+  type RegexScriptType,
+  type ScenarioRuleEntry,
+  type ExtraInterfaceEntry,
 } from '@/lib/interfaceConfig'
 import { createInitialInterfaceConfig } from '@/lib/interfaceEval'
 import type { ScreenConfig } from '@/lib/interfaceConfig'
@@ -23,12 +27,23 @@ import {
   Image as ImageIcon,
   Monitor,
   MessageCircle,
-  Activity,
+  Layers,
+  FolderOpen,
+  FileCode2,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { Code2 } from 'lucide-react'
 import { saveLocalCharacter } from '@/lib/localStorage'
 
-type SidebarTabId = 'profile' | 'lorebook' | 'images' | 'screen' | 'dialogue' | 'stats'
+type SidebarTabId =
+  | 'profile'
+  | 'lorebook'
+  | 'images'
+  | 'screen'
+  | 'dialogue'
+  | 'script'
+  | 'extraInterface'
 
 export default function CreatePage() {
   const [draft, setDraft] = useState<CharacterDraft>({})
@@ -46,12 +61,25 @@ export default function CreatePage() {
   const imageReplaceInputRef = useRef<HTMLInputElement>(null)
   const [imageReplaceTargetId, setImageReplaceTargetId] = useState<string | null>(null)
   const [addAssetType, setAddAssetType] = useState<AssetType>('character')
+  const [imageCategoryTab, setImageCategoryTab] = useState<AssetType>('character')
+  const [imageDropActive, setImageDropActive] = useState(false)
   const [uiThemeMode, setUiThemeMode] = useState<'basic'|'json'>('basic')
   const [uiThemeJsonText, setUiThemeJsonText] = useState('')
+  const [expandedRegexScriptId, setExpandedRegexScriptId] = useState<string | null>(null)
+  const [expandedScenarioRuleId, setExpandedScenarioRuleId] = useState<string | null>(null)
+  const [expandedExtraInterfaceId, setExpandedExtraInterfaceId] = useState<string | null>(null)
 
   useEffect(() => {
     const loaded = loadCharacterDraft()
-    const baseIface = (loaded.interfaceConfig as InterfaceConfig | undefined) ?? createInitialInterfaceConfig()
+    let baseIface = (loaded.interfaceConfig as InterfaceConfig | undefined) ?? createInitialInterfaceConfig()
+    const ds = baseIface.dialogueScript?.trim()
+    if (ds && (!baseIface.scenarioRules || baseIface.scenarioRules.length === 0)) {
+      baseIface = {
+        ...baseIface,
+        scenarioRules: [{ id: uuidv4(), name: '규칙 1', content: ds }],
+      }
+      saveCharacterDraft({ interfaceConfig: baseIface })
+    }
     setDraft(loaded)
     setIface(baseIface)
   }, [])
@@ -87,7 +115,7 @@ export default function CreatePage() {
     patchInterface({ code: value })
   }
 
-  const addAssetsFromFiles = (files: FileList | null) => {
+  const addAssetsFromFiles = (files: FileList | null, typeOverride?: AssetType) => {
     if (!files?.length || !iface) return
     const imageTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']
     const fileArray = Array.from(files).filter((f) => imageTypes.includes(f.type))
@@ -95,6 +123,7 @@ export default function CreatePage() {
       alert('선택한 파일 중 지원하는 이미지가 없습니다. (PNG, JPEG, GIF, WebP, SVG)')
       return
     }
+    const targetType = typeOverride ?? addAssetType
     const promises = fileArray.map(
       (file) =>
         new Promise<{ file: File; url: string }>((res, rej) => {
@@ -107,7 +136,7 @@ export default function CreatePage() {
     Promise.all(promises).then((results) => {
       const newRefs: AssetRef[] = results.map(({ file, url }) => ({
         id: uuidv4(),
-        type: addAssetType,
+        type: targetType,
         sourceType: 'upload',
         url,
         label: file.name.replace(/\.[^/.]+$/, '') || file.name,
@@ -165,7 +194,15 @@ export default function CreatePage() {
                   text: draft.firstLine || '이곳에 첫 대사가 표시됩니다...'
                 }
               }
-              return <DatingSimScreenPreview screen={previewConfig} assets={iface.assets} uiTheme={iface.uiTheme} />
+              return (
+                <DatingSimScreenPreview
+                  screen={previewConfig}
+                  assets={iface.assets}
+                  uiTheme={iface.uiTheme}
+                  extraInterfaceEntries={iface.extraInterfaceEntries}
+                  regexScripts={iface.regexScripts}
+                />
+              )
             })()}
           </div>
         </div>
@@ -201,7 +238,8 @@ export default function CreatePage() {
                   ['images', '이미지', ImageIcon],
                   ['screen', '초기 화면 설정', Monitor],
                   ['dialogue', '시나리오 및 규칙', MessageCircle],
-                  ['stats', '스탯 및 변수', Activity],
+                  ['script', '스크립트', FileCode2],
+                  ['extraInterface', '추가 인터페이스 설정', Layers],
                 ] as [SidebarTabId, string, typeof User][]
               ).map(([id, label, Icon]) => (
                 <button
@@ -603,99 +641,147 @@ export default function CreatePage() {
                   )
                 }
 
+                const selectImageCategory = (t: AssetType) => {
+                  setImageCategoryTab(t)
+                  setAddAssetType(t)
+                }
+
+                const categoryLabel =
+                  imageCategoryTab === 'background'
+                    ? '배경 이미지'
+                    : imageCategoryTab === 'character'
+                      ? '캐릭터 이미지'
+                      : '기타 이미지'
+
+                const listForTab =
+                  imageCategoryTab === 'background'
+                    ? backgroundAssets
+                    : imageCategoryTab === 'character'
+                      ? characterAssets
+                      : otherAssets
+
                 return (
-                  <div className="space-y-5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        ref={imagesFileInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          addAssetsFromFiles(e.target.files)
-                          e.target.value = ''
+                  <div className="space-y-4">
+                    <input
+                      ref={imagesFileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        addAssetsFromFiles(e.target.files, imageCategoryTab)
+                        e.target.value = ''
+                      }}
+                    />
+                    <input
+                      ref={imagesFolderInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                      {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        addAssetsFromFiles(e.target.files, imageCategoryTab)
+                        e.target.value = ''
+                      }}
+                    />
+                    <input
+                      ref={imageReplaceInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                      className="hidden"
+                      onChange={onReplaceAssetImage}
+                    />
+
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(
+                        [
+                          ['background', '배경 이미지'] as const,
+                          ['character', '캐릭터 이미지'] as const,
+                          ['ui', '기타 이미지'] as const,
+                        ]
+                      ).map(([id, label]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          onClick={() => selectImageCategory(id)}
+                          className={`rounded-lg border px-2 py-2.5 text-[11px] font-medium leading-tight transition-colors ${
+                            imageCategoryTab === id
+                              ? 'border-white bg-white text-black'
+                              : 'border-[#444] bg-[#0c0c0f] text-gray-300 hover:border-[#666]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="rounded-xl border border-[#333] bg-[#0a0a0c] p-3 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-gray-200">{categoryLabel} 추가</span>
+                        <span className="text-[10px] text-gray-500">파일은 Ctrl+클릭으로 여러 장 선택 가능</span>
+                      </div>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onDragEnter={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setImageDropActive(true)
                         }}
-                      />
-                      <input
-                        ref={imagesFolderInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-                        {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
-                        multiple
-                        className="hidden"
-                        onChange={(e) => {
-                          addAssetsFromFiles(e.target.files)
-                          e.target.value = ''
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setImageDropActive(true)
                         }}
-                      />
-                      <input
-                        ref={imageReplaceInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
-                        className="hidden"
-                        onChange={onReplaceAssetImage}
-                      />
-                      <select
-                        value={addAssetType}
-                        onChange={(e) => setAddAssetType(e.target.value as AssetType)}
-                        className="bg-[#111] border border-[#333] rounded-md px-2 py-1.5 text-xs"
+                        onDragLeave={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          if (!e.currentTarget.contains(e.relatedTarget as Node)) setImageDropActive(false)
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setImageDropActive(false)
+                          addAssetsFromFiles(e.dataTransfer.files, imageCategoryTab)
+                        }}
+                        className={`rounded-lg border-2 border-dashed px-3 py-6 text-center transition-colors ${
+                          imageDropActive
+                            ? 'border-pink-400/80 bg-pink-500/10'
+                            : 'border-[#444] bg-[#080808] hover:border-[#555]'
+                        }`}
                       >
-                        <option value="background">배경</option>
-                        <option value="character">캐릭터</option>
-                        <option value="ui">기타</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => imagesFileInputRef.current?.click()}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#444] text-xs hover:border-white"
-                      >
-                        <Plus size={12} /> 파일 추가
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => imagesFolderInputRef.current?.click()}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#444] text-xs hover:border-white"
-                      >
-                        <Plus size={12} /> 폴더 추가
-                      </button>
+                        <Upload className="mx-auto mb-2 text-gray-500" size={22} />
+                        <p className="text-[11px] text-gray-400 mb-1">이미지를 여기에 끌어다 놓기</p>
+                        <p className="text-[10px] text-gray-600">현재 선택: {categoryLabel}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => imagesFileInputRef.current?.click()}
+                          className="inline-flex flex-1 min-w-[120px] items-center justify-center gap-1.5 rounded-lg border border-[#444] bg-[#111] px-3 py-2 text-xs hover:border-white"
+                        >
+                          <Plus size={14} /> 파일 (다중 선택)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => imagesFolderInputRef.current?.click()}
+                          className="inline-flex flex-1 min-w-[120px] items-center justify-center gap-1.5 rounded-lg border border-[#444] bg-[#111] px-3 py-2 text-xs hover:border-white"
+                        >
+                          <FolderOpen size={14} /> 폴더
+                        </button>
+                      </div>
                     </div>
 
                     <section className="space-y-2">
-                      <h3 className="text-xs font-semibold text-gray-300">배경 이미지</h3>
+                      <h3 className="text-xs font-semibold text-gray-400">{categoryLabel} 목록</h3>
                       <div className="space-y-2">
-                        {backgroundAssets.length === 0 ? (
-                          <p className="text-[11px] text-gray-500 py-2">없음</p>
+                        {listForTab.length === 0 ? (
+                          <p className="text-[11px] text-gray-500 py-3 text-center rounded-lg border border-dashed border-[#333]">
+                            아직 없습니다. 위에서 추가하세요.
+                          </p>
                         ) : (
-                          backgroundAssets.map((asset) => (
-                            <AssetCard key={asset.id} asset={asset} />
-                          ))
-                        )}
-                      </div>
-                    </section>
-
-                    <section className="space-y-2">
-                      <h3 className="text-xs font-semibold text-gray-300">캐릭터 이미지</h3>
-                      <div className="space-y-2">
-                        {characterAssets.length === 0 ? (
-                          <p className="text-[11px] text-gray-500 py-2">없음</p>
-                        ) : (
-                          characterAssets.map((asset) => (
-                            <AssetCard key={asset.id} asset={asset} />
-                          ))
-                        )}
-                      </div>
-                    </section>
-
-                    <section className="space-y-2">
-                      <h3 className="text-xs font-semibold text-gray-300">기타 이미지</h3>
-                      <div className="space-y-2">
-                        {otherAssets.length === 0 ? (
-                          <p className="text-[11px] text-gray-500 py-2">없음</p>
-                        ) : (
-                          otherAssets.map((asset) => (
-                            <AssetCard key={asset.id} asset={asset} />
-                          ))
+                          listForTab.map((asset) => <AssetCard key={asset.id} asset={asset} />)
                         )}
                       </div>
                     </section>
@@ -796,34 +882,77 @@ export default function CreatePage() {
               {activeTab === 'dialogue' && (() => {
                 const mode = iface.dialogueScriptMode || 'natural'
                 const isJson = mode === 'json'
-                
+                const rules = iface.scenarioRules ?? []
+
+                const scenarioRulesToDialogueScript = (list: ScenarioRuleEntry[]) =>
+                  list
+                    .map((r) => r.content.trim())
+                    .filter(Boolean)
+                    .join('\n\n---\n\n')
+
+                const setScenarioRules = (next: ScenarioRuleEntry[]) => {
+                  patchInterface({
+                    scenarioRules: next,
+                    dialogueScript: scenarioRulesToDialogueScript(next),
+                  })
+                }
+
+                const addScenarioRule = () => {
+                  const next = [
+                    ...rules,
+                    { id: uuidv4(), name: `규칙 ${rules.length + 1}`, content: '' },
+                  ]
+                  setScenarioRules(next)
+                  setExpandedScenarioRuleId(next[next.length - 1].id)
+                }
+
+                const updateScenarioRule = (id: string, patch: Partial<ScenarioRuleEntry>) => {
+                  const next = rules.map((r) => (r.id === id ? { ...r, ...patch } : r))
+                  setScenarioRules(next)
+                }
+
+                const removeScenarioRule = (id: string) => {
+                  if (!window.confirm('이 규칙 행을 삭제할까요?')) return
+                  const next = rules.filter((r) => r.id !== id)
+                  setScenarioRules(next)
+                  if (expandedScenarioRuleId === id) setExpandedScenarioRuleId(null)
+                }
+
                 return (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <label className="block font-semibold">시나리오 및 게임 규칙 (System Rules)</label>
-                      <div className="flex bg-[#111] border border-[#333] rounded-md overflow-hidden text-xs">
+                      <label className="block font-semibold">시나리오 및 게임 규칙</label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex bg-[#111] border border-[#333] rounded-md overflow-hidden text-xs">
+                          <button
+                            type="button"
+                            className={`px-3 py-1.5 transition-colors ${!isJson ? 'bg-[#e45463] text-white font-medium' : 'text-gray-400 hover:text-gray-200'}`}
+                            onClick={() => patchInterface({ dialogueScriptMode: 'natural' })}
+                          >
+                            자연어 모드
+                          </button>
+                          <button
+                            type="button"
+                            className={`px-3 py-1.5 transition-colors ${isJson ? 'bg-[#e45463] text-white font-medium' : 'text-gray-400 hover:text-gray-200'}`}
+                            onClick={() => patchInterface({ dialogueScriptMode: 'json' })}
+                          >
+                            JSON 템플릿
+                          </button>
+                        </div>
                         <button
                           type="button"
-                          className={`px-3 py-1.5 transition-colors ${!isJson ? 'bg-[#e45463] text-white font-medium' : 'text-gray-400 hover:text-gray-200'}`}
-                          onClick={() => patchInterface({ dialogueScriptMode: 'natural' })}
+                          onClick={addScenarioRule}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#444] text-xs hover:border-white"
                         >
-                          자연어 모드
-                        </button>
-                        <button
-                          type="button"
-                          className={`px-3 py-1.5 transition-colors ${isJson ? 'bg-[#e45463] text-white font-medium' : 'text-gray-400 hover:text-gray-200'}`}
-                          onClick={() => patchInterface({ dialogueScriptMode: 'json' })}
-                        >
-                          JSON 템플릿
+                          <Plus size={14} /> 규칙 추가
                         </button>
                       </div>
                     </div>
-                    
+
                     <p className="text-[11px] text-gray-400">
-                      게임의 전반적인 규칙, 호감도 분기, 게임 오버 조건 등을 AI에게 지시합니다. <br/>
-                      이 봇의 성격 외에 <b>"마스터로서 지켜야 할 시스템적 규칙"</b>을 추가하는 공간입니다.
+                      행을 눌러 내용을 펼치거나 접을 수 있습니다. 각 행은 <b>dialogueScript</b>에 합쳐져 저장됩니다.
                     </p>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -846,136 +975,444 @@ export default function CreatePage() {
 2. 주인공의 호감도가 100이 되면 해피엔딩을 선언하고 대화를 종료하세요.
 3. 폭력적인 묘사는 피하며, 상황 대신 마음 속 독백 위주로 서술하세요.`
                           }
-                          const hasContent = (iface.dialogueScript ?? '').trim().length > 0
-                          if (hasContent && !window.confirm('예시 규칙으로 덮어쓸까요?')) return
-                          patchInterface({ dialogueScript: example })
+                          const hasAny = rules.some((r) => r.content.trim())
+                          if (hasAny && !window.confirm('예시로 첫 번째 행을 덮어쓰고 나머지를 비울까요?')) return
+                          const one: ScenarioRuleEntry = {
+                            id: rules[0]?.id ?? uuidv4(),
+                            name: '예시 규칙',
+                            content: example,
+                          }
+                          setScenarioRules([one])
+                          setExpandedScenarioRuleId(one.id)
                         }}
                         className="px-2 py-1 rounded border border-[#444] text-[11px] hover:border-white hover:bg-[#1a1a1a]"
                       >
                         예시 템플릿 넣기
                       </button>
                     </div>
-                    <textarea
-                      value={iface.dialogueScript ?? ''}
-                      onChange={(e) => patchInterface({ dialogueScript: e.target.value })}
-                      className="w-full h-56 bg-[#090909] border border-[#333] rounded px-3 py-2 text-sm text-gray-200 font-mono"
-                      placeholder={isJson ? "JSON 형식으로 규칙을 입력하세요." : "자연어(텍스트) 형태로 규칙을 입력하세요."}
-                      spellCheck={false}
-                    />
+
+                    <div className="border border-[#333] rounded-lg overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-[#111] text-gray-400">
+                          <tr>
+                            <th className="w-8 px-2 py-2 text-left" />
+                            <th className="px-2 py-2 text-left min-w-[100px]">이름</th>
+                            <th className="w-10 px-2 py-2 text-right" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rules.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="px-3 py-6 text-center text-gray-500">
+                                규칙이 없습니다. &quot;규칙 추가&quot;를 누르세요.
+                              </td>
+                            </tr>
+                          ) : (
+                            rules.map((r) => {
+                              const open = expandedScenarioRuleId === r.id
+                              return (
+                                <Fragment key={r.id}>
+                                  <tr
+                                    onClick={() =>
+                                      setExpandedScenarioRuleId((p) => (p === r.id ? null : r.id))
+                                    }
+                                    className={`border-t border-[#222] cursor-pointer hover:bg-[#111] ${open ? 'bg-[#0f0f12]' : ''}`}
+                                  >
+                                    <td className="px-2 py-2 align-middle text-gray-500">
+                                      {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                    </td>
+                                    <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                                      <input
+                                        value={r.name}
+                                        onChange={(e) => updateScenarioRule(r.id, { name: e.target.value })}
+                                        className="w-full bg-[#111] border border-[#333] rounded px-2 py-1"
+                                        placeholder="규칙 이름"
+                                      />
+                                    </td>
+                                    <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeScenarioRule(r.id)}
+                                        className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+                                        title="삭제"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  {open && (
+                                    <tr className="border-t border-[#222] bg-[#0b0b0f]">
+                                      <td colSpan={3} className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                                        <label className="block text-[10px] text-gray-500 mb-1">
+                                          내용 ({isJson ? 'JSON' : '자연어'})
+                                        </label>
+                                        <textarea
+                                          value={r.content}
+                                          onChange={(e) => updateScenarioRule(r.id, { content: e.target.value })}
+                                          className="w-full min-h-[160px] bg-[#090909] border border-[#333] rounded px-3 py-2 text-xs font-mono text-gray-200"
+                                          placeholder={
+                                            isJson
+                                              ? 'JSON 형식으로 규칙을 입력하세요.'
+                                              : '자연어(텍스트) 형태로 규칙을 입력하세요.'
+                                          }
+                                          spellCheck={false}
+                                        />
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )
               })()}
 
-              {activeTab === 'stats' && (() => {
-                const stats = iface.stats || []
+              {activeTab === 'script' && (() => {
+                const scripts = iface.regexScripts ?? []
+                const scriptTypeLabels: Record<RegexScriptType, string> = {
+                  modify_input: 'Modify Input (사용자 입력)',
+                  modify_output: 'Modify Output (캐릭터 출력)',
+                  modify_request: 'Modify Request (전송 데이터)',
+                  modify_display: 'Modify Display (표시만)',
+                }
 
-                const addStat = () => {
+                const addRegexScript = () => {
+                  const next: RegexScriptEntry = {
+                    id: uuidv4(),
+                    name: '새 규칙',
+                    scriptType: 'modify_display',
+                    pattern: '',
+                    replacement: '',
+                    enabled: true,
+                  }
+                  patchInterface({ regexScripts: [...scripts, next] })
+                  setExpandedRegexScriptId(next.id)
+                }
+
+                const updateRegexScript = (id: string, patch: Partial<RegexScriptEntry>) => {
                   patchInterface({
-                    stats: [...stats, { name: '새 스탯', key: 'newScore', min: 0, max: 100, initial: 0 }]
+                    regexScripts: scripts.map((s) => (s.id === id ? { ...s, ...patch } : s)),
                   })
                 }
 
-                const updateStat = (idx: number, patch: Partial<typeof stats[0]>) => {
-                  const next = [...stats]
-                  next[idx] = { ...next[idx], ...patch }
-                  patchInterface({ stats: next })
-                }
-
-                const removeStat = (idx: number) => {
-                  if (!window.confirm('이 스탯을 삭제하시겠습니까?')) return
-                  const next = [...stats]
-                  next.splice(idx, 1)
-                  patchInterface({ stats: next })
+                const removeRegexScript = (id: string) => {
+                  if (!window.confirm('이 정규식 스크립트를 삭제할까요?')) return
+                  patchInterface({ regexScripts: scripts.filter((s) => s.id !== id) })
+                  if (expandedRegexScriptId === id) setExpandedRegexScriptId(null)
                 }
 
                 return (
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block mb-2 font-semibold">백그라운드 임베딩</label>
+                      <p className="text-[11px] text-gray-400 mb-2 leading-relaxed">
+                        RisuAI의 Background embedding과 같이, 채팅 요청 시 <b>시스템·백그라운드 컨텍스트에 항상 붙는</b>{' '}
+                        텍스트입니다. 세계관 고정 규칙, 출력 형식, 금지 사항 등을 넣을 수 있습니다. (실제 병합은 /chat
+                        연동 시 적용)
+                      </p>
+                      <textarea
+                        value={iface.backgroundEmbedding ?? ''}
+                        onChange={(e) => patchInterface({ backgroundEmbedding: e.target.value })}
+                        className="w-full min-h-[140px] bg-[#090909] border border-[#333] rounded px-3 py-2 text-xs font-mono text-gray-200"
+                        placeholder="예: 항상 3인칭 서술로 응답한다. HTML 태그는 사용하지 않는다."
+                        spellCheck={false}
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div>
+                          <label className="block font-semibold">정규식 스크립트 (Regex Script)</label>
+                          <p className="text-[11px] text-gray-400 mt-1 leading-relaxed">
+                            RisuAI와 동일한 개념: <b>IN</b>(정규식)에 맞는 문자열을 <b>OUT</b>(치환문)으로 바꿉니다.
+                            Modify Display는 채팅 로그는 그대로 두고 화면에만 다르게 보이게 할 때 씁니다.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={addRegexScript}
+                          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#444] text-xs hover:border-white"
+                        >
+                          <Plus size={14} /> 규칙 추가
+                        </button>
+                      </div>
+
+                      <ul className="text-[10px] text-gray-500 space-y-0.5 list-disc list-inside">
+                        <li>Modify Input — 사용자가 보낸 메시지를 API 전에 수정</li>
+                        <li>Modify Output — 모델 응답을 저장/후처리 전에 수정</li>
+                        <li>Modify Request — 전송 직전 전체 채팅 데이터 수정</li>
+                        <li>Modify Display — 표시 텍스트만 바꾸고 저장 데이터는 유지</li>
+                      </ul>
+
+                      <div className="border border-[#333] rounded-lg overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead className="bg-[#111] text-gray-400">
+                            <tr>
+                              <th className="w-8 px-2 py-2 text-left" />
+                              <th className="px-2 py-2 text-left min-w-[80px]">이름</th>
+                              <th className="px-2 py-2 text-left min-w-[140px]">타입</th>
+                              <th className="px-2 py-2 text-center w-14">사용</th>
+                              <th className="w-10 px-2 py-2 text-right" />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scripts.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                                  규칙이 없습니다. &quot;규칙 추가&quot;를 눌러 행을 눌러 IN/OUT을 설정하세요.
+                                </td>
+                              </tr>
+                            ) : (
+                              scripts.map((s) => {
+                                const open = expandedRegexScriptId === s.id
+                                return (
+                                  <Fragment key={s.id}>
+                                    <tr
+                                      onClick={() =>
+                                        setExpandedRegexScriptId((p) => (p === s.id ? null : s.id))
+                                      }
+                                      className={`border-t border-[#222] cursor-pointer hover:bg-[#111] ${open ? 'bg-[#0f0f12]' : ''}`}
+                                    >
+                                      <td className="px-2 py-2 align-middle text-gray-500">
+                                        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                      </td>
+                                      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                          value={s.name}
+                                          onChange={(e) => updateRegexScript(s.id, { name: e.target.value })}
+                                          className="w-full bg-[#111] border border-[#333] rounded px-2 py-1"
+                                          placeholder="이름"
+                                        />
+                                      </td>
+                                      <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                                        <select
+                                          value={s.scriptType}
+                                          onChange={(e) =>
+                                            updateRegexScript(s.id, {
+                                              scriptType: e.target.value as RegexScriptType,
+                                            })
+                                          }
+                                          className="w-full min-w-0 bg-[#111] border border-[#333] rounded px-2 py-1 text-[10px]"
+                                        >
+                                          {(Object.keys(scriptTypeLabels) as RegexScriptType[]).map((k) => (
+                                            <option key={k} value={k}>
+                                              {scriptTypeLabels[k]}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </td>
+                                      <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                          type="checkbox"
+                                          checked={s.enabled}
+                                          onChange={(e) =>
+                                            updateRegexScript(s.id, { enabled: e.target.checked })
+                                          }
+                                          className="align-middle"
+                                        />
+                                      </td>
+                                      <td className="px-2 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                          type="button"
+                                          onClick={() => removeRegexScript(s.id)}
+                                          className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+                                          title="삭제"
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                    {open && (
+                                      <tr className="border-t border-[#222] bg-[#0b0b0f]">
+                                        <td colSpan={5} className="px-3 py-3 space-y-3" onClick={(e) => e.stopPropagation()}>
+                                          <div>
+                                            <label className="block text-[10px] text-gray-500 mb-1">
+                                              IN (정규식 · Matches)
+                                            </label>
+                                            <input
+                                              value={s.pattern}
+                                              onChange={(e) =>
+                                                updateRegexScript(s.id, { pattern: e.target.value })
+                                              }
+                                              className="w-full bg-[#090909] border border-[#333] rounded px-2 py-1.5 text-xs font-mono"
+                                              placeholder="예: \\[status\\]"
+                                              spellCheck={false}
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-[10px] text-gray-500 mb-1">
+                                              OUT (치환 · Replacement)
+                                            </label>
+                                            <textarea
+                                              value={s.replacement}
+                                              onChange={(e) =>
+                                                updateRegexScript(s.id, { replacement: e.target.value })
+                                              }
+                                              className="w-full min-h-[88px] bg-[#090909] border border-[#333] rounded px-2 py-1.5 text-xs font-mono"
+                                              placeholder="매칭된 부분을 이 문자열로 바꿉니다. $1, $2 …"
+                                              spellCheck={false}
+                                            />
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </Fragment>
+                                )
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {activeTab === 'extraInterface' && (() => {
+                const entries = iface.extraInterfaceEntries ?? []
+
+                const setEntries = (next: ExtraInterfaceEntry[]) => {
+                  patchInterface({ extraInterfaceEntries: next })
+                }
+
+                const addEntry = () => {
+                  const row: ExtraInterfaceEntry = {
+                    id: uuidv4(),
+                    name: `설정 ${entries.length + 1}`,
+                    json: '{\n  "icons": []\n}',
+                  }
+                  setEntries([...entries, row])
+                  setExpandedExtraInterfaceId(row.id)
+                }
+
+                const updateEntry = (id: string, patch: Partial<ExtraInterfaceEntry>) => {
+                  setEntries(entries.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+                }
+
+                const removeEntry = (id: string) => {
+                  if (!window.confirm('이 항목을 삭제할까요?')) return
+                  setEntries(entries.filter((e) => e.id !== id))
+                  if (expandedExtraInterfaceId === id) setExpandedExtraInterfaceId(null)
+                }
+
+                const exampleJson = `{
+  "icons": [
+    { "id": "inventory", "label": "가방", "position": "bottom-right", "lucide": "Backpack" }
+  ],
+  "overlays": []
+}`
+
+                return (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="block font-semibold">스탯 및 변수 (Status Variables)</label>
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <label className="block font-semibold">추가 인터페이스 설정</label>
                       <button
                         type="button"
-                        onClick={addStat}
-                        className="px-2 py-1 text-xs bg-[#e45463] text-white rounded hover:bg-[#d04352] transition flex items-center gap-1"
+                        onClick={addEntry}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#444] text-xs hover:border-white"
                       >
-                        <Plus size={14} /> 스탯 추가
+                        <Plus size={14} /> 항목 추가
                       </button>
                     </div>
-                    <p className="text-[11px] text-gray-400">
-                      호감도, 체력, 스트레스 등 <b>게임 내에서 계속 추적해야 할 변수</b>들을 정의합니다.
-                      AI는 이 변수들을 기억하고, 채팅 상황에 맞게 자동으로 변화시켜 보고합니다.
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      채팅·게임 화면에 올릴 <b>아이콘, 버튼, 오버레이</b> 등을 JSON으로 정의합니다. 행을 눌러 JSON을
+                      펼쳐 편집하세요. (실제 렌더링은 /chat 등에서 이 배열을 읽어 적용하면 됩니다.)
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const row: ExtraInterfaceEntry = {
+                          id: uuidv4(),
+                          name: '예시: 상단 아이콘',
+                          json: exampleJson,
+                        }
+                        if (entries.length > 0 && !window.confirm('예시 항목을 목록에 추가할까요?')) return
+                        setEntries([...entries, row])
+                        setExpandedExtraInterfaceId(row.id)
+                      }}
+                      className="px-2 py-1 rounded border border-[#444] text-[11px] hover:border-white hover:bg-[#1a1a1a]"
+                    >
+                      예시 JSON 항목 추가
+                    </button>
 
-                    {stats.length === 0 ? (
-                      <div className="text-center py-10 bg-[#0a0a0c] border border-[#222] rounded-lg text-gray-500 text-xs">
-                        정의된 스탯이 없습니다. 우측 상단의 추가 버튼을 눌러보세요.
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {stats.map((st, idx) => (
-                          <div key={idx} className="bg-[#0a0a0c] border border-[#333] rounded-lg p-3 space-y-3 relative group">
-                            <button
-                              type="button"
-                              onClick={() => removeStat(idx)}
-                              className="absolute top-2 right-2 p-1.5 bg-[#222] text-gray-400 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-900 hover:text-red-200"
-                              title="삭제"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                            
-                            <div className="grid grid-cols-2 gap-3 pr-8">
-                              <div className="space-y-1">
-                                <label className="text-[10px] text-gray-500">표시 이름</label>
-                                <input
-                                  value={st.name}
-                                  onChange={(e) => updateStat(idx, { name: e.target.value })}
-                                  className="w-full bg-[#111] border border-[#444] rounded px-2 py-1 text-xs focus:border-[#e45463] outline-none"
-                                  placeholder="호감도, HP..."
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] text-gray-500">변수 키</label>
-                                <input
-                                  value={st.key}
-                                  onChange={(e) => updateStat(idx, { key: e.target.value.replace(/[^a-zA-Z0-9_]/g, '') })}
-                                  className="w-full bg-[#111] border border-[#444] rounded px-2 py-1 text-xs font-mono focus:border-[#e45463] outline-none"
-                                  placeholder="affinity, hp..."
-                                />
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="space-y-1">
-                                <label className="text-[10px] text-gray-500">최소값</label>
-                                <input
-                                  type="number"
-                                  value={st.min}
-                                  onChange={(e) => updateStat(idx, { min: Number(e.target.value) })}
-                                  className="w-full bg-[#111] border border-[#444] rounded px-2 py-1 text-xs text-center focus:border-[#e45463] outline-none"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] text-gray-500">최대값</label>
-                                <input
-                                  type="number"
-                                  value={st.max}
-                                  onChange={(e) => updateStat(idx, { max: Number(e.target.value) })}
-                                  className="w-full bg-[#111] border border-[#444] rounded px-2 py-1 text-xs text-center focus:border-[#e45463] outline-none"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] text-gray-500">시작값</label>
-                                <input
-                                  type="number"
-                                  value={st.initial}
-                                  onChange={(e) => updateStat(idx, { initial: Number(e.target.value) })}
-                                  className="w-full bg-[#111] border border-[#444] rounded px-2 py-1 text-xs text-center focus:border-[#e45463] outline-none"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <div className="border border-[#333] rounded-lg overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-[#111] text-gray-400">
+                          <tr>
+                            <th className="w-8 px-2 py-2 text-left" />
+                            <th className="px-2 py-2 text-left min-w-[100px]">이름</th>
+                            <th className="w-10 px-2 py-2 text-right" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {entries.length === 0 ? (
+                            <tr>
+                              <td colSpan={3} className="px-3 py-6 text-center text-gray-500">
+                                항목이 없습니다. &quot;항목 추가&quot;로 JSON 블록을 만드세요.
+                              </td>
+                            </tr>
+                          ) : (
+                            entries.map((e) => {
+                              const open = expandedExtraInterfaceId === e.id
+                              return (
+                                <Fragment key={e.id}>
+                                  <tr
+                                    onClick={() =>
+                                      setExpandedExtraInterfaceId((p) => (p === e.id ? null : e.id))
+                                    }
+                                    className={`border-t border-[#222] cursor-pointer hover:bg-[#111] ${open ? 'bg-[#0f0f12]' : ''}`}
+                                  >
+                                    <td className="px-2 py-2 align-middle text-gray-500">
+                                      {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                    </td>
+                                    <td className="px-2 py-2" onClick={(ev) => ev.stopPropagation()}>
+                                      <input
+                                        value={e.name}
+                                        onChange={(ev) => updateEntry(e.id, { name: ev.target.value })}
+                                        className="w-full bg-[#111] border border-[#333] rounded px-2 py-1"
+                                        placeholder="블록 이름"
+                                      />
+                                    </td>
+                                    <td className="px-2 py-2 text-right" onClick={(ev) => ev.stopPropagation()}>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeEntry(e.id)}
+                                        className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
+                                        title="삭제"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                  {open && (
+                                    <tr className="border-t border-[#222] bg-[#0b0b0f]">
+                                      <td colSpan={3} className="px-3 py-3" onClick={(ev) => ev.stopPropagation()}>
+                                        <label className="block text-[10px] text-gray-500 mb-1">JSON</label>
+                                        <textarea
+                                          value={e.json}
+                                          onChange={(ev) => updateEntry(e.id, { json: ev.target.value })}
+                                          className="w-full min-h-[200px] bg-[#090909] border border-[#333] rounded px-3 py-2 text-xs font-mono text-gray-200"
+                                          placeholder={exampleJson}
+                                          spellCheck={false}
+                                        />
+                                        <p className="text-[10px] text-gray-600 mt-1">
+                                          유효한 JSON인지는 저장 시 검사하지 않습니다. 키 구조는 클라이언트 구현에
+                                          맞추면 됩니다.
+                                        </p>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
+                              )
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )
               })()}

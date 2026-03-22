@@ -68,6 +68,40 @@ export interface UIBoxConfig {
   borderRadius?: number
 }
 
+/** RisuAI Regex Script와 동일한 4종 수정 타입 */
+export type RegexScriptType =
+  | 'modify_input'
+  | 'modify_output'
+  | 'modify_request'
+  | 'modify_display'
+
+/** RisuAI 스타일: 정규식(IN)으로 매칭된 문자열을 replacement(OUT)로 치환 */
+export interface RegexScriptEntry {
+  id: string
+  name: string
+  scriptType: RegexScriptType
+  /** IN: 정규식 패턴 */
+  pattern: string
+  /** OUT: 치환 문자열 ($1, $2 등 캡처 그룹 사용 가능) */
+  replacement: string
+  enabled: boolean
+}
+
+/** 시나리오·게임 규칙을 행 단위로 관리 (테이블 UI). 통합 텍스트는 dialogueScript에 동기화 */
+export interface ScenarioRuleEntry {
+  id: string
+  name: string
+  content: string
+}
+
+/** 추가 인터페이스: 화면 아이콘·오버레이 등 JSON 블록 (행 단위) */
+export interface ExtraInterfaceEntry {
+  id: string
+  name: string
+  /** 화면에 반영할 설정 JSON (아이콘, 위치, 스타일 등) */
+  json: string
+}
+
 export interface InterfaceConfig {
   code: string
   assets: AssetRef[]
@@ -82,6 +116,16 @@ export interface InterfaceConfig {
   bgImagePrompt?: string
   charImagePrompt?: string
   uiTheme?: UIBoxConfig
+  /**
+   * 백그라운드 임베딩: 대화 전송 시 시스템/백그라운드에 항상 합쳐지는 텍스트 (RisuAI Background embedding 개념)
+   */
+  backgroundEmbedding?: string
+  /** RisuAI Regex Script와 같은 형식의 규칙 목록 (실제 적용은 /chat 등에서 수행) */
+  regexScripts?: RegexScriptEntry[]
+  /** 시나리오 및 게임 규칙 행 목록 */
+  scenarioRules?: ScenarioRuleEntry[]
+  /** 추가 인터페이스 설정 (JSON 행 목록) */
+  extraInterfaceEntries?: ExtraInterfaceEntry[]
 }
 
 export type CharacterDraft = {

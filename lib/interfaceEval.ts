@@ -10,6 +10,10 @@ export function createInitialInterfaceConfig(): InterfaceConfig {
     code: '',
     layoutPreset: 'dating-sim-v1',
     assets: [],
+    backgroundEmbedding: '',
+    regexScripts: [],
+    scenarioRules: [],
+    extraInterfaceEntries: [],
   }
 }
 
