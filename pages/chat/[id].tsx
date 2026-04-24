@@ -147,6 +147,17 @@ function buildOpeningMessages(args: {
   return out
 }
 
+function normalizeAssistantImageTags(raw: string): string {
+  if (!raw) return raw
+  return raw
+    .replace(/&lt;\s*img-src\s*=\s*([^&]+?)\s*&gt;/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(/&lt;\s*img\s+src\s*=\s*["']([^"']+)["']\s*\/?\s*&gt;/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(/&lt;\s*img\s*=\s*([^&]+?)\s*&gt;/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(/<img-src\s*=\s*([^>]+?)\s*\/?>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(/<img\s*=\s*([^>]+?)\s*\/?>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
+}
+
 function pickAssetsForApi(args: {
   assets: AssetRef[]
   recentMessages: ChatMessage[]
@@ -693,7 +704,7 @@ export default function ChatPage() {
     const assistantMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'assistant',
-      content: reply,
+      content: normalizeAssistantImageTags(reply),
       created_at: new Date().toISOString(),
     }
     setMessages([...newMessages, assistantMessage])
