@@ -150,9 +150,11 @@ function buildOpeningMessages(args: {
 function normalizeAssistantImageTags(raw: string): string {
   if (!raw) return raw
   return raw
+    .replace(/&lt;\s*img-src-([^&]+?)\s*&gt;/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(/&lt;\s*img-src\s*=\s*([^&]+?)\s*&gt;/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(/&lt;\s*img\s+src\s*=\s*["']([^"']+)["']\s*\/?\s*&gt;/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(/&lt;\s*img\s*=\s*([^&]+?)\s*&gt;/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(/<img-src-([^>]+?)\s*\/?>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(/<img-src\s*=\s*([^>]+?)\s*\/?>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(/<img\s*=\s*([^>]+?)\s*\/?>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)

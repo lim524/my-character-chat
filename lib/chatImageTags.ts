@@ -5,12 +5,14 @@ export type ParsedImageTag = { rawRef: string }
 
 const IMG_TAG_REGEX = /<img\s*=\s*([^>]+?)\s*>/gi
 const IMG_SRC_TAG_REGEX = /<img-src\s*=\s*([^>]+?)\s*>/gi
+const IMG_SRC_DASH_TAG_REGEX = /<img-src-([^>]+?)\s*>/gi
 const HTML_IMG_TAG_REGEX = /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi
 
 export function normalizeImageControlTags(content: string, regexScripts?: RegexScriptEntry[]): string {
   const displayContent = applyRegexScripts(content, regexScripts, 'modify_display')
   return displayContent
     .replace(HTML_IMG_TAG_REGEX, (_full, src: string) => `<img=${String(src).trim()}>`)
+    .replace(IMG_SRC_DASH_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(IMG_SRC_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
 }
 
