@@ -47,6 +47,13 @@ import {
   paginateAssistantContent,
   VN_DEFAULT_CHARS_PER_PAGE,
 } from '@/lib/vnDialogPagination'
+import {
+  normalizeImageControlTags,
+  parseImageTags,
+  resolveAssetByRef,
+  splitRefAndType,
+} from '@/lib/chatImageTags'
+import { buildScanContext } from '@/lib/lorebookActivation'
 import Image from 'next/image'
 import { Sparkles, Zap, Feather, Gem } from 'lucide-react'
 
@@ -138,6 +145,120 @@ function buildOpeningMessages(args: {
     })
   }
   return out
+}
+
+function pickAssetsForApi(args: {
+  assets: AssetRef[]
+  recentMessages: ChatMessage[]
+  displayedImage: string | null
+  activeCharacterSprites: string[]
+}): AssetRef[] {
+  const { assets, recentMessages, displayedImage, activeCharacterSprites } = args
+  if (!assets.length) return []
+
+  const picked = new Map<string, AssetRef>()
+  const push = (asset?: AssetRef) => {
+    if (!asset) return
+    if (!picked.has(asset.id)) picked.set(asset.id, asset)
+  }
+
+  const recentSlice = recentMessages.slice(-12)
+  for (const msg of recentSlice) {
+    const normalized = normalizeImageControlTags(msg.content)
+    for (const tag of parseImageTags(normalized)) {
+      const { ref } = splitRefAndType(tag.rawRef)
+      push(resolveAssetByRef(assets, ref))
+    }
+  }
+
+  if (displayedImage) {
+    push(assets.find((a) => a.url === displayedImage))
+  }
+  for (const spriteUrl of activeCharacterSprites) {
+    push(assets.find((a) => a.url === spriteUrl))
+  }
+
+  // Ensure minimal candidates exist even when tags are sparse.
+  const hasBg = [...picked.values()].some((a) => a.type === 'background')
+  const hasChar = [...picked.values()].some((a) => a.type === 'character')
+  if (!hasBg) {
+    assets.filter((a) => a.type === 'background').slice(0, 3).forEach(push)
+  }
+  if (!hasChar) {
+    assets.filter((a) => a.type === 'character').slice(0, 8).forEach(push)
+  }
+  if (picked.size < 12) {
+    assets
+      .filter((a) => a.type === 'ui')
+      .slice(0, 4)
+      .forEach(push)
+  }
+
+  return [...picked.values()].slice(0, 24)
+}
+
+function buildCharacterInfoForApi(args: {
+  characterInfo: Character
+  recentMessages: ChatMessage[]
+  displayedImage: string | null
+  activeCharacterSprites: string[]
+}): Record<string, unknown> {
+  const { characterInfo, recentMessages, displayedImage, activeCharacterSprites } = args
+  const fullAssets = characterInfo.interfaceConfig?.assets || []
+  const selectedAssets = pickAssetsForApi({
+    assets: fullAssets,
+    recentMessages,
+    displayedImage,
+    activeCharacterSprites,
+  }).map((a) => ({
+    id: a.id,
+    type: a.type,
+    label: a.label,
+    // keep URL only when non-data; API may use basename hints.
+    url: typeof a.url === 'string' && !a.url.startsWith('data:') ? a.url : '',
+  }))
+
+  const iface = characterInfo.interfaceConfig
+  const scanText = buildScanContext(recentMessages, 12).toLowerCase()
+  const selectedLoreEntries = (characterInfo.loreEntries ?? [])
+    .filter((entry) => {
+      if (entry.alwaysActive) return true
+      const keyText = (entry.keys || '').trim()
+      if (!keyText) return false
+      const keys = keyText
+        .split(/[,，\n\r]+/)
+        .map((k) => k.trim().toLowerCase())
+        .filter(Boolean)
+      if (keys.length === 0) return false
+      return keys.some((k) => scanText.includes(k))
+    })
+    .slice(0, 32)
+
+  return {
+    id: characterInfo.id,
+    name: characterInfo.name,
+    personality: characterInfo.personality,
+    description: characterInfo.description,
+    situation: characterInfo.situation,
+    firstLine: characterInfo.firstLine,
+    worldSetting: characterInfo.worldSetting,
+    supporting: characterInfo.supporting ?? [],
+    loreEntries: selectedLoreEntries,
+    userName: characterInfo.userName,
+    userRole: characterInfo.userRole,
+    userDescription: characterInfo.userDescription,
+    isAdult: characterInfo.isAdult,
+    isPublic: characterInfo.isPublic,
+    tags: characterInfo.tags ?? [],
+    interfaceConfig: {
+      assets: selectedAssets,
+      dialogueScript: iface?.dialogueScript ?? '',
+      scenarioRules: iface?.scenarioRules ?? [],
+      backgroundEmbedding: iface?.backgroundEmbedding ?? '',
+      regexScripts: iface?.regexScripts ?? [],
+      stats: iface?.stats ?? [],
+    },
+  }
 }
 
 export default function ChatPage() {
@@ -529,9 +650,15 @@ export default function ChatPage() {
         },
       ]
       const recentMessages = contextMessages.slice(-500)
+      const characterInfoForApi = buildCharacterInfoForApi({
+        characterInfo,
+        recentMessages,
+        displayedImage,
+        activeCharacterSprites,
+      })
       const chatPayload = stripDataUrlsFromJsonValue({
         messages: recentMessages,
-        characterInfo,
+        characterInfo: characterInfoForApi,
         provider: selectedProvider,
         apiKey: key,
         selectedModel,
