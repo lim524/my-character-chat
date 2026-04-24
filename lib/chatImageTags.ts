@@ -36,7 +36,7 @@ export function resolveAssetByRef(assets: AssetRef[], ref: string): AssetRef | u
   const key = ref.trim()
   if (!key) return undefined
   const lower = key.toLowerCase()
-  const normalize = (v: string) => v.trim().toLowerCase().replace(/[_\-\s]+/g, '')
+  const normalize = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '')
   const keyNorm = normalize(key)
   const keyBase = lower.replace(/\.[a-z0-9]+$/i, '')
   const keyBaseNorm = normalize(keyBase)
@@ -61,10 +61,22 @@ export function resolveAssetByRef(assets: AssetRef[], ref: string): AssetRef | u
     if (url.endsWith(`/${key}`) || url.endsWith(`\\${key}`)) return true
     if (baseName.toLowerCase() === lower || baseNoExt.toLowerCase() === lower) return true
 
-    if (normalize(a.id) === keyNorm || normalize(label) === keyNorm || normalize(url) === keyNorm) return true
-    if (normalize(baseName) === keyNorm || normalize(baseNoExt) === keyNorm) return true
-    if (normalize(a.id) === keyBaseNorm || normalize(label) === keyBaseNorm) return true
-    if (normalize(baseName) === keyBaseNorm || normalize(baseNoExt) === keyBaseNorm) return true
+    const idNorm = normalize(a.id)
+    const labelNorm = normalize(label)
+    const urlNorm = normalize(url)
+    const baseNorm = normalize(baseName)
+    const baseNoExtNorm = normalize(baseNoExt)
+
+    if (idNorm === keyNorm || labelNorm === keyNorm || urlNorm === keyNorm) return true
+    if (baseNorm === keyNorm || baseNoExtNorm === keyNorm) return true
+    if (idNorm === keyBaseNorm || labelNorm === keyBaseNorm) return true
+    if (baseNorm === keyBaseNorm || baseNoExtNorm === keyBaseNorm) return true
+
+    // Fuzzy fallback: allow partial alias match (e.g. "Marin Kitagawa_default")
+    if (keyNorm.length >= 6) {
+      if (labelNorm.includes(keyNorm) || keyNorm.includes(labelNorm)) return true
+      if (baseNoExtNorm.includes(keyNorm) || keyNorm.includes(baseNoExtNorm)) return true
+    }
     return false
   })
 }

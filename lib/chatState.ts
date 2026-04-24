@@ -91,7 +91,11 @@ export function deriveChatState(
   const jsonRegex = /({[\s\S]*?})$/
 
   const limit = Math.min(viewIndex, messages.length - 1)
+  let latestUserMessageIndex = -1
   for (let i = 0; i <= limit; i++) {
+    if (messages[i].role === 'user') {
+      latestUserMessageIndex = i
+    }
     const content = normalizeImageControlTags(messages[i].content, regexScripts)
     
     // 능력치(JSON) 추출
@@ -131,7 +135,10 @@ export function deriveChatState(
 
     // 메시지 단위로 상태 덮어쓰기
     if (foundBgInThisMsg) backgroundUrl = foundBgInThisMsg
-    if (foundCharsInThisMsg.length > 0) characterUrls = foundCharsInThisMsg
+    if (foundCharsInThisMsg.length > 0) {
+      // Keep all character tags declared in this message in stable order.
+      characterUrls = Array.from(new Set(foundCharsInThisMsg))
+    }
 
     // 오버레이 목록은 마지막 선언 유지.
     if (foundOverlaysInThisMsg.length > 0) {
@@ -148,6 +155,12 @@ export function deriveChatState(
   // 기본 정책: 기타 단독 모드가 아니면 캐릭터 최소 1명 보장
   if (!overlayOnlyMode && characterUrls.length === 0) {
     characterUrls = getFallbackCharacterUrls(assets, characterInfo)
+  }
+
+  // While reading assistant output after the latest user input, keep character sprites stable.
+  // This prevents temporary flicker/disappear before the next user turn.
+  if (latestUserMessageIndex >= 0 && limit > latestUserMessageIndex && characterUrls.length > 0) {
+    characterUrls = Array.from(new Set(characterUrls))
   }
 
   return { backgroundUrl, characterUrls, overlayIds, overlayOnlyMode, stats }
