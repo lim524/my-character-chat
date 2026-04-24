@@ -22,6 +22,7 @@ export function ChatVnLayer({
   assets,
   activeOverlays,
   overlayOnlyMode,
+  onToggleOverlay,
 }: {
   displayedImage: string | null
   isDataUrl: (s: string) => boolean
@@ -40,6 +41,7 @@ export function ChatVnLayer({
   assets: AssetRef[]
   activeOverlays: string[]
   overlayOnlyMode: boolean
+  onToggleOverlay?: (id: string) => void
 }) {
   const visibility = parseMergedVisibility(extraInterfaceEntries)
 
@@ -121,6 +123,7 @@ export function ChatVnLayer({
         entries={extraInterfaceEntries} 
         assets={assets} 
         activeOverlays={activeOverlays}
+        onToggleOverlay={onToggleOverlay}
       />
 
       {/* AI가 트리거한 동적 CG/오버레이 레이어 (전용 레이어) */}

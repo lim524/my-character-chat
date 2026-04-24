@@ -28,6 +28,12 @@ export type ParsedInterfaceIcon = {
   href?: string
   toggleMenuId?: string
   parentId?: string
+  /** 클릭 시 토글할 overlay id */
+  triggerOverlayId?: string
+  /** 클릭 시 토글할 asset id */
+  triggerAssetId?: string
+  /** true면 클릭 시 onToggleOverlay로 토글 (기본 true) */
+  toggleOverlay?: boolean
   /** Framer Motion 프로퍼티 (initial, animate, transition 등) */
   motion?: any
   /** 특정 이벤트 트리거 시 실행할 애니메이션 설정 */

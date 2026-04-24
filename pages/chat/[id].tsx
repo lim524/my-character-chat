@@ -284,6 +284,7 @@ export default function ChatPage() {
   const [displayedImage, setDisplayedImage] = useState<string | null>(null)
   const [activeCharacterSprites, setActiveCharacterSprites] = useState<string[]>([])
   const [activeOverlays, setActiveOverlays] = useState<string[]>([]) // 추가: 현재 활성화된 기타 오버레이 ID들
+  const [manualOverlayIds, setManualOverlayIds] = useState<string[]>([])
   const [overlayOnlyMode, setOverlayOnlyMode] = useState(false)
   const [parsedStats, setParsedStats] = useState<Record<string, number>>({})
   const [models, setModels] = useState<ChatModelItem[]>([])
@@ -315,6 +316,15 @@ export default function ChatPage() {
 
 
   const [temperature, setTemperature] = useState(0.7)
+  const combinedOverlayIds = useMemo(
+    () => Array.from(new Set([...activeOverlays, ...manualOverlayIds])),
+    [activeOverlays, manualOverlayIds]
+  )
+
+  const handleToggleOverlay = useCallback((id: string) => {
+    setManualOverlayIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }, [])
+
   const [maxOutputChars, setMaxOutputChars] = useState(4000)
   const [maxInputChars, setMaxInputChars] = useState(4000)
   const regexScripts = characterInfo?.interfaceConfig?.regexScripts
@@ -972,8 +982,9 @@ export default function ChatPage() {
           activeCharacterSprites={activeCharacterSprites}
           extraInterfaceEntries={characterInfo?.interfaceConfig?.extraInterfaceEntries}
           assets={characterInfo?.interfaceConfig?.assets || []}
-          activeOverlays={activeOverlays}
+          activeOverlays={combinedOverlayIds}
           overlayOnlyMode={overlayOnlyMode}
+          onToggleOverlay={handleToggleOverlay}
         />
 
         <ChatDialoguePanel

@@ -78,10 +78,17 @@ type Props = {
   entries?: ExtraInterfaceEntry[]
   assets?: AssetRef[]
   activeOverlays?: string[] // 추가: 현재 활성화된 오버레이 ID/에셋ID 목록
+  onToggleOverlay?: (id: string) => void
   className?: string
 }
 
-export default function ExtraInterfaceOverlay({ entries, assets, activeOverlays = [], className = '' }: Props) {
+export default function ExtraInterfaceOverlay({
+  entries,
+  assets,
+  activeOverlays = [],
+  onToggleOverlay,
+  className = '',
+}: Props) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const allIcons = parseExtraInterfaceIcons(entries)
   const overlays = parseExtraInterfaceOverlays(entries)
@@ -156,7 +163,10 @@ export default function ExtraInterfaceOverlay({ entries, assets, activeOverlays 
                   : 'border-white/15 bg-black/55 text-white/90 hover:bg-black/75 hover:border-white/30'
               }`}
               onClick={() => {
-                if (ic.toggleMenuId) {
+                const overlayTarget = ic.triggerOverlayId || ic.triggerAssetId
+                if (overlayTarget && ic.toggleOverlay !== false && onToggleOverlay) {
+                  onToggleOverlay(overlayTarget)
+                } else if (ic.toggleMenuId) {
                   const tid = ic.toggleMenuId
                   setOpenMenuId(prev => prev === tid ? null : tid)
                 } else if (ic.href && typeof window !== 'undefined') {

@@ -14,20 +14,24 @@ const exampleJson = `{
 }`
 
 const otherImagesExampleJson = `{
-  "icons": [],
-  "overlays": [
+  "icons": [
     {
-      "id": "full_scene_effect",
-      "assetId": "effect_01",
-      "position": "full",
-      "style": { "opacity": 0.8 }
+      "id": "map_button",
+      "label": "지도",
+      "position": "top-right",
+      "lucide": "Map",
+      "triggerOverlayId": "world_map_overlay"
     }
   ],
-  "visibility": {
-    "dialogue": false,
-    "character": false,
-    "background": false
-  }
+  "overlays": [
+    {
+      "id": "world_map_overlay",
+      "assetId": "map_asset_id_here",
+      "position": "center",
+      "style": { "width": "92vw", "height": "84vh", "opacity": 0.95 }
+    }
+  ],
+  "visibility": { "dialogue": true, "character": true, "background": true }
 }`
 
 const characterLayoutExampleJson = `{
@@ -160,6 +164,8 @@ export function CreateExtraInterfaceTab({
       </div>
       <p className="text-[11px] text-gray-400 leading-relaxed">
         채팅·게임 화면에 올릴 <b>아이콘, 버튼, 오버레이</b> 등을 JSON으로 정의합니다.{' '}
+        아이콘에 <code className="text-[10px] text-cyan-300/90">triggerOverlayId</code> 또는{' '}
+        <code className="text-[10px] text-cyan-300/90">triggerAssetId</code>를 넣으면 클릭으로 오버레이를 토글할 수 있습니다.{' '}
         <b className="text-gray-300">characterLayout</b>으로 스프라이트 <b>위치(liftPx)</b>,{' '}
         <b>크기(scale, heightVh, maxWidthPx·maxWidthVw)</b>를 조정할 수 있습니다. 화면이 좁으면{' '}
         <code className="text-[10px] text-pink-300/90">maxWidthPx</code>는 자동으로{' '}
