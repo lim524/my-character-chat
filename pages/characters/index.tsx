@@ -1,14 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import {
   getLocalCharacters,
   getLocalCharacter,
   deleteLocalCharacter,
-  saveLocalCharacter,
   type LocalCharacter,
 } from '@/lib/localStorage'
-import { downloadCharacterCardJson } from '@/lib/characterCardInterop'
-import { importCharacterFromFile } from '@/lib/cardImportRouter'
+import { downloadCharacterCardJson } from '../../lib/characterCardInterop'
 import { kvSet } from '@/lib/idbKV'
 import { CHARACTER_DRAFT_KEY } from '@/lib/interfaceConfig'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
@@ -46,7 +44,6 @@ export default function CharacterList() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const router = useRouter()
-  const cardImportRef = useRef<HTMLInputElement>(null)
 
   const loadCharacters = () => {
     void getLocalCharacters().then((list) => setCharacters(list.map(toListCharacter)))
@@ -129,24 +126,6 @@ export default function CharacterList() {
     downloadCharacterCardJson(full)
   }
 
-  const handleCardImportFile = async (ev: React.ChangeEvent<HTMLInputElement>) => {
-    const file = ev.target.files?.[0]
-    ev.target.value = ''
-    if (!file) return
-    try {
-      const { character, warnings } = await importCharacterFromFile(file)
-      const r = await saveLocalCharacter(character)
-      if (!r.ok) {
-        alert(r.error)
-        return
-      }
-      loadCharacters()
-      if (warnings.length) alert(warnings.join('\n'))
-    } catch (err) {
-      console.error(err)
-      alert(err instanceof Error ? err.message : '카드 가져오기에 실패했습니다.')
-    }
-  }
 
   const q = searchTerm.toLowerCase()
   const filteredCharacters = characters.filter(

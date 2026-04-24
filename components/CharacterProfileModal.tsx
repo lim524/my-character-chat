@@ -20,10 +20,10 @@ interface Props {
 export default function CharacterProfileModal({ character, onClose, onStartChat }: Props) {
   const router = useRouter()
 
-const handleStartChat = (mode: 'new' | 'continue') => {
+const handleStartChat = () => {
   onClose()
   setTimeout(() => {
-    router.replace(`/chat/${character.id}?mode=${mode}`) // ✅ router.push → replace
+    router.replace(`/chat/${character.id}`) // ✅ mode 쿼리 제거
     if (onStartChat) onStartChat()
   }, 10)
 }
@@ -47,22 +47,13 @@ const handleStartChat = (mode: 'new' | 'continue') => {
             {character.situation}
           </div>
 
-          {/* 두 개의 버튼 */}
-          <div className="flex gap-3 w-full mt-4">
-            {/* 이어하기 버튼 */}
+          {/* 단일 버튼 */}
+          <div className="w-full mt-4">
             <button
-              onClick={() => handleStartChat('continue')}
-              className="flex-1 border border-gray-500 text-gray-300 hover:bg-gray-800 transition rounded py-2 text-sm"
+              onClick={handleStartChat}
+              className="w-full bg-[#e45463] text-white hover:bg-[#d04352] transition rounded-xl py-3 text-sm font-bold shadow-lg shadow-[#e45463]/20"
             >
-              이어서 대화하기
-            </button>
-
-            {/* 새로 시작 버튼 */}
-            <button
-              onClick={() => handleStartChat('new')}
-              className="flex-1 bg-white text-black hover:bg-gray-200 transition rounded py-2 text-sm font-semibold"
-            >
-              새로 대화하기
+              채팅하기
             </button>
           </div>
         </div>

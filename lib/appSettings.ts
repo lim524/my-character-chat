@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from './idbKV'
+import type { LoreEntry } from './interfaceConfig'
 
 /** IndexedDB(kv) 키 — 마이페이지/설정 (RisuAI-style). */
 export const APP_LANGUAGE_KEY = 'app-language'
@@ -8,6 +9,8 @@ export const BOT_SYSTEM_PROMPT_APPEND_KEY = 'bot-system-prompt-append'
 export const PROMPTS_KEY = 'prompts'
 export const MODULES_CONFIG_KEY = 'modules.config'
 
+export const USER_PERSONA_KEY = 'global-user-persona'
+
 // New (bundle + api inputs)
 export const API_PROVIDERS_KEY = 'api.providers'
 export const API_MODELS_KEY = 'api.models'
@@ -16,6 +19,36 @@ export const LAST_CHAT_MODEL_KEY = 'chat.lastModelSelection'
 export const CHAT_PARAMETERS_KEY = 'chat.parameters'
 export const PROMPTS_BUNDLES_KEY = 'bundles.prompts'
 export const MODULES_BUNDLES_KEY = 'bundles.modules'
+
+export interface UserPersona {
+  name: string
+  description: string
+}
+
+export const DEFAULT_USER_PERSONA: UserPersona = {
+  name: '',
+  description: '',
+}
+
+export async function getUserPersona(): Promise<UserPersona> {
+  if (typeof window === 'undefined') return DEFAULT_USER_PERSONA
+  try {
+    const raw = await kvGet(USER_PERSONA_KEY)
+    if (!raw) return DEFAULT_USER_PERSONA
+    const p = JSON.parse(raw)
+    return {
+      name: typeof p?.name === 'string' ? p.name : DEFAULT_USER_PERSONA.name,
+      description: typeof p?.description === 'string' ? p.description : DEFAULT_USER_PERSONA.description,
+    }
+  } catch {
+    return DEFAULT_USER_PERSONA
+  }
+}
+
+export async function setUserPersona(persona: UserPersona): Promise<void> {
+  if (typeof window === 'undefined') return
+  await kvSet(USER_PERSONA_KEY, JSON.stringify(persona))
+}
 
 export type AppLanguage = 'ko' | 'en'
 
@@ -106,11 +139,7 @@ export async function setPrompts(p: Prompts): Promise<void> {
   await kvSet(PROMPTS_KEY, JSON.stringify(p))
 }
 
-export type LorebookEntry = {
-  id: string
-  keywords: string[]
-  content: string
-}
+export type LorebookEntry = LoreEntry
 
 export type RegexRule = {
   id: string
@@ -285,8 +314,8 @@ export interface ChatParameters {
 
 export const DEFAULT_CHAT_PARAMETERS: ChatParameters = {
   temperature: 0.7,
-  maxInputChars: 4000,
-  maxOutputChars: 4000,
+  maxInputChars: 4096,
+  maxOutputChars: 4096,
 }
 
 export async function getChatParameters(): Promise<ChatParameters> {
@@ -334,16 +363,19 @@ export async function getPromptBundles(): Promise<PromptBundle[]> {
     if (!Array.isArray(arr)) return []
     return arr
       .filter((x) => x && typeof x === 'object')
-      .map((x: any) => ({
-        id: typeof x.id === 'string' ? x.id : crypto.randomUUID(),
-        name: typeof x.name === 'string' ? x.name : '',
-        description: typeof x.description === 'string' ? x.description : '',
-        enabled: x.enabled === true,
-        mainPrompt: typeof x.mainPrompt === 'string' ? x.mainPrompt : '',
-        characterPrompt: typeof x.characterPrompt === 'string' ? x.characterPrompt : '',
-        jailbreakPrompt: typeof x.jailbreakPrompt === 'string' ? x.jailbreakPrompt : '',
-        systemPromptAppend: typeof x.systemPromptAppend === 'string' ? x.systemPromptAppend : '',
-      }))
+      .map((x: unknown) => {
+        const xObj = x as Record<string, unknown>
+        return {
+          id: typeof xObj.id === 'string' ? xObj.id : crypto.randomUUID(),
+          name: typeof xObj.name === 'string' ? xObj.name : '',
+          description: typeof xObj.description === 'string' ? xObj.description : '',
+          enabled: xObj.enabled === true,
+          mainPrompt: typeof xObj.mainPrompt === 'string' ? xObj.mainPrompt : '',
+          characterPrompt: typeof xObj.characterPrompt === 'string' ? xObj.characterPrompt : '',
+          jailbreakPrompt: typeof xObj.jailbreakPrompt === 'string' ? xObj.jailbreakPrompt : '',
+          systemPromptAppend: typeof xObj.systemPromptAppend === 'string' ? xObj.systemPromptAppend : '',
+        }
+      })
   } catch {
     return []
   }
@@ -374,15 +406,18 @@ export async function getModuleBundles(): Promise<ModuleBundle[]> {
     if (!Array.isArray(arr)) return []
     return arr
       .filter((x) => x && typeof x === 'object')
-      .map((x: any) => ({
-        id: typeof x.id === 'string' ? x.id : crypto.randomUUID(),
-        name: typeof x.name === 'string' ? x.name : '',
-        description: typeof x.description === 'string' ? x.description : '',
-        enabled: x.enabled === true,
-        lorebook: x.lorebook && typeof x.lorebook === 'object' ? x.lorebook : DEFAULT_MODULES_CONFIG.lorebook,
-        regex: x.regex && typeof x.regex === 'object' ? x.regex : DEFAULT_MODULES_CONFIG.regex,
-        assets: x.assets && typeof x.assets === 'object' ? x.assets : DEFAULT_MODULES_CONFIG.assets,
-      }))
+      .map((x: unknown) => {
+        const xObj = x as Record<string, unknown>
+        return {
+          id: typeof xObj.id === 'string' ? xObj.id : crypto.randomUUID(),
+          name: typeof xObj.name === 'string' ? xObj.name : '',
+          description: typeof xObj.description === 'string' ? xObj.description : '',
+          enabled: xObj.enabled === true,
+          lorebook: xObj.lorebook && typeof xObj.lorebook === 'object' ? (xObj.lorebook as ModulesConfig['lorebook']) : DEFAULT_MODULES_CONFIG.lorebook,
+          regex: xObj.regex && typeof xObj.regex === 'object' ? (xObj.regex as ModulesConfig['regex']) : DEFAULT_MODULES_CONFIG.regex,
+          assets: xObj.assets && typeof xObj.assets === 'object' ? (xObj.assets as ModulesConfig['assets']) : DEFAULT_MODULES_CONFIG.assets,
+        }
+      })
   } catch {
     return []
   }

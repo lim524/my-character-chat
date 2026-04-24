@@ -1,0 +1,81 @@
+﻿   ??Next.js 15.2.6
+   - Environments: .env.local
+
+   Skipping linting
+   Checking validity of types ...
+node.exe : Failed to co
+mpile.
+위치 C:\Program Files\nod
+ejs\npx.ps1:29 문자:3
++   & $NODE_EXE $NPX_CL
+I_JS $args
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Failed to com   
+ pile.:String) [],     
+RemoteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+
+./pages/create/index.ts
+x:159:7
+Type error: Type '{}' i
+s not assignable to typ
+e 'string'.
+
+[0m [90m 157 |[39m  
+     situation[33m:[3
+9m draft[33m.[39msitu
+ation [33m?[39m[33m?
+[39m [32m''[39m[33m
+,[39m[0m
+[0m [90m 158 |[39m  
+     firstLine[33m:[3
+9m draft[33m.[39mfirs
+tLine [33m?[39m[33m?
+[39m [32m''[39m[33m
+,[39m[0m
+[0m[31m[1m>[22m[39
+m[90m 159 |[39m      
+ imageUrl[33m:[39m dr
+aft[33m.[39mimageUrl 
+[33m?[39m[33m?[39m 
+draft[33m.[39mimage_u
+rl [33m?[39m[33m?[3
+9m [32m''[39m[33m,[
+39m[0m
+[0m [90m     |[39m  
+     [31m[1m^[22m[3
+9m[0m
+[0m [90m 160 |[39m  
+     userName[33m:[39
+m draft[33m.[39muserN
+ame [33m?[39m[33m?[
+39m draft[33m.[39muse
+r_name [33m?[39m[33m
+?[39m [32m''[39m[33
+m,[39m[0m
+[0m [90m 161 |[39m  
+     userRole[33m:[39
+m draft[33m.[39muserR
+ole [33m?[39m[33m?[
+39m draft[33m.[39muse
+r_role [33m?[39m[33m
+?[39m [32m''[39m[33
+m,[39m[0m
+[0m [90m 162 |[39m  
+     userDescription[3
+3m:[39m draft[33m.[3
+9muserDescription [33m
+?[39m[33m?[39m draft
+[33m.[39muser_descrip
+tion [33m?[39m[33m?
+[39m [32m''[39m[33m,
+[39m[0m
+Next.js build worker ex
+ited with code: 1 and s
+ignal: null

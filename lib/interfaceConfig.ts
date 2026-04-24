@@ -1,4 +1,5 @@
 import { kvGet, kvSet } from './idbKV'
+import type { EmotionImageItem } from './localStorage'
 
 export type AssetType = 'background' | 'character' | 'ui'
 
@@ -50,6 +51,7 @@ export interface SceneMeta {
   label: string
 }
 
+/** 로어북 한 줄: 키가 최근 대화에 있으면 prompt 삽입 (항상 활성은 키 불필요) */
 export interface LoreEntry {
   id: string
   name: string
@@ -59,6 +61,13 @@ export interface LoreEntry {
   alwaysActive: boolean
   multipleKeys: boolean
   useRegex: boolean
+  /**
+   * SillyTavern / Risu `selective`: true면 `keys`(1차)와 `secondaryKeys`(2차)가 **모두** 매칭될 때만 활성.
+   * Risu 카드는 1·2차를 OR로 합치면 안 됨.
+   */
+  selective?: boolean
+  /** selective 전용 2차 키 (쉼표·줄바꿈으로 여러 개) */
+  secondaryKeys?: string
 }
 
 export interface UIBoxConfig {
@@ -133,6 +142,8 @@ export interface InterfaceConfig {
    * 0이면 기본(대화창 바로 위), 값을 키울수록 대화창·하단에서 더 위로 배치됩니다.
    */
   characterSpriteLiftPx?: number
+  /** 사용자가 직접 작성한 전역 CSS 코드 (@keyframes 등 포함) */
+  customCSS?: string
 }
 
 export type CharacterDraft = {
@@ -150,9 +161,21 @@ export type CharacterDraft = {
   protagonist?: { name: string; description: string }[]
   supporting?: { name: string; description: string }[]
   isAdult?: boolean
-  details?: any
+  id?: string
+  imageUrl?: string
+  emotionImages?: EmotionImageItem[]
+  is_public?: boolean
+  is_adult?: boolean
+  image_url?: string
+  emotion_images?: EmotionImageItem[]
+  user_name?: string
+  user_role?: string
+  user_description?: string
+  world_scenario?: string
+  world_setting?: string
+  details?: unknown
   interfaceConfig?: InterfaceConfig
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export const CHARACTER_DRAFT_KEY = 'character-draft'

@@ -1,127 +1,103 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import type { AssetRef, RegexScriptEntry } from '@/lib/interfaceConfig'
-import { applyRegexScripts } from '@/lib/interfaceRuntime'
+import {
+  normalizeImageControlTags,
+  parseImageTags,
+  resolveAssetByRef,
+  splitRefAndType,
+} from '@/lib/chatImageTags'
 
 interface MessageParserProps {
   content: string
   assets: AssetRef[]
   regexScripts?: RegexScriptEntry[]
-  onBackgroundChange?: (url: string) => void
-  onStatsChange?: (stats: Record<string, number>) => void
-  /** 메시지에 `<img=캐릭터>` 태그가 여러 개면 순서대로 모두 전달 */
-  onCharacterSpritesChange?: (urls: string[]) => void
-  /** 단일 URL만 필요할 때 (스프라이트 콜백이 없으면 마지막 태그만 전달) */
-  onCharacterChange?: (url: string) => void
+  showControlTags?: boolean
 }
 
 export default function MessageParser({
   content,
   assets,
   regexScripts,
-  onBackgroundChange,
-  onStatsChange,
-  onCharacterSpritesChange,
-  onCharacterChange,
+  showControlTags = false,
 }: MessageParserProps) {
-  // Regex to match <img=assetId> or <img=assetId:type>
-  const tagRegex = /<img=([^>]+)>/g
-
   // Regex to match trailing JSON payload `{ "key": 100 }`
   const jsonRegex = /({[\s\S]*?})$/
 
-  let displayContent = applyRegexScripts(content, regexScripts, 'modify_display')
-  let parsedStats: Record<string, number> | null = null
+  let displayContent = normalizeImageControlTags(content, regexScripts)
 
-  // Extract JSON if it exists at the end
-  const jsonMatch = content.match(jsonRegex)
+  // Extract JSON if it exists at the end (for UI display purposes, if needed)
+  const jsonMatch = displayContent.match(jsonRegex)
   if (jsonMatch) {
     try {
       const maybeJson = JSON.parse(jsonMatch[1])
       if (typeof maybeJson === 'object' && maybeJson !== null) {
-        parsedStats = maybeJson as Record<string, number>
         // Strip out the JSON from the display text
-        displayContent = content.replace(jsonRegex, '').trim()
+        displayContent = displayContent.replace(jsonRegex, '').trim()
       }
-    } catch (e) {
+    } catch {
       // Not valid JSON, ignore
     }
   }
 
   const segments: React.ReactNode[] = []
   let lastIndex = 0
+  const tags = parseImageTags(displayContent)
+  const rawTagRegex = /<img\s*=\s*([^>]+?)\s*>/gi
   let match: RegExpExecArray | null
-  
-  let detectedBgUrl: string | null = null
-  const detectedCharUrls: string[] = []
 
-  while ((match = tagRegex.exec(displayContent)) !== null) {
+  while ((match = rawTagRegex.exec(displayContent)) !== null) {
     if (match.index > lastIndex) {
       segments.push(<span key={`text-${lastIndex}`}>{displayContent.slice(lastIndex, match.index)}</span>)
     }
 
-    const tagContent = match[1]
-    const [assetId, typeHint] = tagContent.split(':')
-    const asset = assets.find((a) => a.id === assetId)
+    const tagContent = tags.shift()?.rawRef ?? match[1]
+    const { ref: assetRef, typeHint } = splitRefAndType(tagContent)
+    const asset = resolveAssetByRef(assets, assetRef)
 
     if (asset && asset.url) {
       if (asset.type === 'background' || typeHint === 'background') {
-        detectedBgUrl = asset.url
-        // Don't render anything inline for background tags
-      } else {
-        const isCharacter = asset.type === 'character' || typeHint === 'character'
-        if (isCharacter) {
-          detectedCharUrls.push(asset.url)
-          // Don't render inline for character tags either!
-        } else {
-          // Render etc inline
-          segments.push(
-            <div key={`img-${match.index}`} className="inline-block my-2 mx-1 align-bottom max-w-md sm:max-w-lg">
-              <img 
-                src={asset.url} 
-                alt={asset.label || assetId} 
-                className="rounded-lg object-contain w-full h-auto shadow-md"
-              />
-            </div>
-          )
+        if (showControlTags) {
+          segments.push(<span key={`ctrl-${match.index}`} className="text-xs text-cyan-300">&lt;img-src={assetRef}:background&gt;</span>)
         }
+      } else if (asset.type === 'character' || typeHint === 'character') {
+        if (showControlTags) {
+          segments.push(<span key={`ctrl-${match.index}`} className="text-xs text-pink-300">&lt;img-src={assetRef}:character&gt;</span>)
+        }
+      } else if (asset.type === 'ui' || typeHint === 'etc' || typeHint === 'overlay' || typeHint === 'ui') {
+        if (showControlTags) {
+          segments.push(<span key={`ctrl-${match.index}`} className="text-xs text-yellow-300">&lt;img-src={assetRef}:etc&gt;</span>)
+        }
+      } else {
+        // 그 외엔 인라인 이미지로 렌더링
+        segments.push(
+          <div key={`img-${match.index}`} className="inline-block my-2 mx-1 align-bottom max-w-md sm:max-w-lg">
+            <img 
+              src={asset.url} 
+              alt={asset.label || assetRef}
+              className="rounded-lg object-contain w-full h-auto shadow-md"
+            />
+          </div>
+        )
       }
     } else {
-      // If asset not found, render the raw tag to debug or hide it. Let's hide it or show broken text
-      segments.push(<span key={`broken-${match.index}`} className="opacity-50 text-xs text-red-400">[이미지 없음: {assetId}]</span>)
+      // 에셋을 찾을 수 없는 경우
+      if (showControlTags) {
+        segments.push(
+          <span key={`broken-${match.index}`} className="text-xs text-red-300">
+            &lt;img-src={assetRef}{typeHint ? `:${typeHint}` : ''}&gt;
+          </span>
+        )
+      } else {
+        segments.push(<span key={`broken-${match.index}`} className="opacity-50 text-xs text-red-400">[이미지 없음: {assetRef}]</span>)
+      }
     }
 
-  lastIndex = tagRegex.lastIndex
+    lastIndex = rawTagRegex.lastIndex
   }
 
   if (lastIndex < displayContent.length) {
     segments.push(<span key={`text-${lastIndex}`}>{displayContent.slice(lastIndex)}</span>)
   }
-
-  const characterUrlsKey = detectedCharUrls.join('\0')
-
-  useEffect(() => {
-    if (detectedBgUrl && onBackgroundChange) {
-      onBackgroundChange(detectedBgUrl)
-    }
-    if (detectedCharUrls.length > 0) {
-      if (onCharacterSpritesChange) {
-        onCharacterSpritesChange([...detectedCharUrls])
-      } else if (onCharacterChange) {
-        onCharacterChange(detectedCharUrls[detectedCharUrls.length - 1]!)
-      }
-    }
-    if (parsedStats && onStatsChange) {
-      onStatsChange(parsedStats)
-    }
-  }, [
-    detectedBgUrl,
-    characterUrlsKey,
-    parsedStats,
-    onBackgroundChange,
-    onCharacterSpritesChange,
-    onCharacterChange,
-    onStatsChange,
-  ])
 
   return <>{segments.length > 0 ? segments : displayContent}</>
 }

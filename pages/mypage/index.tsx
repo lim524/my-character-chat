@@ -1,29 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import {
   Bot,
   Boxes,
-  Download,
   Eye,
   EyeOff,
   FileText,
   FolderOpen,
   KeyRound,
   Languages,
-  Pencil,
   Plus,
   Sliders,
-  ToggleLeft,
-  ToggleRight,
-  Trash2,
-  Upload,
+  User,
   X,
 } from 'lucide-react'
 import {
   DEFAULT_API_MODELS,
   DEFAULT_API_PROVIDERS,
   DEFAULT_CHAT_PARAMETERS,
-  DEFAULT_MODULES_CONFIG,
   getApiModels,
   getApiProviders,
   getAppLanguage,
@@ -36,19 +30,25 @@ import {
   setChatParameters,
   setModuleBundles,
   setPromptBundles,
+  getUserPersona,
+  setUserPersona,
   type ApiModels,
   type ApiProviders,
   type AppLanguage,
   type ModuleBundle,
   type PromptBundle,
   type ProviderId,
+  type UserPersona,
 } from '@/lib/appSettings'
+import { PromptSettingsTab } from '@/components/settings/PromptSettingsTab'
+import { ModuleSettingsTab } from '@/components/settings/ModuleSettingsTab'
 
-type MenuId = 'chatbot' | 'language'
+type MenuId = 'chatbot' | 'persona' | 'language'
 type ChatbotTabId = 'api' | 'parameters' | 'prompts' | 'modules'
 
 const MENU_ITEMS: { id: MenuId; label: string; icon: React.ReactNode }[] = [
   { id: 'chatbot', label: '채팅 봇', icon: <Bot className="w-5 h-5" /> },
+  { id: 'persona', label: '유저 페르소나', icon: <User className="w-5 h-5" /> },
   { id: 'language', label: '언어', icon: <Languages className="w-5 h-5" /> },
 ]
 
@@ -66,30 +66,6 @@ const PROVIDER_LABEL: Record<ProviderId, string> = {
   anthropic: 'Claude (Anthropic)',
 }
 
-function downloadJson(filename: string, data: unknown) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-function readJsonFile(file: File): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        resolve(JSON.parse(String(reader.result ?? '')))
-      } catch (e) {
-        reject(e)
-      }
-    }
-    reader.onerror = reject
-    reader.readAsText(file)
-  })
-}
 
 export default function MyPage() {
   const router = useRouter()
@@ -102,6 +78,7 @@ export default function MyPage() {
   const [params, setParamsState] = useState(DEFAULT_CHAT_PARAMETERS)
   const [promptBundles, setPromptBundlesState] = useState<PromptBundle[]>([])
   const [moduleBundles, setModuleBundlesState] = useState<ModuleBundle[]>([])
+  const [userPersona, setUserPersonaState] = useState<UserPersona>({ name: '', description: '' })
 
   const [saved, setSaved] = useState(false)
   const [showKey, setShowKey] = useState<Record<ProviderId, boolean>>({
@@ -117,14 +94,6 @@ export default function MyPage() {
     anthropic: '',
   })
 
-  const promptImportRef = useRef<HTMLInputElement | null>(null)
-  const moduleImportRef = useRef<HTMLInputElement | null>(null)
-
-  const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
-  const [promptDraft, setPromptDraft] = useState<PromptBundle | null>(null)
-
-  const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
-  const [moduleDraft, setModuleDraft] = useState<ModuleBundle | null>(null)
 
   useEffect(() => {
     void (async () => {
@@ -134,6 +103,7 @@ export default function MyPage() {
       setParamsState(await getChatParameters())
       setPromptBundlesState(await getPromptBundles())
       setModuleBundlesState(await getModuleBundles())
+      setUserPersonaState(await getUserPersona())
     })()
   }, [])
 
@@ -145,6 +115,7 @@ export default function MyPage() {
       await setChatParameters(params)
       await setPromptBundles(promptBundles)
       await setModuleBundles(moduleBundles)
+      await setUserPersona(userPersona)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (e) {
@@ -186,6 +157,41 @@ export default function MyPage() {
       </aside>
 
       <main className="flex-1 min-w-0 p-6 overflow-y-auto">
+        {activeMenu === 'persona' && (
+          <div className="max-w-2xl mx-auto space-y-8">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold">유저 페르소나</h2>
+              <p className="text-sm text-gray-400 mt-2">
+                모든 채팅방에서 기본으로 사용될 당신의 정보를 입력하세요.<br/>
+                캐릭터별로 별도의 유저 설정이 있다면 해당 설정이 우선 적용됩니다.
+              </p>
+            </div>
+
+            <div className="bg-[#202020] border border-[#333] rounded-xl p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">이름</label>
+                <input
+                  value={userPersona.name}
+                  onChange={(e) => setUserPersonaState({ ...userPersona, name: e.target.value })}
+                  placeholder="사용자"
+                  className="w-full px-4 py-2.5 bg-[#2a2a2a] border border-[#444] rounded-lg text-white focus:border-white/30 focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">설명 (페르소나)</label>
+                <textarea
+                  value={userPersona.description}
+                  onChange={(e) => setUserPersonaState({ ...userPersona, description: e.target.value })}
+                  placeholder="당신의 성격, 외모, 캐릭터와의 관계 등을 자유롭게 적어보세요."
+                  rows={8}
+                  className="w-full px-4 py-3 bg-[#2a2a2a] border border-[#444] rounded-lg text-white focus:border-white/30 focus:outline-none transition-colors resize-none"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeMenu === 'chatbot' && (
           <div className="max-w-5xl mx-auto">
             <div className="flex items-start gap-6">
@@ -399,582 +405,18 @@ export default function MyPage() {
 
                   {/* Prompts Bundles */}
                   {activeChatbotTab === 'prompts' && (
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <h2 className="text-xl font-bold">프롬프트 번들</h2>
-                        <p className="text-sm text-gray-400 mt-2">
-                          번들을 생성/관리하고 활성화(복수)할 수 있습니다.
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => {
-                            const id = crypto.randomUUID()
-                            setEditingPromptId(id)
-                            setPromptDraft({
-                              id,
-                              name: '',
-                              description: '',
-                              enabled: true,
-                              mainPrompt: '',
-                              characterPrompt: '',
-                              jailbreakPrompt: '',
-                              systemPromptAppend: '',
-                            })
-                          }}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                        >
-                          <Plus className="w-4 h-4" />
-                          생성
-                        </button>
-                        <button
-                          onClick={() => promptImportRef.current?.click()}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                        >
-                          <Upload className="w-4 h-4" />
-                          Import
-                        </button>
-                        <button
-                          onClick={() => downloadJson('prompts-bundles.json', promptBundles)}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                        >
-                          <Download className="w-4 h-4" />
-                          Export
-                        </button>
-                        <input
-                          ref={promptImportRef}
-                          type="file"
-                          accept="application/json"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            try {
-                              const json = await readJsonFile(file)
-                              const arr = Array.isArray(json) ? json : []
-                              const imported: PromptBundle[] = arr
-                                .filter((x) => x && typeof x === 'object')
-                                .map((x: any) => ({
-                                  id: typeof x.id === 'string' ? x.id : crypto.randomUUID(),
-                                  name: typeof x.name === 'string' ? x.name : '',
-                                  description: typeof x.description === 'string' ? x.description : '',
-                                  enabled: x.enabled === true,
-                                  mainPrompt: typeof x.mainPrompt === 'string' ? x.mainPrompt : '',
-                                  characterPrompt: typeof x.characterPrompt === 'string' ? x.characterPrompt : '',
-                                  jailbreakPrompt: typeof x.jailbreakPrompt === 'string' ? x.jailbreakPrompt : '',
-                                  systemPromptAppend: typeof x.systemPromptAppend === 'string' ? x.systemPromptAppend : '',
-                                }))
-                              setPromptBundlesState(imported)
-                            } catch {
-                              alert('Import 실패: JSON 형식을 확인해 주세요.')
-                            } finally {
-                              e.target.value = ''
-                            }
-                          }}
-                        />
-                      </div>
-
-                      {editingPromptId && promptDraft ? (
-                        <div className="bg-[#202020] border border-[#333] rounded-lg p-4 space-y-4 text-left">
-                          <div className="flex items-center justify-between">
-                            <div className="font-semibold">번들 편집</div>
-                            <button
-                              className="text-gray-400 hover:text-white"
-                              onClick={() => {
-                                setEditingPromptId(null)
-                                setPromptDraft(null)
-                              }}
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-sm text-gray-300 mb-1">이름</label>
-                              <input
-                                value={promptDraft.name}
-                                onChange={(e) => setPromptDraft({ ...promptDraft, name: e.target.value })}
-                                className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white"
-                              />
-                            </div>
-                            <div className="flex items-end justify-between gap-2">
-                              <label className="flex items-center gap-2 text-sm text-gray-300">
-                                <input
-                                  type="checkbox"
-                                  checked={promptDraft.enabled}
-                                  onChange={() => setPromptDraft({ ...promptDraft, enabled: !promptDraft.enabled })}
-                                  className="w-4 h-4"
-                                />
-                                활성화
-                              </label>
-                              <button
-                                onClick={() => downloadJson(`prompt-bundle-${promptDraft.id}.json`, promptDraft)}
-                                className="text-sm px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-300 mb-1">설명</label>
-                            <textarea
-                              value={promptDraft.description}
-                              onChange={(e) => setPromptDraft({ ...promptDraft, description: e.target.value })}
-                              rows={2}
-                              className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-300 mb-1">Main Prompt</label>
-                            <textarea
-                              value={promptDraft.mainPrompt}
-                              onChange={(e) => setPromptDraft({ ...promptDraft, mainPrompt: e.target.value })}
-                              rows={5}
-                              className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-300 mb-1">Character Prompt</label>
-                            <textarea
-                              value={promptDraft.characterPrompt}
-                              onChange={(e) => setPromptDraft({ ...promptDraft, characterPrompt: e.target.value })}
-                              rows={5}
-                              className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-300 mb-1">Jailbreak</label>
-                            <textarea
-                              value={promptDraft.jailbreakPrompt}
-                              onChange={(e) => setPromptDraft({ ...promptDraft, jailbreakPrompt: e.target.value })}
-                              rows={5}
-                              className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white resize-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm text-gray-300 mb-1">추가 시스템 프롬프트</label>
-                            <textarea
-                              value={promptDraft.systemPromptAppend}
-                              onChange={(e) => setPromptDraft({ ...promptDraft, systemPromptAppend: e.target.value })}
-                              rows={3}
-                              className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white resize-none"
-                            />
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => {
-                                setPromptBundlesState((prev) => {
-                                  const exists = prev.some((b) => b.id === promptDraft.id)
-                                  return exists
-                                    ? prev.map((b) => (b.id === promptDraft.id ? promptDraft : b))
-                                    : [promptDraft, ...prev]
-                                })
-                                setEditingPromptId(null)
-                                setPromptDraft(null)
-                              }}
-                              className="px-4 py-2 bg-white text-black font-semibold rounded hover:bg-gray-200 transition"
-                            >
-                              저장
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {promptBundles.length === 0 ? (
-                            <div className="text-center text-sm text-gray-400 py-10">
-                              아직 번들이 없습니다. “생성”을 눌러 추가하세요.
-                            </div>
-                          ) : (
-                            promptBundles.map((b) => (
-                              <div key={b.id} className="bg-[#202020] border border-[#333] rounded-lg p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="font-semibold truncate">{b.name || '이름 없음'}</div>
-                                    <div className="text-xs text-gray-400 line-clamp-2">{b.description}</div>
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <button
-                                      onClick={() =>
-                                        setPromptBundlesState((prev) =>
-                                          prev.map((x) => (x.id === b.id ? { ...x, enabled: !x.enabled } : x))
-                                        )
-                                      }
-                                      className="text-gray-300 hover:text-white"
-                                      title={b.enabled ? '비활성화' : '활성화'}
-                                    >
-                                      {b.enabled ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setEditingPromptId(b.id)
-                                        setPromptDraft(b)
-                                      }}
-                                      className="text-gray-300 hover:text-white"
-                                      title="편집"
-                                    >
-                                      <Pencil className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => downloadJson(`prompt-bundle-${b.id}.json`, b)}
-                                      className="text-gray-300 hover:text-white"
-                                      title="단일 Export"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        if (!confirm('이 번들을 삭제할까요?')) return
-                                        setPromptBundlesState((prev) => prev.filter((x) => x.id !== b.id))
-                                      }}
-                                      className="text-red-400 hover:text-red-300"
-                                      title="삭제"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <PromptSettingsTab
+                      promptBundles={promptBundles}
+                      setPromptBundlesState={setPromptBundlesState}
+                    />
                   )}
 
                   {/* Modules Bundles */}
                   {activeChatbotTab === 'modules' && (
-                    <div className="space-y-6">
-                      <div className="text-center">
-                        <h2 className="text-xl font-bold">모듈 번들</h2>
-                        <p className="text-sm text-gray-400 mt-2">
-                          번들을 생성/관리하고 활성화(복수)할 수 있습니다. (이번 단계에서는 저장만)
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => {
-                            const id = crypto.randomUUID()
-                            setEditingModuleId(id)
-                            setModuleDraft({
-                              id,
-                              name: '',
-                              description: '',
-                              enabled: true,
-                              lorebook: { ...DEFAULT_MODULES_CONFIG.lorebook },
-                              regex: { ...DEFAULT_MODULES_CONFIG.regex },
-                              assets: { ...DEFAULT_MODULES_CONFIG.assets },
-                            })
-                          }}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                        >
-                          <Plus className="w-4 h-4" />
-                          생성
-                        </button>
-                        <button
-                          onClick={() => moduleImportRef.current?.click()}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                        >
-                          <Upload className="w-4 h-4" />
-                          Import
-                        </button>
-                        <button
-                          onClick={() => downloadJson('modules-bundles.json', moduleBundles)}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                        >
-                          <Download className="w-4 h-4" />
-                          Export
-                        </button>
-                        <input
-                          ref={moduleImportRef}
-                          type="file"
-                          accept="application/json"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            try {
-                              const json = await readJsonFile(file)
-                              const arr = Array.isArray(json) ? json : []
-                              const imported: ModuleBundle[] = arr
-                                .filter((x) => x && typeof x === 'object')
-                                .map((x: any) => ({
-                                  id: typeof x.id === 'string' ? x.id : crypto.randomUUID(),
-                                  name: typeof x.name === 'string' ? x.name : '',
-                                  description: typeof x.description === 'string' ? x.description : '',
-                                  enabled: x.enabled === true,
-                                  lorebook: x.lorebook ?? DEFAULT_MODULES_CONFIG.lorebook,
-                                  regex: x.regex ?? DEFAULT_MODULES_CONFIG.regex,
-                                  assets: x.assets ?? DEFAULT_MODULES_CONFIG.assets,
-                                }))
-                              setModuleBundlesState(imported)
-                            } catch {
-                              alert('Import 실패: JSON 형식을 확인해 주세요.')
-                            } finally {
-                              e.target.value = ''
-                            }
-                          }}
-                        />
-                      </div>
-
-                      {editingModuleId && moduleDraft ? (
-                        <div className="bg-[#202020] border border-[#333] rounded-lg p-4 space-y-4 text-left">
-                          <div className="flex items-center justify-between">
-                            <div className="font-semibold">번들 편집</div>
-                            <button
-                              className="text-gray-400 hover:text-white"
-                              onClick={() => {
-                                setEditingModuleId(null)
-                                setModuleDraft(null)
-                              }}
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-sm text-gray-300 mb-1">이름</label>
-                              <input
-                                value={moduleDraft.name}
-                                onChange={(e) => setModuleDraft({ ...moduleDraft, name: e.target.value })}
-                                className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white"
-                              />
-                            </div>
-                            <div className="flex items-end justify-between gap-2">
-                              <label className="flex items-center gap-2 text-sm text-gray-300">
-                                <input
-                                  type="checkbox"
-                                  checked={moduleDraft.enabled}
-                                  onChange={() => setModuleDraft({ ...moduleDraft, enabled: !moduleDraft.enabled })}
-                                  className="w-4 h-4"
-                                />
-                                활성화
-                              </label>
-                              <button
-                                onClick={() => downloadJson(`module-bundle-${moduleDraft.id}.json`, moduleDraft)}
-                                className="text-sm px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm text-gray-300 mb-1">설명</label>
-                            <textarea
-                              value={moduleDraft.description}
-                              onChange={(e) => setModuleDraft({ ...moduleDraft, description: e.target.value })}
-                              rows={2}
-                              className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white resize-none"
-                            />
-                          </div>
-
-                          <div className="text-sm text-gray-400">
-                            Lorebook/Regex/Assets는 아직 “동작”은 없지만, 번들 안에서 편집/저장할 수 있습니다.
-                          </div>
-
-                          <div className="space-y-4">
-                            <div className="bg-[#1a1a1a] border border-[#333] rounded p-3 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="font-semibold text-sm">Lorebook</div>
-                                <label className="flex items-center gap-2 text-xs text-gray-300">
-                                  <input
-                                    type="checkbox"
-                                    checked={moduleDraft.lorebook.enabled}
-                                    onChange={() =>
-                                      setModuleDraft({
-                                        ...moduleDraft,
-                                        lorebook: { ...moduleDraft.lorebook, enabled: !moduleDraft.lorebook.enabled },
-                                      })
-                                    }
-                                    className="w-4 h-4"
-                                  />
-                                  enabled
-                                </label>
-                              </div>
-                              <textarea
-                                value={JSON.stringify(moduleDraft.lorebook.entries ?? [], null, 2)}
-                                onChange={(e) => {
-                                  try {
-                                    const entries = JSON.parse(e.target.value)
-                                    if (Array.isArray(entries)) {
-                                      setModuleDraft({
-                                        ...moduleDraft,
-                                        lorebook: { ...moduleDraft.lorebook, entries },
-                                      })
-                                    }
-                                  } catch {
-                                    // ignore parse while typing
-                                  }
-                                }}
-                                rows={6}
-                                className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white text-xs font-mono resize-none"
-                              />
-                              <div className="text-[11px] text-gray-500">
-                                형식: <code>[{'{'} id, keywords: string[], content {'}'}]</code>
-                              </div>
-                            </div>
-
-                            <div className="bg-[#1a1a1a] border border-[#333] rounded p-3 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="font-semibold text-sm">Regex</div>
-                                <label className="flex items-center gap-2 text-xs text-gray-300">
-                                  <input
-                                    type="checkbox"
-                                    checked={moduleDraft.regex.enabled}
-                                    onChange={() =>
-                                      setModuleDraft({
-                                        ...moduleDraft,
-                                        regex: { ...moduleDraft.regex, enabled: !moduleDraft.regex.enabled },
-                                      })
-                                    }
-                                    className="w-4 h-4"
-                                  />
-                                  enabled
-                                </label>
-                              </div>
-                              <textarea
-                                value={JSON.stringify(moduleDraft.regex.rules ?? [], null, 2)}
-                                onChange={(e) => {
-                                  try {
-                                    const rules = JSON.parse(e.target.value)
-                                    if (Array.isArray(rules)) {
-                                      setModuleDraft({
-                                        ...moduleDraft,
-                                        regex: { ...moduleDraft.regex, rules },
-                                      })
-                                    }
-                                  } catch {
-                                    // ignore
-                                  }
-                                }}
-                                rows={6}
-                                className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white text-xs font-mono resize-none"
-                              />
-                              <div className="text-[11px] text-gray-500">
-                                형식: <code>[{'{'} id, pattern, replace, flags {'}'}]</code>
-                              </div>
-                            </div>
-
-                            <div className="bg-[#1a1a1a] border border-[#333] rounded p-3 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="font-semibold text-sm">Assets</div>
-                                <label className="flex items-center gap-2 text-xs text-gray-300">
-                                  <input
-                                    type="checkbox"
-                                    checked={moduleDraft.assets.enabled}
-                                    onChange={() =>
-                                      setModuleDraft({
-                                        ...moduleDraft,
-                                        assets: { ...moduleDraft.assets, enabled: !moduleDraft.assets.enabled },
-                                      })
-                                    }
-                                    className="w-4 h-4"
-                                  />
-                                  enabled
-                                </label>
-                              </div>
-                              <textarea
-                                value={JSON.stringify(moduleDraft.assets.items ?? [], null, 2)}
-                                onChange={(e) => {
-                                  try {
-                                    const items = JSON.parse(e.target.value)
-                                    if (Array.isArray(items)) {
-                                      setModuleDraft({
-                                        ...moduleDraft,
-                                        assets: { ...moduleDraft.assets, items },
-                                      })
-                                    }
-                                  } catch {
-                                    // ignore
-                                  }
-                                }}
-                                rows={6}
-                                className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white text-xs font-mono resize-none"
-                              />
-                              <div className="text-[11px] text-gray-500">
-                                형식: <code>[{'{'} id, type: 'image'|'audio', name, url {'}'}]</code>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => {
-                                setModuleBundlesState((prev) => {
-                                  const exists = prev.some((b) => b.id === moduleDraft.id)
-                                  return exists
-                                    ? prev.map((b) => (b.id === moduleDraft.id ? moduleDraft : b))
-                                    : [moduleDraft, ...prev]
-                                })
-                                setEditingModuleId(null)
-                                setModuleDraft(null)
-                              }}
-                              className="px-4 py-2 bg-white text-black font-semibold rounded hover:bg-gray-200 transition"
-                            >
-                              저장
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {moduleBundles.length === 0 ? (
-                            <div className="text-center text-sm text-gray-400 py-10">
-                              아직 번들이 없습니다. “생성”을 눌러 추가하세요.
-                            </div>
-                          ) : (
-                            moduleBundles.map((b) => (
-                              <div key={b.id} className="bg-[#202020] border border-[#333] rounded-lg p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="font-semibold truncate">{b.name || '이름 없음'}</div>
-                                    <div className="text-xs text-gray-400 line-clamp-2">{b.description}</div>
-                                  </div>
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <button
-                                      onClick={() =>
-                                        setModuleBundlesState((prev) =>
-                                          prev.map((x) => (x.id === b.id ? { ...x, enabled: !x.enabled } : x))
-                                        )
-                                      }
-                                      className="text-gray-300 hover:text-white"
-                                    >
-                                      {b.enabled ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        setEditingModuleId(b.id)
-                                        setModuleDraft(b)
-                                      }}
-                                      className="text-gray-300 hover:text-white"
-                                    >
-                                      <Pencil className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => downloadJson(`module-bundle-${b.id}.json`, b)}
-                                      className="text-gray-300 hover:text-white"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        if (!confirm('이 번들을 삭제할까요?')) return
-                                        setModuleBundlesState((prev) => prev.filter((x) => x.id !== b.id))
-                                      }}
-                                      className="text-red-400 hover:text-red-300"
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <ModuleSettingsTab
+                      moduleBundles={moduleBundles}
+                      setModuleBundlesState={setModuleBundlesState}
+                    />
                   )}
                 </div>
               </div>

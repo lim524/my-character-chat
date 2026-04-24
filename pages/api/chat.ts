@@ -3,6 +3,9 @@ import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources'
 import { applyRegexScripts } from '@/lib/interfaceRuntime'
 import type { RegexScriptEntry } from '@/lib/interfaceConfig'
+import { applyModuleRegexRules } from '@/lib/chatPromptContext'
+import { buildLorebookForChat } from '@/lib/lorebookActivation'
+import type { AssetRef, StatDefinition } from '@/lib/interfaceConfig'
 
 type Role = 'user' | 'assistant' | 'model'
 
@@ -11,12 +14,15 @@ const validateRole = (role: unknown): Role => {
   return 'user'
 }
 
-function normalizeCharacterInfo(characterInfo: Record<string, unknown> = {}) {
+function normalizeCharacterInfo(
+  characterInfo: Record<string, unknown> = {},
+  resolvedLorebook: string
+) {
   return {
     title: characterInfo.title ?? characterInfo.name ?? '제목 없음',
     worldSetting:
       characterInfo.worldSetting ?? characterInfo.world_setting ?? '설정 없음',
-    lorebook: characterInfo.lorebook ?? '없음',
+    lorebook: resolvedLorebook,
     situation: characterInfo.situation ?? '설정 없음',
     name: characterInfo.name ?? '이름 없음',
     personality: characterInfo.personality ?? '정보 없음',
@@ -45,28 +51,64 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     max_tokens: maxTokens = 1024,
     systemPromptAppend = '',
     prompts: rawPrompts = {},
+    modules = [],
   } = req.body
 
-  const characterInfo = normalizeCharacterInfo(rawCharacterInfo)
+  const chatMessages = Array.isArray(messages)
+    ? (messages as { role: string; content: string }[]).map((m) => ({
+        role: typeof m.role === 'string' ? m.role : 'user',
+        content: typeof m.content === 'string' ? m.content : '',
+      }))
+    : []
+
+  const builtLore = buildLorebookForChat(
+    rawCharacterInfo as Record<string, unknown>,
+    modules,
+    chatMessages
+  )
+
+  const loreRefLine =
+    [builtLore.legacyLorebookText, builtLore.scannedLoreText].filter(Boolean).join('\n\n---\n\n') ||
+    '없음'
+
+  const characterInfo = normalizeCharacterInfo(rawCharacterInfo as Record<string, unknown>, loreRefLine)
   const assets = rawCharacterInfo?.interfaceConfig?.assets || []
   
   let tagInstructions = ''
   if (assets.length > 0) {
     tagInstructions = `\n\n# 시스템 에셋(태그) 활용 가이드
-상황에 맞춰 아래 태그를 대사/묘사와 함께 출력하여 화면 연출을 할 수 있습니다. 반드시 정해진 태그 형식 <img=에셋아이디> 또는 <img=에셋아이디:타입> 을 출력하세요.
+장면 전환이나 감정 변화가 필요한 시점에 아래 태그를 대사/묘사와 함께 출력하여 화면을 연출하세요. 
+반드시 정해진 형식 \`<img=에셋아이디>\` 또는 \`<img=에셋아이디:타입>\`을 출력해야 합니다.
+
 [등록된 에셋 목록]
-${assets.map((a: any) => `- ID: ${a.id} (이름: ${a.label}, 타입: ${a.type})`).join('\n')}
+${assets.map((a: AssetRef) => `- ID: ${a.id} (이름: ${a.label}, 타입: ${a.type})`).join('\n')}
 
-[태그 사용법]
-- 캐릭터 표시: <img=ASSET_ID>
-- 배경 변경: <img=ASSET_ID:background>
-- CG/아이템 표시: <img=ASSET_ID:etc>
+[태그 사용 규칙 - 중요: 매 응답마다 반드시 포함할 것]
+1. 모든 응답에는 현재 장소에 맞는 **배경 태그 1개**와 캐릭터의 상태에 맞는 **캐릭터 태그 1개 이상**이 반드시 포함되어야 합니다.
+2. 배경 변경 (\`:background\`): 메시지의 **가장 첫 줄**에 입력하세요. 
+   - 형식: <img=에셋아이디:background>
+3. 캐릭터 표시 (\`character\` 타입): 해당 대사나 묘사 직전에 입력하세요.
+   - 형식: <img=에셋아이디>
+4. 장면이 바뀌지 않더라도 현재 상태를 유지하기 위해 태그를 생략하지 말고 매번 출력하세요.
 
-예시 출력:
-<img=${assets[0]?.id || 'bg-room'}:background> 내 앞에는 그녀가 서있었다. <img=${assets.find((a:any) => a.type === 'character')?.id || 'char-1'}>`
+[연출 예시]
+<img=bg_cafe:background> <img=char_smile> "오래 기다렸지?" 그녀가 환하게 웃으며 내 맞은편에 앉았다. <img=item_coffee:etc> 테이블 위에는 김이 모락모락 나는 커피가 놓여 있었다.`
   }
 
-  const customRules = rawCharacterInfo?.interfaceConfig?.dialogueScript?.trim() || ''
+  const iface = rawCharacterInfo?.interfaceConfig as Record<string, unknown> | undefined
+  const dialogueScript =
+    typeof iface?.dialogueScript === 'string' ? iface.dialogueScript.trim() : ''
+  const scenarioRules = Array.isArray(iface?.scenarioRules) ? iface.scenarioRules : []
+  const rulesFromTable = scenarioRules
+    .map((r: unknown) => {
+      if (r === null || typeof r !== 'object') return ''
+      const c = (r as { content?: string }).content
+      return typeof c === 'string' ? c.trim() : ''
+    })
+    .filter(Boolean)
+    .join('\n\n')
+  /** 표(시나리오 규칙)와 통합 텍스트 필드 둘 다 지원 — 예전 저장본은 dialogueScript가 비어 있을 수 있음 */
+  const customRules = dialogueScript || rulesFromTable
   const rulesSection = customRules ? `# 시나리오 및 게임 규칙\n${customRules}` : ''
 
   const backgroundEmbedding =
@@ -81,17 +123,20 @@ ${assets.map((a: any) => `- ID: ${a.id} (이름: ${a.label}, 타입: ${a.type})`
     let t = content
     if (role === 'user') t = applyRegexScripts(t, regexScripts, 'modify_input')
     t = applyRegexScripts(t, regexScripts, 'modify_request')
+    t = applyModuleRegexRules(t, modules)
     return t
   }
 
   function pipelineModelOut(text: string): string {
-    return applyRegexScripts(text, regexScripts, 'modify_output')
+    let t = applyRegexScripts(text, regexScripts, 'modify_output')
+    t = applyModuleRegexRules(t, modules)
+    return t
   }
 
   const statsDefinition = rawCharacterInfo?.interfaceConfig?.stats || []
   let statsSection = ''
   if (statsDefinition.length > 0) {
-    const statsDesc = statsDefinition.map((s: any) => `- ${s.name} (Key: "${s.key}", 범위: ${s.min}~${s.max}, 시작: ${s.initial})`).join('\n')
+    const statsDesc = statsDefinition.map((s: StatDefinition) => `- ${s.name} (Key: "${s.key}", 범위: ${s.min}~${s.max}, 시작: ${s.initial})`).join('\n')
     statsSection = `# 게임 스탯 (Status Variables) 추적 가이드
 당신은 시스템(게임 마스터) 역할을 겸합니다. 대화 내용과 유저의 행동에 따라 아래 스탯 수치를 합리적으로 변화시키세요.
 그리고 매 응답(대사/묘사)의 **제일 마지막 줄**에 반드시 현재 스탯 상태를 순수한 JSON 형태로만 출력해야 합니다. 백틱이나 다른 설명 없이 오직 중괄호로 감싼 JSON 한 줄만 출력하세요.
@@ -181,7 +226,7 @@ ${promptsSection}${appendText}
 `.trim()
 
   const temp = Number(temperature)
-  const maxTok = Number(maxTokens) || 1024
+  const maxTok = Number(maxTokens) || 4096
   const safeTemp = Number.isFinite(temp) && temp >= 0 && temp <= 2 ? temp : 0.7
 
   try {
@@ -208,6 +253,9 @@ ${promptsSection}${appendText}
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: systemPrompt }]
+          },
           contents,
           generationConfig: {
             temperature: safeTemp,
@@ -220,10 +268,8 @@ ${promptsSection}${appendText}
       if (!gemRes.ok || !text) {
         return res.status(500).json({ reply: [`Gemini 응답 실패: ${JSON.stringify(data)}`] })
       }
-      const lines = pipelineModelOut(String(text))
-        .split('\n')
-        .filter((line) => line.trim())
-      return res.status(200).json({ reply: lines })
+      const replyText = pipelineModelOut(String(text))
+      return res.status(200).json({ reply: replyText })
     }
 
     // Claude (full model IDs)
@@ -267,10 +313,8 @@ ${promptsSection}${appendText}
 
       const data = await claudeRes.json()
       const raw = data.content?.[0]?.text || ''
-      const lines = pipelineModelOut(String(raw))
-        .split('\n')
-        .filter((line: string) => line.trim())
-      return res.status(200).json({ reply: lines })
+      const replyText = pipelineModelOut(String(raw))
+      return res.status(200).json({ reply: replyText })
     }
 
     // OpenAI (gpt-3.5-turbo, gpt-4o, etc.)
@@ -303,10 +347,8 @@ ${promptsSection}${appendText}
     })
 
     const text = gptRes.choices[0]?.message?.content || ''
-    const lines = pipelineModelOut(text)
-      .split('\n')
-      .filter((line: string) => line.trim())
-    return res.status(200).json({ reply: lines })
+    const replyText = pipelineModelOut(text)
+    return res.status(200).json({ reply: replyText })
   } catch (error) {
     console.error('API 통신 실패:', error)
     return res.status(500).json({ reply: ['API 통신 실패'] })

@@ -4,7 +4,8 @@
  */
 export const LOCAL_CHARACTERS_KEY = 'local-characters'
 
-import { type InterfaceConfig } from './interfaceConfig'
+import { type InterfaceConfig, type LoreEntry } from './interfaceConfig'
+import type { ChatMessage } from '@/components/chat/types'
 import {
   characterHasInlineDataUrls,
   extractCharacterBlobsForStorage,
@@ -45,6 +46,8 @@ export interface LocalCharacter {
   isPublic?: boolean
   details?: Record<string, unknown>
   interfaceConfig?: InterfaceConfig
+  /** 캐릭터 로어북 (저장 시 draft와 함께 보관) */
+  loreEntries?: LoreEntry[]
   protagonist?: { name: string; description: string }[]
   supporting?: { name: string; description: string }[]
   created_at?: string
@@ -163,7 +166,7 @@ export interface SaveSlot {
   slotIndex: number
   savedAt: string
   previewText: string
-  messages: any[]
+  messages: ChatMessage[]
 }
 
 export async function getSaveSlots(characterId: string): Promise<SaveSlot[]> {
@@ -181,7 +184,7 @@ export async function getSaveSlots(characterId: string): Promise<SaveSlot[]> {
 export async function saveGameSlot(
   characterId: string,
   slotIndex: number,
-  messages: any[],
+  messages: ChatMessage[],
   previewText: string
 ): Promise<void> {
   const slots = await getSaveSlots(characterId)
@@ -224,7 +227,7 @@ export interface ChatSession {
   savedAt: string
   previewText: string
   messageCount: number
-  messages: any[]
+  messages: ChatMessage[]
 }
 
 export async function getChatSessions(characterId: string): Promise<ChatSession[]> {
@@ -239,7 +242,7 @@ export async function getChatSessions(characterId: string): Promise<ChatSession[
   }
 }
 
-export async function saveChatSession(characterId: string, messages: any[]): Promise<ChatSession | null> {
+export async function saveChatSession(characterId: string, messages: ChatMessage[]): Promise<ChatSession | null> {
   if (typeof window === 'undefined') return null
   if (!messages || messages.length === 0) return null
   const lastMsg =

@@ -34,7 +34,8 @@ export default function TopNav() {
             alt="NovelChat"
             width={100}
             height={34}
-            style={{ objectFit: 'contain' }}
+            priority
+            style={{ objectFit: 'contain', width: 'auto', height: 'auto' }}
           />
         </Link>
 

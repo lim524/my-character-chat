@@ -1,0 +1,303 @@
+﻿node.exe : 
+위치 C:\Program Files\nodejs\np
+x.ps1:29 문자:3
++   & $NODE_EXE $NPX_CLI_JS $
+args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo           
+   : NotSpecified: (:String  
+  ) [], RemoteException
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+./pages/characters/index.tsx
+1:21  Error: 'useRef' is defi
+ned but never used.  @typescr
+ipt-eslint/no-unused-vars
+131:9  Error: 'handleCardImpo
+rtFile' is assigned a value b
+ut never used.  @typescript-e
+slint/no-unused-vars
+182:17  Warning: Using `<img>
+` could result in slower LCP 
+and higher bandwidth. Conside
+r using `<Image />` from `nex
+t/image` or a custom image lo
+ader to automatically optimiz
+e images. This may incur addi
+tional usage or cost from you
+r provider. See: https://next
+js.org/docs/messages/no-img-e
+lement  @next/next/no-img-ele
+ment
+
+./pages/chat/[id].tsx
+14:87  Error: 'saveChatSessio
+n' is defined but never used.
+  @typescript-eslint/no-unuse
+d-vars
+37:20  Error: 'Smile' is defi
+ned but never used.  @typescr
+ipt-eslint/no-unused-vars
+37:27  Error: 'Bot' is define
+d but never used.  @typescrip
+t-eslint/no-unused-vars
+253:11  Error: 'formattedChar
+Raw' is never reassigned. Use
+ 'const' instead.  prefer-con
+st
+281:39  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+285:39  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+394:6  Warning: React Hook us
+eEffect has a missing depende
+ncy: 'displayedImage'. Either
+ include it or remove the dep
+endency array.  react-hooks/e
+xhaustive-deps
+605:6  Warning: React Hook us
+eMemo has a missing dependenc
+y: 'latestTurn'. Either inclu
+de it or remove the dependenc
+y array.  react-hooks/exhaust
+ive-deps
+797:37  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+
+./pages/create/index.tsx
+69:10  Error: 'error' is assi
+gned a value but never used. 
+ @typescript-eslint/no-unused
+-vars
+69:17  Error: 'setError' is a
+ssigned a value but never use
+d.  @typescript-eslint/no-unu
+sed-vars
+366:9  Error: 'nextRegex' is 
+never reassigned. Use 'const'
+ instead.  prefer-const
+
+./pages/mypage/index.tsx
+84:44  Error: Unexpected any.
+ Specify a different type.  @
+typescript-eslint/no-explicit
+-any
+497:32  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+508:49  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+754:32  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+765:49  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+967:60  Error: `'` can be esc
+aped with `&apos;`, `&lsquo;`
+, `&#39;`, `&rsquo;`.  react/
+no-unescaped-entities
+967:66  Error: `'` can be esc
+aped with `&apos;`, `&lsquo;`
+, `&#39;`, `&rsquo;`.  react/
+no-unescaped-entities
+967:68  Error: `'` can be esc
+aped with `&apos;`, `&lsquo;`
+, `&#39;`, `&rsquo;`.  react/
+no-unescaped-entities
+967:74  Error: `'` can be esc
+aped with `&apos;`, `&lsquo;`
+, `&#39;`, `&rsquo;`.  react/
+no-unescaped-entities
+
+./components/ChatMenu.tsx
+1:13  Error: 'Plus' is define
+d but never used.  @typescrip
+t-eslint/no-unused-vars
+
+./components/create/CreateLor
+ebookTab.tsx
+119:60  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+
+./components/create/CreateScr
+iptTab.tsx
+99:62  Error: Unexpected any.
+ Specify a different type.  @
+typescript-eslint/no-explicit
+-any
+
+./components/create/ImageAsse
+tCard.tsx
+20:13  Warning: Using `<img>`
+ could result in slower LCP a
+nd higher bandwidth. Consider
+ using `<Image />` from `next
+/image` or a custom image loa
+der to automatically optimize
+ images. This may incur addit
+ional usage or cost from your
+ provider. See: https://nextj
+s.org/docs/messages/no-img-el
+ement  @next/next/no-img-elem
+ent
+
+./components/DatingSimScreenP
+review.tsx
+8:10  Error: 'buildVnDialogue
+Styles' is defined but never 
+used.  @typescript-eslint/no-
+unused-vars
+85:128  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+
+./components/MessageParser.ts
+x
+45:14  Error: 'e' is defined 
+but never used.  @typescript-
+eslint/no-unused-vars
+79:15  Warning: Using `<img>`
+ could result in slower LCP a
+nd higher bandwidth. Consider
+ using `<Image />` from `next
+/image` or a custom image loa
+der to automatically optimize
+ images. This may incur addit
+ional usage or cost from your
+ provider. See: https://nextj
+s.org/docs/messages/no-img-el
+ement  @next/next/no-img-elem
+ent
+116:6  Warning: React Hook us
+eEffect has a missing depende
+ncy: 'detectedCharUrls'. Eith
+er include it or remove the d
+ependency array.  react-hooks
+/exhaustive-deps
+
+./lib/externalImportUtils.ts
+2:43  Error: 'DEFAULT_MODULES
+_CONFIG' is defined but never
+ used.  @typescript-eslint/no
+-unused-vars
+124:28  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+124:54  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+124:86  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+174:59  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+179:28  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+179:59  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+192:21  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+200:22  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+200:51  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+201:29  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+216:77  Error: 'defaultConfig
+' is defined but never used. 
+ @typescript-eslint/no-unused
+-vars
+220:31  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+220:57  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+220:89  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+226:24  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+227:31  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+231:31  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+
+./lib/interfaceConfig.ts
+165:20  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+
+./lib/interfaceEval.ts
+31:5  Warning: Unused eslint-
+disable directive (no problem
+s were reported from 'no-new-
+func').
+
+./lib/localStorage.ts
+168:13  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+186:13  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+229:13  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+244:70  Error: Unexpected any
+. Specify a different type.  
+@typescript-eslint/no-explici
+t-any
+
+info  - Need to disable some 
+ESLint rules? Learn more here
+: https://nextjs.org/docs/app
+/api-reference/config/eslint#
+disabling-rules
