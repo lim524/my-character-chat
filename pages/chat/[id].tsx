@@ -436,18 +436,6 @@ export default function ChatPage() {
       }
       setDisplayedImage(bgUrl)
 
-      // Character Fallback: 지정된 ID가 있으면 먼저 찾고, 없거나 못 찾으면 첫 번째 캐릭터 에셋 사용
-      let charUrls: string[] = []
-      if (initCharId) {
-        const found = assets.find((a) => a.id === initCharId)?.url
-        if (found) charUrls = [found]
-      }
-      if (charUrls.length === 0) {
-        const found = assets.find((a) => a.type === 'character')?.url
-        if (found) charUrls = [found]
-        else if (imageUrl) charUrls = [imageUrl] // 에셋이 아예 없으면 프로필 이미지라도 사용
-      }
-      setActiveCharacterSprites(charUrls)
       // === 채팅방 시스템 초기화 ===
       const characterId = id as string
       let rooms = await getChatRooms(characterId)
@@ -510,8 +498,7 @@ export default function ChatPage() {
       messages,
       viewMessageIndex,
       assets,
-      characterInfo as unknown as LocalCharacter,
-      regexScripts
+      characterInfo as unknown as LocalCharacter
     )
 
     setDisplayedImage(backgroundUrl)
@@ -519,7 +506,7 @@ export default function ChatPage() {
     setActiveOverlays(overlayIds)
     setOverlayOnlyMode(overlayOnlyMode)
     setParsedStats(stats)
-  }, [messages, viewMessageIndex, characterInfo, regexScripts])
+  }, [messages, viewMessageIndex, characterInfo])
 
   useEffect(() => {
     messagesRef.current = messages
@@ -971,15 +958,9 @@ export default function ChatPage() {
           spriteHeightVh={spriteHeightVh}
           activeCharacterSprites={activeCharacterSprites}
           extraInterfaceEntries={characterInfo?.interfaceConfig?.extraInterfaceEntries}
-          messages={messages}
           assets={characterInfo?.interfaceConfig?.assets || []}
-          regexScripts={regexScripts}
-          onBackgroundChange={setDisplayedImage}
-          onStatsChange={setParsedStats}
-          onCharacterSpritesChange={setActiveCharacterSprites}
           activeOverlays={activeOverlays}
           overlayOnlyMode={overlayOnlyMode}
-          onOverlaysChange={setActiveOverlays}
         />
 
         <ChatDialoguePanel
@@ -1046,12 +1027,6 @@ export default function ChatPage() {
               // 즉시 미리보기 반영
               if (asset.type === 'background') {
                 setDisplayedImage(asset.url)
-              } else if (asset.type === 'character') {
-                // 여러 캐릭터를 순차적으로 클릭하면 옆에 나란히 추가되도록 설정
-                setActiveCharacterSprites((prev) => {
-                  if (prev.includes(asset.url)) return prev
-                  return [...prev, asset.url]
-                })
               }
             }}
             onClose={() => setIsAssetPickerOpen(false)}

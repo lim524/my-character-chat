@@ -1,10 +1,8 @@
 import Image from 'next/image'
 import type { CSSProperties } from 'react'
-import MessageParser from '@/components/MessageParser'
 import ExtraInterfaceOverlay from '@/components/ExtraInterfaceOverlay'
 import { parseMergedVisibility } from '@/lib/interfaceRuntime'
-import type { AssetRef, ExtraInterfaceEntry, RegexScriptEntry } from '@/lib/interfaceConfig'
-import type { ChatMessage } from './types'
+import type { AssetRef, ExtraInterfaceEntry } from '@/lib/interfaceConfig'
 
 export function ChatVnLayer({
   displayedImage,
@@ -21,15 +19,9 @@ export function ChatVnLayer({
   spriteHeightVh,
   activeCharacterSprites,
   extraInterfaceEntries,
-  messages,
   assets,
-  regexScripts,
-  onBackgroundChange,
-  onStatsChange,
-  onCharacterSpritesChange,
   activeOverlays,
   overlayOnlyMode,
-  onOverlaysChange,
 }: {
   displayedImage: string | null
   isDataUrl: (s: string) => boolean
@@ -45,15 +37,9 @@ export function ChatVnLayer({
   spriteHeightVh: number | null
   activeCharacterSprites: string[]
   extraInterfaceEntries: ExtraInterfaceEntry[] | undefined
-  messages: ChatMessage[]
   assets: AssetRef[]
-  regexScripts: RegexScriptEntry[] | undefined
-  onBackgroundChange: (url: string | null) => void
-  onStatsChange: (stats: Record<string, number>) => void
-  onCharacterSpritesChange: (urls: string[]) => void
   activeOverlays: string[]
   overlayOnlyMode: boolean
-  onOverlaysChange: (ids: string[]) => void
 }) {
   const visibility = parseMergedVisibility(extraInterfaceEntries)
 

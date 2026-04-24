@@ -1,7 +1,6 @@
 import type { AssetRef } from './interfaceConfig'
 import type { LocalCharacter } from './localStorage'
 import type { ChatMessage } from '@/components/chat/types'
-import type { RegexScriptEntry } from './interfaceConfig'
 import {
   normalizeImageControlTags,
   parseImageTags,
@@ -67,8 +66,7 @@ export function deriveChatState(
   messages: ChatMessage[],
   viewIndex: number,
   assets: AssetRef[],
-  characterInfo: LocalCharacter | null,
-  regexScripts?: RegexScriptEntry[]
+  characterInfo: LocalCharacter | null
 ): DerivedChatState {
   let backgroundUrl: string | null = null
   let characterUrls: string[] = []
@@ -96,7 +94,9 @@ export function deriveChatState(
     if (messages[i].role === 'user') {
       latestUserMessageIndex = i
     }
-    const content = normalizeImageControlTags(messages[i].content, regexScripts)
+    // Runtime image state must parse canonical control tags only.
+    // Applying display regex scripts here can accidentally remove/transform tags.
+    const content = normalizeImageControlTags(messages[i].content)
     
     // 능력치(JSON) 추출
     const jsonMatch = content.match(jsonRegex)
