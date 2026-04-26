@@ -2,12 +2,23 @@
 
 import { NextApiRequest, NextApiResponse } from 'next'
 
-console.log('✅ 현재 서버가 읽은 API 키:', process.env.OPENAI_API_KEY)
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end()
 
   const { prompt } = req.body
+  if (typeof prompt !== 'string') {
+    return res.status(400).json({ error: 'prompt must be a string' })
+  }
+  const trimmedPrompt = prompt.trim()
+  if (!trimmedPrompt) {
+    return res.status(400).json({ error: 'prompt is required' })
+  }
+  if (trimmedPrompt.length > 4000) {
+    return res.status(400).json({ error: 'prompt is too long' })
+  }
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({ error: 'OPENAI_API_KEY is not configured' })
+  }
 
   try {
     const openaiRes = await fetch('https://api.openai.com/v1/images/generations', {
@@ -18,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       body: JSON.stringify({
         model: 'dall-e-3',
-        prompt: prompt,
+        prompt: trimmedPrompt,
         n: 1,
         size: '1024x1024',
       }),

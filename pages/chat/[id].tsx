@@ -53,6 +53,7 @@ import {
   resolveAssetByRef,
   splitRefAndType,
 } from '@/lib/chatImageTags'
+import { shouldApplyAssistantReply } from '@/lib/chatConcurrency'
 import { buildScanContext } from '@/lib/lorebookActivation'
 import Image from 'next/image'
 import { Sparkles, Zap, Feather, Gem } from 'lucide-react'
@@ -306,10 +307,12 @@ export default function ChatPage() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false)
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
+  const [isSending, setIsSending] = useState(false)
   const activeRoomIdRef = useRef<string | null>(null)
   const roomSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveInFlightRef = useRef(false)
-  const savePendingRef = useRef(false)
+  const savePendingRef = useRef<{ roomId: string | null; messages: ChatMessage[] } | null>(null)
+  const requestSeqRef = useRef(0)
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId
   }, [activeRoomId])
@@ -538,39 +541,47 @@ export default function ChatPage() {
     }
   }, [messages, viewMessageIndex])
 
-  const flushPersistCurrentRoom = useCallback(async (roomIdOverride?: string | null): Promise<void> => {
+  const flushPersistCurrentRoom = useCallback(async (
+    roomIdOverride?: string | null,
+    messagesOverride?: ChatMessage[]
+  ): Promise<void> => {
     const characterId = typeof id === 'string' ? id : ''
     const roomId = roomIdOverride ?? activeRoomIdRef.current
+    const messagesToPersist = messagesOverride ?? messagesRef.current
     if (!characterId || !roomId) return
     if (saveInFlightRef.current) {
-      savePendingRef.current = true
+      savePendingRef.current = { roomId, messages: messagesToPersist }
       return
     }
     saveInFlightRef.current = true
     try {
-      await saveChatRoomMessages(characterId, roomId, messagesRef.current)
+      await saveChatRoomMessages(characterId, roomId, messagesToPersist)
       await touchChatRoom(characterId, roomId)
     } finally {
       saveInFlightRef.current = false
       if (savePendingRef.current) {
-        savePendingRef.current = false
-        await flushPersistCurrentRoom(roomId)
+        const pending = savePendingRef.current
+        savePendingRef.current = null
+        await flushPersistCurrentRoom(pending.roomId, pending.messages)
       }
     }
   }, [id])
 
-  const schedulePersistCurrentRoom = useCallback((roomIdOverride?: string | null): void => {
+  const schedulePersistCurrentRoom = useCallback((
+    roomIdOverride?: string | null,
+    messagesOverride?: ChatMessage[]
+  ): void => {
     if (roomSaveTimerRef.current) {
       clearTimeout(roomSaveTimerRef.current)
     }
     roomSaveTimerRef.current = setTimeout(() => {
-      void flushPersistCurrentRoom(roomIdOverride)
+      void flushPersistCurrentRoom(roomIdOverride, messagesOverride)
     }, 250)
   }, [flushPersistCurrentRoom])
 
   useEffect(() => {
     if (typeof window !== 'undefined' && id && typeof id === 'string' && activeRoomId) {
-      schedulePersistCurrentRoom(activeRoomId)
+      schedulePersistCurrentRoom(activeRoomId, messages)
     }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, id, activeRoomId, schedulePersistCurrentRoom])
@@ -581,7 +592,7 @@ export default function ChatPage() {
         clearTimeout(roomSaveTimerRef.current)
         roomSaveTimerRef.current = null
       }
-      void flushPersistCurrentRoom()
+      void flushPersistCurrentRoom(activeRoomIdRef.current, messagesRef.current)
     }
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -589,7 +600,7 @@ export default function ChatPage() {
           clearTimeout(roomSaveTimerRef.current)
           roomSaveTimerRef.current = null
         }
-        void flushPersistCurrentRoom()
+        void flushPersistCurrentRoom(activeRoomIdRef.current, messagesRef.current)
       }
     }
     window.addEventListener('pagehide', onPageHide)
@@ -601,7 +612,7 @@ export default function ChatPage() {
         clearTimeout(roomSaveTimerRef.current)
         roomSaveTimerRef.current = null
       }
-      void flushPersistCurrentRoom()
+      void flushPersistCurrentRoom(activeRoomIdRef.current, messagesRef.current)
     }
   }, [id, activeRoomId, flushPersistCurrentRoom])
 
@@ -700,27 +711,49 @@ export default function ChatPage() {
   }
 
   const sendMessage = async () => {
-    if (!input.trim() || !characterInfo) return
+    const trimmedInput = input.trim()
+    if (!trimmedInput || !characterInfo || isSending) return
+    const requestToken = ++requestSeqRef.current
+    const roomIdAtSend = activeRoomIdRef.current
+    setIsSending(true)
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: input,
+      content: trimmedInput,
       created_at: new Date().toISOString(),
     }
-    const newMessages = [...messages, userMessage]
-    setMessages(newMessages)
+    setMessages((prev) => [...prev, userMessage])
     setInput('')
 
-    const reply = await sendToAI(input, characterInfo)
-    const assistantMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: normalizeAssistantImageTags(reply),
-      created_at: new Date().toISOString(),
+    try {
+      const reply = await sendToAI(trimmedInput, characterInfo)
+      if (
+        !shouldApplyAssistantReply({
+          requestToken,
+          latestRequestToken: requestSeqRef.current,
+          roomIdAtSend,
+          currentRoomId: activeRoomIdRef.current,
+        })
+      ) {
+        return
+      }
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: normalizeAssistantImageTags(reply),
+        created_at: new Date().toISOString(),
+      }
+      setMessages((prev) => {
+        const next = [...prev, assistantMessage]
+        setViewMessageIndex(next.length - 1)
+        return next
+      })
+    } finally {
+      if (requestToken === requestSeqRef.current) {
+        setIsSending(false)
+      }
     }
-    setMessages([...newMessages, assistantMessage])
-    setViewMessageIndex(newMessages.length)
   }
 
   const handleSaveEdit = () => {
@@ -868,8 +901,10 @@ export default function ChatPage() {
     const characterId = typeof id === 'string' ? id : ''
     if (!characterId) return
 
-    if (activeRoomId && activeRoomId !== roomId) {
-      await flushPersistCurrentRoom(activeRoomId)
+    const currentRoomId = activeRoomIdRef.current
+    const currentMessages = [...messagesRef.current]
+    if (currentRoomId && currentRoomId !== roomId) {
+      await flushPersistCurrentRoom(currentRoomId, currentMessages)
     }
     setActiveRoomId(roomId)
     await setLastActiveRoomId(characterId, roomId)
@@ -883,6 +918,12 @@ export default function ChatPage() {
   const handleCreateRoom = async (room: ChatRoom) => {
     const characterId = typeof id === 'string' ? id : ''
     if (!characterId) return
+
+    const currentRoomId = activeRoomIdRef.current
+    const currentMessages = [...messagesRef.current]
+    if (currentRoomId && currentRoomId !== room.id) {
+      await flushPersistCurrentRoom(currentRoomId, currentMessages)
+    }
 
     setActiveRoomId(room.id)
     await setLastActiveRoomId(characterId, room.id)
@@ -1028,6 +1069,7 @@ export default function ChatPage() {
         input={input}
         setInput={setInput}
         onSend={sendMessage}
+        isSending={isSending}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenModelModal={() => setShowModelModal(true)}
         onOpenAssetPicker={() => setIsAssetPickerOpen(!isAssetPickerOpen)}

@@ -27,7 +27,7 @@ export function CreateCustomCssTab({
       <div className="bg-[#111] border border-[#222] rounded-lg p-3">
         <h4 className="text-[10px] font-bold text-gray-300 mb-2">💡 활용 팁</h4>
         <ul className="text-[10px] text-gray-500 space-y-1 list-disc pl-4">
-          <li>애니메이션 이름을 정의한 후 '추가 인터페이스'의 JSON 스타일에서 호출할 수 있습니다.</li>
+          <li>애니메이션 이름을 정의한 후 &apos;추가 인터페이스&apos;의 JSON 스타일에서 호출할 수 있습니다.</li>
           <li>특정 클래스명을 사용하여 대화창이나 배경의 연출을 변경해 보세요.</li>
           <li>실시간으로 반영되므로 작성 즉시 화면에서 변화를 확인할 수 있습니다.</li>
         </ul>

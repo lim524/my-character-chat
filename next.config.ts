@@ -4,7 +4,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   eslint: {
-    ignoreDuringBuilds: true, // ✅ 빌드 시 ESLint 에러 무시
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**', pathname: '/**' }],

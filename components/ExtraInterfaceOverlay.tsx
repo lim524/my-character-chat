@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { isSafeExternalHref } from '@/lib/interfaceConfigSanitizer'
 
 const LUCIDE_BY_NAME: Record<string, LucideIcon> = {
   Menu,
@@ -111,7 +112,6 @@ export default function ExtraInterfaceOverlay({
         // 1. JSON에 직접 visible: true인 경우 (항상 노출)
         // 2. AI 메시지 태그 등을 통해 activeOverlays에 포함된 경우 (트리거 노출)
         const isTriggered = activeOverlays.includes(ov.id) || (ov.assetId && activeOverlays.includes(ov.assetId))
-        const isVisible = ov.visible !== false ? (ov.visible || true) : false
         
         // 최종 가시성 판단: 명시적으로 true이거나, 트리거되었을 때만 표시
         if (!isTriggered && ov.visible === false) return null
@@ -170,7 +170,9 @@ export default function ExtraInterfaceOverlay({
                   const tid = ic.toggleMenuId
                   setOpenMenuId(prev => prev === tid ? null : tid)
                 } else if (ic.href && typeof window !== 'undefined') {
-                  window.open(ic.href, '_blank', 'noopener,noreferrer')
+                  if (isSafeExternalHref(ic.href)) {
+                    window.open(ic.href, '_blank', 'noopener,noreferrer')
+                  }
                 }
               }}
             >

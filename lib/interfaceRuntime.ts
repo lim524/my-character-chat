@@ -35,9 +35,9 @@ export type ParsedInterfaceIcon = {
   /** true면 클릭 시 onToggleOverlay로 토글 (기본 true) */
   toggleOverlay?: boolean
   /** Framer Motion 프로퍼티 (initial, animate, transition 등) */
-  motion?: any
+  motion?: Record<string, unknown>
   /** 특정 이벤트 트리거 시 실행할 애니메이션 설정 */
-  animation?: any
+  animation?: Record<string, unknown>
 }
 
 export type ParsedInterfaceOverlay = {
@@ -48,9 +48,9 @@ export type ParsedInterfaceOverlay = {
   style?: React.CSSProperties
   visible?: boolean
   /** Framer Motion 프로퍼티 (initial, animate, transition 등) */
-  motion?: any
+  motion?: Record<string, unknown>
   /** 특정 이벤트 트리거 시 실행할 애니메이션 설정 */
-  animation?: any
+  animation?: Record<string, unknown>
 }
 
 export type ParsedInterfaceVisibility = {

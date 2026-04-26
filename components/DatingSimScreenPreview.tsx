@@ -85,11 +85,33 @@ export default function DatingSimScreenPreview({
 
   const backgroundUrl = findAssetUrl(assets, screen?.background)
   
-  const { nameColor, textColor, chatBoxStyle, senderStyle, contentStyle, messageStyle, ...flatBoxStyles } = (uiTheme || {}) as any
+  const safeTheme = (uiTheme || {}) as Record<string, unknown>
+  const {
+    nameColor,
+    textColor,
+    chatBoxStyle,
+    senderStyle,
+    contentStyle,
+    messageStyle,
+    ...flatBoxStyles
+  } = safeTheme
   
-  const boxStyle = { backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', ...flatBoxStyles, ...(chatBoxStyle || {}) }
-  const nameLabelStyle = { color: nameColor ?? '#fbcfe8', ...(senderStyle || {}) }
-  const textBodyStyle = { color: textColor ?? '#f3f4f6', ...(contentStyle || {}), ...(messageStyle || {}) }
+  const boxStyle = {
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    ...(flatBoxStyles as CSSProperties),
+    ...((chatBoxStyle as CSSProperties | undefined) || {}),
+  }
+  const nameLabelStyle = {
+    color: (typeof nameColor === 'string' ? nameColor : '#fbcfe8'),
+    ...((senderStyle as CSSProperties | undefined) || {}),
+  }
+  const textBodyStyle = {
+    color: (typeof textColor === 'string' ? textColor : '#f3f4f6'),
+    ...((contentStyle as CSSProperties | undefined) || {}),
+    ...((messageStyle as CSSProperties | undefined) || {}),
+  }
 
   const displayContent = pages[pageIndex] || fullText
 

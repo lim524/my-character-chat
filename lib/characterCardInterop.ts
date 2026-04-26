@@ -3,6 +3,7 @@ import type { LocalCharacter } from './localStorage'
 import type { LoreEntry, InterfaceConfig } from './interfaceConfig'
 import { createInitialInterfaceConfig } from './interfaceEval'
 import { normalizeLoreEntry } from './lorebookActivation'
+import { sanitizeImportedInterfaceConfig } from './interfaceConfigSanitizer'
 
 export interface ImportCardResult {
   character: LocalCharacter
@@ -46,7 +47,8 @@ export function importCardToLocalCharacter(json: unknown): ImportCardResult {
   const mcc = (ext.my_character_chat || ext.mcc || {}) as Record<string, unknown>
   
   if (mcc.interfaceConfig && typeof mcc.interfaceConfig === 'object') {
-    character.interfaceConfig = { ...character.interfaceConfig, ...(mcc.interfaceConfig as object) } as InterfaceConfig
+    const sanitized = sanitizeImportedInterfaceConfig(mcc.interfaceConfig, warnings)
+    character.interfaceConfig = { ...character.interfaceConfig, ...sanitized } as InterfaceConfig
   }
   if (mcc.details && typeof mcc.details === 'object') {
     character.details = { ...character.details, ...(mcc.details as Record<string, unknown>) }

@@ -1,7 +1,5 @@
 import { X } from 'lucide-react'
-import { useState } from 'react'
 import ChatRoomList from './chat/ChatRoomList'
-import type { ChatMessage } from './chat/types'
 import type { ChatRoom } from '@/lib/chatRooms'
 
 interface ChatMenuProps {

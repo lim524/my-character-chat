@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { sanitizeCustomCss } from '@/lib/interfaceConfigSanitizer'
 
 /**
  * InterfaceConfig의 customCSS 필드 내용을 <style> 태그로 주입하는 컴포넌트.
@@ -8,9 +9,7 @@ import { useMemo } from 'react'
  */
 export default function CustomStyleInjector({ css }: { css?: string }) {
   const sanitizedCss = useMemo(() => {
-    if (!css?.trim()) return null
-    // 아주 기본적인 산재 처리가 필요할 수 있으나, 일단은 그대로 주입 (사용자 정의 보장)
-    return css
+    return sanitizeCustomCss(css) ?? null
   }, [css])
 
   if (!sanitizedCss) return null

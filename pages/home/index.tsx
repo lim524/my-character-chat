@@ -63,7 +63,7 @@ export default function HomePage() {
       (char.description ?? '').toLowerCase().includes(q)
   )
 
-  function CharacterCard({ char }: { char: Character }) {
+function CharacterCard({ char, eager }: { char: Character; eager: boolean }) {
     return (
       <div
         onClick={() => setSelectedCharacter(char)}
@@ -76,7 +76,7 @@ export default function HomePage() {
             alt={char.name}
             fill
             className="object-cover"
-            priority
+            priority={eager}
             unoptimized={char.imageUrl.startsWith('data:')}
           />
         </div>
@@ -114,8 +114,8 @@ export default function HomePage() {
       )}
 
       <div className="flex gap-4 overflow-x-auto pb-2">
-        {filteredCharacters.map((char) => (
-          <CharacterCard key={char.id} char={char} />
+        {filteredCharacters.map((char, idx) => (
+          <CharacterCard key={char.id} char={char} eager={idx < 3} />
         ))}
       </div>
 

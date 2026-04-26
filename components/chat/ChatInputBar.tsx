@@ -7,6 +7,7 @@ export function ChatInputBar({
   input,
   setInput,
   onSend,
+  isSending,
   onOpenSettings,
   onOpenModelModal,
   onOpenAssetPicker,
@@ -18,6 +19,7 @@ export function ChatInputBar({
   input: string
   setInput: (s: string) => void
   onSend: () => void
+  isSending?: boolean
   onOpenSettings: () => void
   onOpenModelModal: () => void
   onOpenAssetPicker: () => void
@@ -73,17 +75,20 @@ export function ChatInputBar({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
+                if (isSending) return
                 onSend()
               }
             }}
             placeholder="행동이나 대사를 입력하세요..."
             className="flex-1 bg-transparent text-white placeholder-gray-500 text-[15px] focus:outline-none resize-none overflow-hidden h-auto max-h-24 py-1.5"
             rows={1}
+            disabled={isSending}
           />
           <button
             type="button"
             onClick={onSend}
-            className="ml-2 p-2 rounded-lg bg-[#e45463]/80 hover:bg-[#d04352] transition-colors flex-shrink-0"
+            disabled={isSending}
+            className="ml-2 p-2 rounded-lg bg-[#e45463]/80 hover:bg-[#d04352] transition-colors flex-shrink-0 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path d="M2.94 2.94a1.5 1.5 0 0 1 1.67-.3l12.5 5.8a1.5 1.5 0 0 1 0 2.72l-12.5 5.8A1.5 1.5 0 0 1 2 15.8V4.2a1.5 1.5 0 0 1 .94-1.26z" />

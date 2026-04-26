@@ -82,6 +82,11 @@ async function readCharacterListStored(): Promise<LocalCharacter[]> {
   return list
 }
 
+async function readStoredCharacterById(id: string): Promise<LocalCharacter | null> {
+  const list = await readCharacterListStored()
+  return list.find((c) => c.id === id) ?? null
+}
+
 /** UI·채팅용: 인라인 data URL로 복원 */
 export async function getLocalCharacters(): Promise<LocalCharacter[]> {
   if (typeof window === 'undefined') return []
@@ -126,8 +131,14 @@ export async function setLocalCharacters(characters: LocalCharacter[]): Promise<
 }
 
 export async function getLocalCharacter(id: string): Promise<LocalCharacter | null> {
-  const list = await getLocalCharacters()
-  return list.find((c) => c.id === id) ?? null
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = await readStoredCharacterById(id)
+    if (!stored) return null
+    return await hydrateCharacterBlobs(stored)
+  } catch {
+    return null
+  }
 }
 
 export async function saveLocalCharacter(character: LocalCharacter): Promise<LocalStorageWriteResult> {
