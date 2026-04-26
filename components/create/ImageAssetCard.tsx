@@ -4,11 +4,13 @@ import type { AssetRef } from '@/lib/interfaceConfig'
 export function ImageAssetCard({
   asset,
   onLabelChange,
+  onTypeChange,
   onRemove,
   onReplaceImage,
 }: {
   asset: AssetRef
   onLabelChange: (assetId: string, label: string) => void
+  onTypeChange?: (assetId: string, type: AssetRef['type']) => void
   onRemove: (assetId: string) => void
   onReplaceImage: (assetId: string) => void
 }) {
@@ -30,6 +32,17 @@ export function ImageAssetCard({
           placeholder="이름"
           className="w-full bg-[#111] border border-[#333] rounded px-2 py-1 text-[11px]"
         />
+        {onTypeChange && (
+          <select
+            value={asset.type}
+            onChange={(e) => onTypeChange(asset.id, e.target.value as AssetRef['type'])}
+            className="w-full bg-[#111] border border-[#333] rounded px-1.5 py-1 text-[11px] text-gray-300"
+          >
+            <option value="background">배경 이미지</option>
+            <option value="character">캐릭터 이미지</option>
+            <option value="ui">기타 이미지</option>
+          </select>
+        )}
       </div>
       <div className="flex flex-col gap-1 shrink-0 mt-0.5">
         <button
