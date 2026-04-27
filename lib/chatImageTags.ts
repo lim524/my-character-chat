@@ -7,10 +7,22 @@ const IMG_TAG_REGEX = /<img\s*=\s*([^>]+?)\s*>/gi
 const IMG_SRC_TAG_REGEX = /<img-src\s*=\s*([^>]+?)\s*>/gi
 const IMG_SRC_DASH_TAG_REGEX = /<img-src-([^>]+?)\s*>/gi
 const HTML_IMG_TAG_REGEX = /<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>/gi
+const ESCAPED_IMG_TAG_REGEX = /&lt;\s*img\s*=\s*([^&]+?)\s*&gt;/gi
+const ESCAPED_IMG_SRC_TAG_REGEX = /&lt;\s*img-src\s*=\s*([^&]+?)\s*&gt;/gi
+const ESCAPED_IMG_SRC_DASH_TAG_REGEX = /&lt;\s*img-src-([^&]+?)\s*&gt;/gi
+
+function normalizeTagRef(v: string): string {
+  const unquoted = v.trim().replace(/^['"]+|['"]+$/g, '')
+  // Self-closing tags can leave trailing slash inside capture.
+  return unquoted.replace(/\/+$/g, '').trim()
+}
 
 export function normalizeImageControlTags(content: string, regexScripts?: RegexScriptEntry[]): string {
   const displayContent = applyRegexScripts(content, regexScripts, 'modify_display')
   return displayContent
+    .replace(ESCAPED_IMG_SRC_DASH_TAG_REGEX, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
+    .replace(ESCAPED_IMG_SRC_TAG_REGEX, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
+    .replace(ESCAPED_IMG_TAG_REGEX, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
     .replace(HTML_IMG_TAG_REGEX, (_full, src: string) => `<img=${String(src).trim()}>`)
     .replace(IMG_SRC_DASH_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(IMG_SRC_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
@@ -26,10 +38,10 @@ export function parseImageTags(content: string): ParsedImageTag[] {
 }
 
 export function splitRefAndType(raw: string): { ref: string; typeHint: string } {
-  const v = raw.trim()
+  const v = normalizeTagRef(raw)
   const suffixMatch = v.match(/^(.*?):\s*(background|character|etc|overlay|ui)\s*$/i)
   if (suffixMatch) {
-    return { ref: suffixMatch[1].trim(), typeHint: suffixMatch[2].toLowerCase() }
+    return { ref: normalizeTagRef(suffixMatch[1]), typeHint: suffixMatch[2].toLowerCase() }
   }
   return { ref: v, typeHint: '' }
 }
