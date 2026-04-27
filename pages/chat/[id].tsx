@@ -818,7 +818,8 @@ export default function ChatPage() {
     setMessages((prev) => prev.filter((m) => m.id !== msgId))
   }
 
-  const isDataUrl = (s: string) => typeof s === 'string' && s.startsWith('data:')
+  const isDataUrl = (s: string) =>
+    typeof s === 'string' && (s.startsWith('data:') || s.startsWith('blob:'))
 
   const characterLayout = useMemo(
     () => parseMergedCharacterLayoutFromExtraEntries(characterInfo?.interfaceConfig?.extraInterfaceEntries),
