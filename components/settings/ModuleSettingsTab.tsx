@@ -97,7 +97,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
                     const m = parseExternalModuleBundle(x, file.name)
                     if (m) newBundles.push(m)
                   })
-                } catch (err) {
+                } catch {
                   // Not valid JSON, maybe it's a zip archive
                 }
                 

@@ -226,7 +226,7 @@ export function parseExternalModuleBundle(json: unknown, fileName?: string): Mod
   const entries = Array.isArray(entriesRaw) ? bookEntriesToLore(entriesRaw) : []
 
   // 2. 정규식 추출
-  let rawRegex: any[] = []
+  let rawRegex: unknown[] = []
   if (Array.isArray(j.regex_scripts)) rawRegex = j.regex_scripts
   else if (Array.isArray(j.scripts)) rawRegex = j.scripts
 
@@ -238,7 +238,7 @@ export function parseExternalModuleBundle(json: unknown, fileName?: string): Mod
   }))
 
   // 3. 에셋 추출
-  let rawAssets: any[] = []
+  let rawAssets: unknown[] = []
   if (Array.isArray(j.assets)) rawAssets = j.assets
 
   const assetItems = rawAssets.filter(isRecord).map((a) => ({
