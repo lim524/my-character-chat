@@ -3,6 +3,7 @@ import { Plus, Upload, Download, X, Trash2, Pencil, ToggleLeft, ToggleRight } fr
 import { v4 as uuidv4 } from 'uuid'
 import type { ModuleBundle } from '@/lib/appSettings'
 import { DEFAULT_MODULES_CONFIG } from '@/lib/appSettings'
+import { parseModuleToggleControls } from '@/lib/moduleToggleParser'
 import { 
   parseExternalModuleBundle, 
   parseRisuModuleFile,
@@ -218,6 +219,17 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState, isChat
                     placeholder="이 모듈이 어떤 역할을 하는지 설명해 주세요"
                     rows={3}
                     className="w-full px-4 py-2 bg-[#2a2a2a] border border-[#444] rounded-lg text-white resize-none placeholder-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Risu Toggle Spec (customModuleToggle)</label>
+                  <textarea
+                    value={moduleDraft.customModuleToggle || ''}
+                    onChange={(e) => setModuleDraft({ ...moduleDraft, customModuleToggle: e.target.value })}
+                    placeholder="key=label 또는 key=label=select=opt1,opt2"
+                    rows={4}
+                    className="w-full px-4 py-2 bg-[#2a2a2a] border border-[#444] rounded-lg text-white resize-y font-mono text-xs"
                   />
                 </div>
               </div>
@@ -461,6 +473,115 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState, isChat
                         />
                       </label>
                     )}
+
+                    {(() => {
+                      const controls = parseModuleToggleControls(b.customModuleToggle || '')
+                      if (controls.length === 0) return null
+                      const state = b.toggleState || {}
+                      return (
+                        <div className="mt-2 pt-2 border-t border-[#2c2c2c] space-y-2">
+                          <div className="text-xs font-semibold text-gray-300">Risu Toggle / Button</div>
+                          {controls.map((c, idx) => {
+                            if (c.type === 'group') {
+                              return (
+                                <div key={`group-${idx}`} className="text-xs text-gray-400 pt-1">
+                                  [{c.label}]
+                                </div>
+                              )
+                            }
+                            if (c.type === 'groupEnd') {
+                              return <div key={`group-end-${idx}`} className="border-t border-[#333] my-1" />
+                            }
+                            if (c.type === 'divider') {
+                              return <div key={`divider-${idx}`} className="border-t border-dashed border-[#444] my-1" />
+                            }
+                            if (!c.key) return null
+
+                            if (c.type === 'select') {
+                              const current = state[c.key] ?? '0'
+                              return (
+                                <label key={c.key} className="flex items-center justify-between gap-2 text-sm text-gray-300 bg-[#2a2a2a] px-3 py-2 rounded border border-[#444]">
+                                  <span>{c.label}</span>
+                                  <select
+                                    value={current}
+                                    onChange={(ev) =>
+                                      setModuleBundlesState((prev) =>
+                                        prev.map((x) =>
+                                          x.id === b.id
+                                            ? {
+                                                ...x,
+                                                toggleState: { ...(x.toggleState || {}), [c.key]: ev.target.value },
+                                              }
+                                            : x
+                                        )
+                                      )
+                                    }
+                                    className="bg-[#1f1f1f] border border-[#555] rounded px-2 py-1 text-xs"
+                                  >
+                                    {(c.options || []).map((opt, optIdx) => (
+                                      <option key={`${c.key}-${optIdx}`} value={String(optIdx)}>
+                                        {opt}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              )
+                            }
+
+                            if (c.type === 'text') {
+                              return (
+                                <label key={c.key} className="flex items-center justify-between gap-2 text-sm text-gray-300 bg-[#2a2a2a] px-3 py-2 rounded border border-[#444]">
+                                  <span>{c.label}</span>
+                                  <input
+                                    value={state[c.key] ?? ''}
+                                    onChange={(ev) =>
+                                      setModuleBundlesState((prev) =>
+                                        prev.map((x) =>
+                                          x.id === b.id
+                                            ? {
+                                                ...x,
+                                                toggleState: { ...(x.toggleState || {}), [c.key]: ev.target.value },
+                                              }
+                                            : x
+                                        )
+                                      )
+                                    }
+                                    className="bg-[#1f1f1f] border border-[#555] rounded px-2 py-1 text-xs w-44"
+                                  />
+                                </label>
+                              )
+                            }
+
+                            const checked = state[c.key] === '1'
+                            return (
+                              <label key={c.key} className="flex items-center justify-between text-sm text-gray-300 bg-[#2a2a2a] px-3 py-2 rounded border border-[#444]">
+                                <span>{c.label}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(ev) =>
+                                    setModuleBundlesState((prev) =>
+                                      prev.map((x) =>
+                                        x.id === b.id
+                                          ? {
+                                              ...x,
+                                              toggleState: {
+                                                ...(x.toggleState || {}),
+                                                [c.key]: ev.target.checked ? '1' : '0',
+                                              },
+                                            }
+                                          : x
+                                      )
+                                    )
+                                  }
+                                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#e45463]"
+                                />
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>

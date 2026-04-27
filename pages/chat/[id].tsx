@@ -37,6 +37,7 @@ import {
   getUserPersona,
   type ProviderId,
 } from '@/lib/appSettings'
+import { parseModuleToggleControls } from '@/lib/moduleToggleParser'
 import { kvGet } from '@/lib/idbKV'
 import { stripDataUrlsFromJsonValue } from '@/lib/stripDataUrlsForApi'
 import {
@@ -628,6 +629,36 @@ export default function ChatPage() {
       const promptBundles = (await getPromptBundles()).filter((b) => b.enabled)
       const moduleBundles = (await getModuleBundles()).filter((b) => b.enabled)
 
+      const moduleTogglePrompt = moduleBundles
+        .map((m) => {
+          const controls = parseModuleToggleControls(m.customModuleToggle || '').filter((c) => !!c.key)
+          if (controls.length === 0) return ''
+          const state = m.toggleState || {}
+          const lines = controls.map((c) => {
+            const raw = state[c.key] ?? (c.type === 'checkbox' ? '0' : '')
+            if (c.type === 'select') {
+              const idx = Number(raw)
+              const opts = c.options || []
+              const selected = Number.isFinite(idx) && idx >= 0 && idx < opts.length ? opts[idx] : ''
+              return `- ${c.label}: ${selected || '(선택 없음)'}`
+            }
+            if (c.type === 'checkbox') return `- ${c.label}: ${raw === '1' ? 'ON' : 'OFF'}`
+            return `- ${c.label}: ${raw || '(비어 있음)'}`
+          })
+          return lines.length > 0 ? `## ${m.name || m.id}\n${lines.join('\n')}` : ''
+        })
+        .filter(Boolean)
+        .join('\n\n')
+        .trim()
+
+      const moduleBackgroundEmbedding = moduleBundles
+        .map((m) =>
+          m.backgroundEmbedding?.trim() ? `## ${m.name || m.id}\n${m.backgroundEmbedding.trim()}` : ''
+        )
+        .filter(Boolean)
+        .join('\n\n')
+        .trim()
+
       const prompts = {
         main: promptBundles
           .map((b) => (b.mainPrompt?.trim() ? `## ${b.name || b.id}\n${b.mainPrompt.trim()}` : ''))
@@ -654,6 +685,19 @@ export default function ChatPage() {
         .map((b) =>
           b.systemPromptAppend?.trim() ? `## ${b.name || b.id}\n${b.systemPromptAppend.trim()}` : ''
         )
+        .filter(Boolean)
+        .join('\n\n')
+        .trim()
+
+      const moduleContextAppend = [
+        moduleBackgroundEmbedding ? `# Module Background Embedding\n${moduleBackgroundEmbedding}` : '',
+        moduleTogglePrompt ? `# Module Toggles\n${moduleTogglePrompt}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+        .trim()
+
+      const mergedSystemPromptAppend = [systemPromptAppend, moduleContextAppend]
         .filter(Boolean)
         .join('\n\n')
         .trim()
@@ -685,7 +729,7 @@ export default function ChatPage() {
         selectedModel,
         temperature,
         max_tokens: maxTokens,
-        systemPromptAppend,
+        systemPromptAppend: mergedSystemPromptAppend,
         prompts,
         modules: moduleBundles,
       }) as Record<string, unknown>

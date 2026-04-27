@@ -293,7 +293,12 @@ export function parseExternalModuleBundle(json: unknown, fileName?: string): Mod
     const m = j.module as Record<string, unknown>
     const loreEntries = parseRisuModuleLorebook(m.lorebook)
     const regexRules = parseRisuModuleRegex(m.regex)
-    if (loreEntries.length > 0 || regexRules.length > 0) {
+    if (
+      loreEntries.length > 0 ||
+      regexRules.length > 0 ||
+      typeof m.customModuleToggle === 'string' ||
+      typeof m.backgroundEmbedding === 'string'
+    ) {
       return {
         id: uuidv4(),
         name: String(m.name || fileName?.replace(/\.[^/.]+$/, '') || 'Imported Risu Module'),
@@ -302,6 +307,9 @@ export function parseExternalModuleBundle(json: unknown, fileName?: string): Mod
         lorebook: { enabled: loreEntries.length > 0, entries: loreEntries },
         regex: { enabled: regexRules.length > 0, rules: regexRules },
         assets: { enabled: false, items: [] },
+        customModuleToggle: typeof m.customModuleToggle === 'string' ? m.customModuleToggle : '',
+        toggleState: {},
+        backgroundEmbedding: typeof m.backgroundEmbedding === 'string' ? m.backgroundEmbedding : '',
       }
     }
   }

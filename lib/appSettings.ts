@@ -395,6 +395,9 @@ export interface ModuleBundle {
   lorebook: ModulesConfig['lorebook']
   regex: ModulesConfig['regex']
   assets: ModulesConfig['assets']
+  customModuleToggle?: string
+  toggleState?: Record<string, string>
+  backgroundEmbedding?: string
 }
 
 export async function getModuleBundles(): Promise<ModuleBundle[]> {
@@ -416,6 +419,9 @@ export async function getModuleBundles(): Promise<ModuleBundle[]> {
           lorebook: xObj.lorebook && typeof xObj.lorebook === 'object' ? (xObj.lorebook as ModulesConfig['lorebook']) : DEFAULT_MODULES_CONFIG.lorebook,
           regex: xObj.regex && typeof xObj.regex === 'object' ? (xObj.regex as ModulesConfig['regex']) : DEFAULT_MODULES_CONFIG.regex,
           assets: xObj.assets && typeof xObj.assets === 'object' ? (xObj.assets as ModulesConfig['assets']) : DEFAULT_MODULES_CONFIG.assets,
+          customModuleToggle: typeof xObj.customModuleToggle === 'string' ? xObj.customModuleToggle : '',
+          toggleState: xObj.toggleState && typeof xObj.toggleState === 'object' ? (xObj.toggleState as Record<string, string>) : {},
+          backgroundEmbedding: typeof xObj.backgroundEmbedding === 'string' ? xObj.backgroundEmbedding : '',
         }
       })
   } catch {
