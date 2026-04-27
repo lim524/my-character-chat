@@ -5,6 +5,7 @@ import type { ModuleBundle } from '@/lib/appSettings'
 import { DEFAULT_MODULES_CONFIG } from '@/lib/appSettings'
 import { 
   parseExternalModuleBundle, 
+  parseRisuModuleFile,
   parseZipToBundles
 } from '@/lib/externalImportUtils'
 
@@ -90,7 +91,20 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState, isChat
               const file = files[i]
               const fileName = file.name.toLowerCase()
 
-              if (fileName.endsWith('.json') || fileName.endsWith('.charx') || fileName.endsWith('.risum')) {
+              if (fileName.endsWith('.risum')) {
+                try {
+                  const m = await parseRisuModuleFile(file)
+                  if (m) {
+                    newBundles.push(m)
+                    continue
+                  }
+                  console.warn(`Failed to parse ${file.name} as native risum, trying as ZIP.`)
+                } catch (err) {
+                  console.warn(`Failed to parse ${file.name} as native risum, trying as ZIP. Error:`, err)
+                }
+              }
+
+              if (fileName.endsWith('.json') || fileName.endsWith('.charx')) {
                 let parsedAsJson = false
                 try {
                   const rawText = await file.text()

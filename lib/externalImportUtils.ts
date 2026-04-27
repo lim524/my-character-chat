@@ -3,6 +3,73 @@ import type { PromptBundle, ModuleBundle } from './appSettings'
 import type { LoreEntry } from './interfaceConfig'
 import JSZip from 'jszip'
 
+const RISU_RPACK_MAP_BASE64 =
+  'xA0eC70rP1X8RW71ZlNPGuC7MJSGumu/QVBvm+/etxBhFyDfMomonW2ryZAADF2v0sFW5RZkkYJldJfKI9ZS0f+0oOgvilg4WmAZlknb18g7PkNLpWNHqmopkvQVz2I0eNMdPOIFjipXDhvNTC3yQCwleUgPsnq1p2w35px7VH7+h9yaAuQzouuxLgPdmaaw59WIGIN89r7hXJ/DIUYfCE7QdhJf7v2PROqjXosoCTWeacwKx4UHrUrzd+ln1NqEgJO2TXP6JyZ/BMb78XI5UcI2qWis+O3FucvOdaQ9gdlCcByVEbzYjJj5WaET9xR9s+xxwOON8AGuWzEGJCI6uCz3hIvJZfu2n66zAy0BaXQf5KPs7lw0IZNKD2riYgKeIpz9PPxxx8atWWcFcG2KRBL6JIZfr9F6R87+UGPdUQZvGOBSqAmdVnNMuFNsw6AOGc8+DX4HMmhG6kj5mS6rpEkgXlU1OAy807FYFnkoChrh8s3EOduiumBydn2V73/IwN43lL+1FIGSJUWs5/Vmpys2WsET40s66I2DG3wnsJpC64eq3FSOeCbSVynUt/gvj4l18EF3wh7/2BUR5QSXF/Mx0JsA18q0Tyo72bJr2l2hPzBhvZE9Tubfvk2CjB0jEJhk9IUze5BDu6mI8dalHPbMbrlbC5bt1enFywimgEA='
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64)
+  const out = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
+  return out
+}
+
+const RISU_RPACK_DECODE_MAP = base64ToBytes(RISU_RPACK_MAP_BASE64).slice(256, 512)
+
+function decodeRPack(data: Uint8Array): Uint8Array {
+  const out = new Uint8Array(data.length)
+  for (let i = 0; i < data.length; i++) out[i] = RISU_RPACK_DECODE_MAP[data[i]]
+  return out
+}
+
+function parseRisuModuleLorebook(raw: unknown): LoreEntry[] {
+  if (!Array.isArray(raw)) return []
+  const out: LoreEntry[] = []
+  for (const item of raw) {
+    if (!isRecord(item)) continue
+    if (item.mode === 'folder') continue
+    const prompt = typeof item.content === 'string' ? item.content.trim() : ''
+    if (!prompt) continue
+    const keys = typeof item.key === 'string' ? item.key : ''
+    const secondaryKeys = typeof item.secondkey === 'string' ? item.secondkey : ''
+    const selective = item.selective === true && secondaryKeys.trim().length > 0
+    out.push({
+      id: uuidv4(),
+      name:
+        (typeof item.comment === 'string' && item.comment.trim()) ||
+        (typeof item.name === 'string' && item.name.trim()) ||
+        '항목',
+      keys,
+      order: typeof item.insertorder === 'number' ? item.insertorder : out.length,
+      prompt,
+      alwaysActive: item.alwaysActive === true,
+      multipleKeys: keyTokensFromUnknown(keys).length > 1 || keyTokensFromUnknown(secondaryKeys).length > 1,
+      useRegex: false,
+      ...(selective ? { selective: true as const, secondaryKeys } : {}),
+    })
+  }
+  return out
+}
+
+function parseRisuModuleRegex(raw: unknown): { id: string; pattern: string; replace: string; flags: string }[] {
+  if (!Array.isArray(raw)) return []
+  const out: { id: string; pattern: string; replace: string; flags: string }[] = []
+  for (const item of raw) {
+    if (!isRecord(item)) continue
+    const pattern = typeof item.in === 'string' ? item.in : ''
+    if (!pattern) continue
+    out.push({
+      id: uuidv4(),
+      pattern,
+      replace: typeof item.out === 'string' ? item.out : '',
+      flags:
+        item.ableFlag === true && typeof item.flag === 'string' && item.flag.trim()
+          ? item.flag.trim()
+          : 'g',
+    })
+  }
+  return out
+}
+
 export function isRecord(x: unknown): x is Record<string, unknown> {
   return x !== null && typeof x === 'object' && !Array.isArray(x)
 }
@@ -220,6 +287,24 @@ export function parseExternalModuleBundle(json: unknown, fileName?: string): Mod
   if (!isRecord(json)) return null
 
   const j = json as Record<string, unknown>
+
+  // Risu native module JSON wrapper: { type: 'risuModule', module: {...} }
+  if (j.type === 'risuModule' && isRecord(j.module)) {
+    const m = j.module as Record<string, unknown>
+    const loreEntries = parseRisuModuleLorebook(m.lorebook)
+    const regexRules = parseRisuModuleRegex(m.regex)
+    if (loreEntries.length > 0 || regexRules.length > 0) {
+      return {
+        id: uuidv4(),
+        name: String(m.name || fileName?.replace(/\.[^/.]+$/, '') || 'Imported Risu Module'),
+        description: String(m.description || 'Risu module에서 가져온 모듈입니다.'),
+        enabled: true,
+        lorebook: { enabled: loreEntries.length > 0, entries: loreEntries },
+        regex: { enabled: regexRules.length > 0, rules: regexRules },
+        assets: { enabled: false, items: [] },
+      }
+    }
+  }
   
   // 1. 로어북 추출
   const entriesRaw = j.entries || (isRecord(j.character_book) && j.character_book.entries)
@@ -273,6 +358,44 @@ export function parseExternalModuleBundle(json: unknown, fileName?: string): Mod
   }
 
   return null
+}
+
+/**
+ * Native Risu `.risum` binary -> ModuleBundle 변환.
+ * 포맷: [magic=111][ver=0][mainLen u32LE][rpack(main json)]...
+ */
+export async function parseRisuModuleFile(file: File): Promise<ModuleBundle | null> {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  if (bytes.length < 6) return null
+
+  let pos = 0
+  const readByte = () => (pos < bytes.length ? bytes[pos++] : -1)
+  const readU32LE = () => {
+    if (pos + 4 > bytes.length) return -1
+    const n =
+      bytes[pos] |
+      (bytes[pos + 1] << 8) |
+      (bytes[pos + 2] << 16) |
+      (bytes[pos + 3] << 24)
+    pos += 4
+    return n >>> 0
+  }
+
+  if (readByte() !== 111) return null
+  if (readByte() !== 0) return null
+
+  const mainLen = readU32LE()
+  if (mainLen <= 0 || pos + mainLen > bytes.length) return null
+
+  const mainEncoded = bytes.slice(pos, pos + mainLen)
+  const mainJson = new TextDecoder('utf-8').decode(decodeRPack(mainEncoded))
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(mainJson)
+  } catch {
+    return null
+  }
+  return parseExternalModuleBundle(parsed, file.name)
 }
 
 /**
