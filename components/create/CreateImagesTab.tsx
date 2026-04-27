@@ -34,10 +34,6 @@ export function CreateImagesTab({
 }) {
   const [listFilter, setListFilter] = useState<AssetType | 'all'>('all')
 
-  const backgroundAssets = iface.assets.filter((a) => a.type === 'background')
-  const characterAssets = iface.assets.filter((a) => a.type === 'character')
-  const otherAssets = iface.assets.filter((a) => a.type === 'ui')
-
   const filteredAssets = iface.assets.filter((a) => listFilter === 'all' || a.type === listFilter)
 
   const selectImageCategory = (t: AssetType) => {
