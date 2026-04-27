@@ -26,6 +26,7 @@ export function normalizeImageControlTags(content: string, regexScripts?: RegexS
     .replace(HTML_IMG_TAG_REGEX, (_full, src: string) => `<img=${String(src).trim()}>`)
     .replace(IMG_SRC_DASH_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
     .replace(IMG_SRC_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(/<img\s*=\s*([^>]+?)\/>/gi, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
 }
 
 export function parseImageTags(content: string): ParsedImageTag[] {

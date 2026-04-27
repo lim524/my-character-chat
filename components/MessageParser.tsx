@@ -20,6 +20,47 @@ export default function MessageParser({
   regexScripts,
   showControlTags = false,
 }: MessageParserProps) {
+  const renderStyledText = (text: string, keyPrefix: string): React.ReactNode[] => {
+    const out: React.ReactNode[] = []
+    const tokenRegex = /(\*\*[\s\S]+?\*\*|\*[\s\S]+?\*)/g
+    let last = 0
+    let m: RegExpExecArray | null
+    while ((m = tokenRegex.exec(text)) !== null) {
+      if (m.index > last) {
+        out.push(
+          <span key={`${keyPrefix}-plain-${last}`} className="text-inherit">
+            {text.slice(last, m.index)}
+          </span>
+        )
+      }
+      const token = m[0]
+      if (token.startsWith('**') && token.endsWith('**') && token.length >= 4) {
+        out.push(
+          <strong key={`${keyPrefix}-bold-${m.index}`} className="font-bold text-blue-400">
+            {token.slice(2, -2)}
+          </strong>
+        )
+      } else if (token.startsWith('*') && token.endsWith('*') && token.length >= 2) {
+        out.push(
+          <em key={`${keyPrefix}-narr-${m.index}`} className="opacity-65 not-italic">
+            {token.slice(1, -1)}
+          </em>
+        )
+      } else {
+        out.push(<span key={`${keyPrefix}-raw-${m.index}`}>{token}</span>)
+      }
+      last = tokenRegex.lastIndex
+    }
+    if (last < text.length) {
+      out.push(
+        <span key={`${keyPrefix}-plain-tail`} className="text-inherit">
+          {text.slice(last)}
+        </span>
+      )
+    }
+    return out
+  }
+
   // Regex to match trailing JSON payload `{ "key": 100 }`
   const jsonRegex = /({[\s\S]*?})$/
 
@@ -47,7 +88,8 @@ export default function MessageParser({
 
   while ((match = rawTagRegex.exec(displayContent)) !== null) {
     if (match.index > lastIndex) {
-      segments.push(<span key={`text-${lastIndex}`}>{displayContent.slice(lastIndex, match.index)}</span>)
+      const plain = displayContent.slice(lastIndex, match.index)
+      segments.push(...renderStyledText(plain, `text-${lastIndex}`))
     }
 
     const tagContent = tags.shift()?.rawRef ?? match[1]
@@ -96,7 +138,7 @@ export default function MessageParser({
   }
 
   if (lastIndex < displayContent.length) {
-    segments.push(<span key={`text-${lastIndex}`}>{displayContent.slice(lastIndex)}</span>)
+    segments.push(...renderStyledText(displayContent.slice(lastIndex), `text-${lastIndex}`))
   }
 
   return <>{segments.length > 0 ? segments : displayContent}</>

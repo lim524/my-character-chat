@@ -767,7 +767,11 @@ export default function ChatPage() {
       content: trimmedInput,
       created_at: new Date().toISOString(),
     }
-    setMessages((prev) => [...prev, userMessage])
+    setMessages((prev) => {
+      const next = [...prev, userMessage]
+      setViewMessageIndex(next.length - 1)
+      return next
+    })
     setInput('')
 
     try {
