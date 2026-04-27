@@ -529,7 +529,14 @@ export default function ChatPage() {
     )
 
     setDisplayedImage(backgroundUrl)
-    setActiveCharacterSprites(characterUrls)
+    setActiveCharacterSprites((prev) => {
+      // Guard against transient parse/match misses:
+      // keep previous sprites unless we are explicitly in overlay-only mode.
+      if (characterUrls.length === 0 && !overlayOnlyMode && prev.length > 0) {
+        return prev
+      }
+      return characterUrls
+    })
     setActiveOverlays(overlayIds)
     setOverlayOnlyMode(overlayOnlyMode)
     setParsedStats(stats)

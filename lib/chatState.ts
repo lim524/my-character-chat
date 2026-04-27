@@ -137,7 +137,7 @@ export function deriveChatState(
         }
       } else if (isDev && (typeHint === 'character' || assetRef.trim())) {
         // Debug hint: tag existed but could not map to a usable character image.
-        console.debug('[chat-state] unresolved image tag', {
+        console.warn('[chat-state] unresolved image tag', {
           messageIndex: i,
           rawRef: tag.rawRef,
           parsedRef: assetRef,
@@ -153,7 +153,7 @@ export function deriveChatState(
       characterUrls = Array.from(new Set(foundCharsInThisMsg))
     } else if (isDev && hasCharacterIntentTagInThisMsg) {
       // Sticky guard: keep previous character state when this turn's character tag was invalid.
-      console.debug('[chat-state] character tag found but no valid sprite resolved; keeping previous state', {
+      console.warn('[chat-state] character tag found but no valid sprite resolved; keeping previous state', {
         messageIndex: i,
         previousCharacterCount: characterUrls.length,
       })
