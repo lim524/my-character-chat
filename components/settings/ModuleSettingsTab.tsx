@@ -11,9 +11,10 @@ import {
 interface Props {
   moduleBundles: ModuleBundle[]
   setModuleBundlesState: React.Dispatch<React.SetStateAction<ModuleBundle[]>>
+  isChatMode?: boolean
 }
 
-export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Props) {
+export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState, isChatMode }: Props) {
   const moduleImportRef = useRef<HTMLInputElement | null>(null)
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
   const [moduleDraft, setModuleDraft] = useState<ModuleBundle | null>(null)
@@ -39,8 +40,9 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
         </p>
       </div>
 
-      <div className="flex items-center justify-center gap-2">
-        <button
+      {!isChatMode && (
+        <div className="flex items-center justify-center gap-2">
+          <button
           onClick={() => {
             const id = uuidv4()
             setEditingModuleId(id)
@@ -123,6 +125,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
           }}
         />
       </div>
+      )}
 
       {editingModuleId && moduleDraft ? (
         <div className="bg-[#202020] border border-[#333] rounded-lg p-4 space-y-4 text-left">
@@ -153,7 +156,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
                     ? 'border-[#e45463] text-[#e45463]'
                     : 'border-transparent text-gray-400 hover:text-white hover:border-[#555]'
                 }`}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'basic' | 'lorebook' | 'regex' | 'assets')}
               >
                 {tab.label}
               </button>
@@ -352,7 +355,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
               <div key={b.id} className="bg-[#202020] border border-[#333] rounded-xl p-4 hover:border-[#444] transition-colors group">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-bold truncate text-white group-hover:text-[#e45463] transition-colors">
+                    <div className="font-bold text-white transition-colors">
                       {b.name || '이름 없음'}
                     </div>
                     <div className="text-xs text-gray-500 line-clamp-2 mt-0.5">{b.description || '설명 없음'}</div>
@@ -365,40 +368,87 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
                         )
                       }
                       className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                      title={b.enabled ? '비활성화' : '활성화'}
+                      title={b.enabled ? '전체 비활성화' : '전체 활성화'}
                     >
                       {b.enabled ? <ToggleRight className="w-6 h-6 text-[#e45463]" /> : <ToggleLeft className="w-6 h-6" />}
                     </button>
-                    <button
-                      onClick={() => {
-                        setEditingModuleId(b.id)
-                        setActiveTab('basic')
-                        setModuleDraft(b)
-                      }}
-                      className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                      title="편집"
-                    >
-                      <Pencil size={18} />
-                    </button>
-                    <button
-                      onClick={() => downloadJson(`module-bundle-${b.id}.json`, b)}
-                      className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                      title="단일 Export"
-                    >
-                      <Download size={18} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!confirm('이 번들을 삭제할까요?')) return
-                        setModuleBundlesState((prev) => prev.filter((x) => x.id !== b.id))
-                      }}
-                      className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                      title="삭제"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    {!isChatMode && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingModuleId(b.id)
+                            setActiveTab('basic')
+                            setModuleDraft(b)
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                          title="편집"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
+                          onClick={() => downloadJson(`module-bundle-${b.id}.json`, b)}
+                          className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                          title="단일 Export"
+                        >
+                          <Download size={18} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!confirm('이 번들을 삭제할까요?')) return
+                            setModuleBundlesState((prev) => prev.filter((x) => x.id !== b.id))
+                          }}
+                          className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                          title="삭제"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
+
+                {/* 채팅방 모드일 때는 해당 모듈 내부의 세계관/정규식/에셋 토글을 상세히 보여줌 */}
+                {isChatMode && b.enabled && (
+                  <div className="mt-4 pt-3 border-t border-[#333] flex flex-col gap-2">
+                    <div className="text-xs font-semibold text-gray-400 mb-1">모듈 세부 활성화 (Toggle Features)</div>
+                    
+                    {b.lorebook.entries && b.lorebook.entries.length > 0 && (
+                      <label className="flex items-center justify-between text-sm text-gray-300 hover:text-white cursor-pointer bg-[#2a2a2a] px-3 py-2.5 rounded border border-[#444] transition-colors hover:border-[#666]">
+                        <span className="flex items-center gap-2">🌍 <span>세계관 (로어북) 적용</span></span>
+                        <input
+                          type="checkbox"
+                          checked={b.lorebook.enabled}
+                          onChange={() => setModuleBundlesState(prev => prev.map(x => x.id === b.id ? { ...x, lorebook: { ...x.lorebook, enabled: !x.lorebook.enabled } } : x))}
+                          className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#e45463]"
+                        />
+                      </label>
+                    )}
+
+                    {b.regex.rules && b.regex.rules.length > 0 && (
+                      <label className="flex items-center justify-between text-sm text-gray-300 hover:text-white cursor-pointer bg-[#2a2a2a] px-3 py-2.5 rounded border border-[#444] transition-colors hover:border-[#666]">
+                        <span className="flex items-center gap-2">⚡ <span>정규식 스크립트 적용</span></span>
+                        <input
+                          type="checkbox"
+                          checked={b.regex.enabled}
+                          onChange={() => setModuleBundlesState(prev => prev.map(x => x.id === b.id ? { ...x, regex: { ...x.regex, enabled: !x.regex.enabled } } : x))}
+                          className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#e45463]"
+                        />
+                      </label>
+                    )}
+
+                    {b.assets.items && b.assets.items.length > 0 && (
+                      <label className="flex items-center justify-between text-sm text-gray-300 hover:text-white cursor-pointer bg-[#2a2a2a] px-3 py-2.5 rounded border border-[#444] transition-colors hover:border-[#666]">
+                        <span className="flex items-center gap-2">🎨 <span>추가 에셋 적용</span></span>
+                        <input
+                          type="checkbox"
+                          checked={b.assets.enabled}
+                          onChange={() => setModuleBundlesState(prev => prev.map(x => x.id === b.id ? { ...x, assets: { ...x.assets, enabled: !x.assets.enabled } } : x))}
+                          className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#e45463]"
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}

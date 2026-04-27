@@ -95,6 +95,7 @@ export function ChatSettingsModal({ open, onClose }: Props) {
               <ModuleSettingsTab 
                 moduleBundles={moduleBundles}
                 setModuleBundlesState={setModuleBundlesState}
+                isChatMode={true}
               />
             )}
           </div>
