@@ -104,7 +104,7 @@ export function CreateLorebookTab({
           <input
             ref={lorebookGlobalImportRef}
             type="file"
-            accept=".json,.txt,.risuai,.risum,application/json"
+            accept="*/*,.json,.txt,.risuai,.risum,application/json"
             multiple
             className="hidden"
             onChange={(ev) => {
@@ -115,7 +115,7 @@ export function CreateLorebookTab({
           <input
             ref={lorebookFolderImportRef}
             type="file"
-            accept=".json,.txt,.risuai,.risum,application/json"
+            accept="*/*,.json,.txt,.risuai,.risum,application/json"
             {...({ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
             multiple
             className="hidden"
@@ -127,7 +127,7 @@ export function CreateLorebookTab({
           <input
             ref={lorebookSingleImportRef}
             type="file"
-            accept=".json,.txt,.risuai,.risum,application/json"
+            accept="*/*,.json,.txt,.risuai,.risum,application/json"
             className="hidden"
             onChange={onSingleImportFile}
           />

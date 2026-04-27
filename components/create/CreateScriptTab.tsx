@@ -84,7 +84,7 @@ export function CreateScriptTab({
             <input
               ref={scriptFileImportRef}
               type="file"
-              accept=".json,.txt,.risuai,.risum,application/json"
+              accept="*/*,.json,.txt,.risuai,.risum,application/json"
               multiple
               className="hidden"
               onChange={(ev) => {
@@ -95,7 +95,7 @@ export function CreateScriptTab({
             <input
               ref={scriptFolderImportRef}
               type="file"
-              accept=".json,.txt,.risuai,.risum,application/json"
+              accept="*/*,.json,.txt,.risuai,.risum,application/json"
               {...({ webkitdirectory: '', directory: '' } as React.InputHTMLAttributes<HTMLInputElement>)}
               multiple
               className="hidden"

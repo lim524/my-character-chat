@@ -75,7 +75,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
         <input
           ref={promptImportRef}
           type="file"
-          accept=".json,.txt,.zip,.charx,.risum"
+          accept="*/*,.json,.txt,.zip,.charx,.risum"
           className="hidden"
           multiple
           onChange={async (e) => {

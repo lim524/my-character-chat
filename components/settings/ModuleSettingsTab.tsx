@@ -75,7 +75,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
         <input
           ref={moduleImportRef}
           type="file"
-          accept=".json,.zip,.charx,.risum"
+          accept="*/*,.json,.zip,.charx,.risum"
           className="hidden"
           multiple
           onChange={async (e) => {
