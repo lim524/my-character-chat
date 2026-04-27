@@ -68,7 +68,6 @@ export function deriveChatState(
   assets: AssetRef[],
   characterInfo: LocalCharacter | null
 ): DerivedChatState {
-  const isDev = process.env.NODE_ENV !== 'production'
   let backgroundUrl: string | null = null
   let characterUrls: string[] = []
   let overlayIds: string[] = []
@@ -135,14 +134,6 @@ export function deriveChatState(
           hasCharacterIntentTagInThisMsg = true
           foundCharsInThisMsg.push(assetRef)
         }
-      } else if (isDev && (typeHint === 'character' || assetRef.trim())) {
-        // Debug hint: tag existed but could not map to a usable character image.
-        console.warn('[chat-state] unresolved image tag', {
-          messageIndex: i,
-          rawRef: tag.rawRef,
-          parsedRef: assetRef,
-          typeHint,
-        })
       }
     }
 
@@ -151,12 +142,6 @@ export function deriveChatState(
     if (foundCharsInThisMsg.length > 0) {
       // Keep all character tags declared in this message in stable order.
       characterUrls = Array.from(new Set(foundCharsInThisMsg))
-    } else if (isDev && hasCharacterIntentTagInThisMsg) {
-      // Sticky guard: keep previous character state when this turn's character tag was invalid.
-      console.warn('[chat-state] character tag found but no valid sprite resolved; keeping previous state', {
-        messageIndex: i,
-        previousCharacterCount: characterUrls.length,
-      })
     }
 
     // 오버레이 목록은 마지막 선언 유지.

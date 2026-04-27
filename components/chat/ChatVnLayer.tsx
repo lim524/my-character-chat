@@ -90,26 +90,29 @@ export function ChatVnLayer({
                 >
                   <div
                     className={
-                      spriteHeightVh == null
-                        ? 'relative w-full max-w-[min(36rem,calc(100vw-2rem))] h-[min(42vh,52dvh)] sm:h-[min(52vh,min(380px,48dvh))] max-h-[min(400px,70dvh)] min-h-[120px]'
-                        : 'relative w-full max-w-[min(36rem,calc(100vw-2rem))] min-h-[120px]'
+                      nSprites > 1
+                        ? 'relative w-[min(44vw,22rem)] h-[min(56vh,520px)] min-h-[180px]'
+                        : spriteHeightVh == null
+                          ? 'relative w-full max-w-[min(36rem,calc(100vw-2rem))] h-[min(42vh,52dvh)] sm:h-[min(52vh,min(380px,48dvh))] max-h-[min(400px,70dvh)] min-h-[120px]'
+                          : 'relative w-full max-w-[min(36rem,calc(100vw-2rem))] min-h-[120px]'
                     }
                     style={
-                      spriteHeightVh != null
-                        ? {
-                            height: `${spriteHeightVh}vh`,
-                            maxHeight: 'min(80vh, 520px, calc(100dvh - 11rem))',
-                          }
-                        : undefined
+                      nSprites > 1
+                        ? undefined
+                        : spriteHeightVh != null
+                          ? {
+                              height: `${spriteHeightVh}vh`,
+                              maxHeight: 'min(80vh, 520px, calc(100dvh - 11rem))',
+                            }
+                          : undefined
                     }
                   >
-                    <Image
+                    <img
                       src={spriteUrl}
                       alt={nSprites > 1 ? `캐릭터 ${i + 1}` : '캐릭터 스탠딩'}
-                      fill
-                      sizes="(max-width: 640px) 96vw, (max-width: 1024px) 50vw, min(36rem, 96vw)"
-                      className="object-contain object-bottom drop-shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
-                      unoptimized={isDataUrl(spriteUrl)}
+                      className="absolute inset-0 w-full h-full object-contain object-bottom drop-shadow-[0_16px_40px_rgba(0,0,0,0.45)]"
+                      loading="eager"
+                      decoding="async"
                     />
                   </div>
                 </div>

@@ -162,6 +162,29 @@ function normalizeAssistantImageTags(raw: string): string {
     .replace(/<img\s*=\s*([^>]+?)\s*\/?>/gi, (_m, ref: string) => `<img=${String(ref).trim()}>`)
 }
 
+function recoverLastCharacterSprites(args: {
+  messages: ChatMessage[]
+  viewMessageIndex: number
+  assets: AssetRef[]
+}): string[] {
+  const { messages, viewMessageIndex, assets } = args
+  if (!messages.length || !assets.length) return []
+  const limit = Math.min(viewMessageIndex, messages.length - 1)
+  for (let i = limit; i >= 0; i--) {
+    const normalized = normalizeImageControlTags(messages[i].content)
+    const found: string[] = []
+    for (const tag of parseImageTags(normalized)) {
+      const { ref, typeHint } = splitRefAndType(tag.rawRef)
+      const asset = resolveAssetByRef(assets, ref)
+      if (asset?.url && (asset.type === 'character' || typeHint === 'character')) {
+        found.push(asset.url)
+      }
+    }
+    if (found.length > 0) return Array.from(new Set(found))
+  }
+  return []
+}
+
 function pickAssetsForApi(args: {
   assets: AssetRef[]
   recentMessages: ChatMessage[]
@@ -535,6 +558,16 @@ export default function ChatPage() {
       if (characterUrls.length === 0 && !overlayOnlyMode && prev.length > 0) {
         return prev
       }
+      // Additional recovery path: if derive result is empty, try backward scan
+      // to recover the latest valid character-tag sprites.
+      if (characterUrls.length === 0 && !overlayOnlyMode) {
+        const recovered = recoverLastCharacterSprites({
+          messages,
+          viewMessageIndex,
+          assets,
+        })
+        if (recovered.length > 0) return recovered
+      }
       return characterUrls
     })
     setActiveOverlays(overlayIds)
@@ -842,7 +875,8 @@ export default function ChatPage() {
 
   const nSprites = activeCharacterSprites.length
   const multi = characterLayout.multi
-  const sideBySide = !!(multi?.sideBySide && nSprites > 1)
+  // Multi-character tags should render side-by-side by default for stability.
+  const sideBySide = !!((multi?.sideBySide ?? true) && nSprites > 1)
   const gapPx =
     typeof multi?.gapPx === 'number' && Number.isFinite(multi.gapPx) ? Math.max(0, multi.gapPx) : 12
   const spriteScale =

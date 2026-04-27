@@ -12,9 +12,18 @@ const ESCAPED_IMG_SRC_TAG_REGEX = /&lt;\s*img-src\s*=\s*([^&]+?)\s*&gt;/gi
 const ESCAPED_IMG_SRC_DASH_TAG_REGEX = /&lt;\s*img-src-([^&]+?)\s*&gt;/gi
 
 function normalizeTagRef(v: string): string {
-  const unquoted = v.trim().replace(/^['"]+|['"]+$/g, '')
+  let out = v.trim()
+  // Remove invisible characters that often appear in model output.
+  out = out.replace(/[\u200B-\u200D\uFEFF]/g, '')
+  // Strip common wrappers/backticks/quotes/brackets from both ends.
+  out = out
+    .replace(/^[\s"'`[{(<]+/, '')
+    .replace(/[\s"'`\]})>,.;!?]+$/, '')
   // Self-closing tags can leave trailing slash inside capture.
-  return unquoted.replace(/\/+$/g, '').trim()
+  out = out.replace(/\/+$/g, '').trim()
+  // Some model outputs contain accidental inner whitespace around IDs/URLs.
+  out = out.replace(/\s+/g, '')
+  return out
 }
 
 export function normalizeImageControlTags(content: string, regexScripts?: RegexScriptEntry[]): string {
@@ -24,8 +33,8 @@ export function normalizeImageControlTags(content: string, regexScripts?: RegexS
     .replace(ESCAPED_IMG_SRC_TAG_REGEX, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
     .replace(ESCAPED_IMG_TAG_REGEX, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
     .replace(HTML_IMG_TAG_REGEX, (_full, src: string) => `<img=${String(src).trim()}>`)
-    .replace(IMG_SRC_DASH_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
-    .replace(IMG_SRC_TAG_REGEX, (_full, ref: string) => `<img=${String(ref).trim()}>`)
+    .replace(IMG_SRC_DASH_TAG_REGEX, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
+    .replace(IMG_SRC_TAG_REGEX, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
     .replace(/<img\s*=\s*([^>]+?)\/>/gi, (_full, ref: string) => `<img=${normalizeTagRef(String(ref))}>`)
 }
 
