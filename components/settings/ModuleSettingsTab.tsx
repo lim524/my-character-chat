@@ -17,6 +17,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
   const moduleImportRef = useRef<HTMLInputElement | null>(null)
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null)
   const [moduleDraft, setModuleDraft] = useState<ModuleBundle | null>(null)
+  const [activeTab, setActiveTab] = useState<'basic' | 'lorebook' | 'regex' | 'assets'>('basic')
 
   const downloadJson = (filename: string, data: unknown) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -43,6 +44,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
           onClick={() => {
             const id = uuidv4()
             setEditingModuleId(id)
+            setActiveTab('basic')
             setModuleDraft({
               id,
               name: '',
@@ -89,7 +91,8 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
               if (fileName.endsWith('.json') || fileName.endsWith('.charx') || fileName.endsWith('.risum')) {
                 let parsedAsJson = false
                 try {
-                  const text = await file.text()
+                  const rawText = await file.text()
+                  const text = rawText.replace(/^\uFEFF/, '') // BOM 제거
                   const json = JSON.parse(text)
                   parsedAsJson = true
                   const arr = Array.isArray(json) ? json : [json]
@@ -97,8 +100,8 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
                     const m = parseExternalModuleBundle(x, file.name)
                     if (m) newBundles.push(m)
                   })
-                } catch {
-                  // Not valid JSON, maybe it's a zip archive
+                } catch (err) {
+                  console.warn(`Failed to parse ${file.name} as JSON, trying as ZIP. Error:`, err)
                 }
                 
                 if (parsedAsJson) continue
@@ -136,83 +139,188 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm text-gray-300 mb-1">이름</label>
-              <input
-                value={moduleDraft.name}
-                onChange={(e) => setModuleDraft({ ...moduleDraft, name: e.target.value })}
-                className="w-full px-4 py-2 bg-[#2a2a2a] border border-[#444] rounded-lg text-white"
-              />
-            </div>
-            <div className="flex items-end justify-between gap-2">
-              <label className="flex items-center gap-2 text-sm text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={moduleDraft.enabled}
-                  onChange={() => setModuleDraft({ ...moduleDraft, enabled: !moduleDraft.enabled })}
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#e45463]"
-                />
-                활성화
-              </label>
+          <div className="flex border-b border-[#333] mb-4 overflow-x-auto no-scrollbar">
+            {[
+              { id: 'basic', label: '기본 정보' },
+              { id: 'lorebook', label: '로어북' },
+              { id: 'regex', label: '정규식 스크립트' },
+              { id: 'assets', label: '추가 에셋' },
+            ].map(tab => (
               <button
-                onClick={() => downloadJson(`module-bundle-${moduleDraft.id}.json`, moduleDraft)}
-                className="text-sm px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
+                key={tab.id}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'border-[#e45463] text-[#e45463]'
+                    : 'border-transparent text-gray-400 hover:text-white hover:border-[#555]'
+                }`}
+                onClick={() => setActiveTab(tab.id as any)}
               >
-                <Download className="w-4 h-4" />
+                {tab.label}
               </button>
-            </div>
+            ))}
           </div>
 
-          <div>
-            <label className="block text-sm text-gray-300 mb-1">설명</label>
-            <textarea
-              value={moduleDraft.description}
-              onChange={(e) => setModuleDraft({ ...moduleDraft, description: e.target.value })}
-              rows={2}
-              className="w-full px-4 py-2 bg-[#2a2a2a] border border-[#444] rounded-lg text-white resize-none"
-            />
-          </div>
+          <div className="min-h-[200px]">
+            {activeTab === 'basic' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm text-gray-300 mb-1">모듈 이름</label>
+                    <input
+                      value={moduleDraft.name}
+                      onChange={(e) => setModuleDraft({ ...moduleDraft, name: e.target.value })}
+                      placeholder="모듈의 이름을 입력하세요"
+                      className="w-full px-4 py-2 bg-[#2a2a2a] border border-[#444] rounded-lg text-white placeholder-gray-500"
+                    />
+                  </div>
+                  <div className="flex items-end justify-between gap-2">
+                    <label className="flex items-center gap-2 text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={moduleDraft.enabled}
+                        onChange={() => setModuleDraft({ ...moduleDraft, enabled: !moduleDraft.enabled })}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#e45463]"
+                      />
+                      채팅방 활성화 기본값
+                    </label>
+                    <button
+                      onClick={() => downloadJson(`module-bundle-${moduleDraft.id}.json`, moduleDraft)}
+                      className="text-sm px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
+                      title="단일 모듈 Export"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
 
-          <div className="space-y-4">
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="font-semibold text-sm">Lorebook</div>
-                <label className="flex items-center gap-2 text-xs text-gray-300">
-                  <input
-                    type="checkbox"
-                    checked={moduleDraft.lorebook.enabled}
-                    onChange={() =>
-                      setModuleDraft({
-                        ...moduleDraft,
-                        lorebook: { ...moduleDraft.lorebook, enabled: !moduleDraft.lorebook.enabled },
-                      })
-                    }
-                    className="w-4 h-4"
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">설명</label>
+                  <textarea
+                    value={moduleDraft.description}
+                    onChange={(e) => setModuleDraft({ ...moduleDraft, description: e.target.value })}
+                    placeholder="이 모듈이 어떤 역할을 하는지 설명해 주세요"
+                    rows={3}
+                    className="w-full px-4 py-2 bg-[#2a2a2a] border border-[#444] rounded-lg text-white resize-none placeholder-gray-500"
                   />
-                  enabled
-                </label>
+                </div>
               </div>
-              <textarea
-                value={JSON.stringify(moduleDraft.lorebook.entries ?? [], null, 2)}
-                onChange={(e) => {
-                  try {
-                    const entries = JSON.parse(e.target.value)
-                    if (Array.isArray(entries)) {
-                      setModuleDraft({
-                        ...moduleDraft,
-                        lorebook: { ...moduleDraft.lorebook, entries },
-                      })
+            )}
+
+            {activeTab === 'lorebook' && (
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 space-y-2 h-full">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-sm text-gray-200">로어북 데이터 (JSON)</div>
+                  <label className="flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={moduleDraft.lorebook.enabled}
+                      onChange={() =>
+                        setModuleDraft({
+                          ...moduleDraft,
+                          lorebook: { ...moduleDraft.lorebook, enabled: !moduleDraft.lorebook.enabled },
+                        })
+                      }
+                      className="w-4 h-4"
+                    />
+                    모듈 로어북 사용
+                  </label>
+                </div>
+                <textarea
+                  value={JSON.stringify(moduleDraft.lorebook.entries ?? [], null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const entries = JSON.parse(e.target.value)
+                      if (Array.isArray(entries)) {
+                        setModuleDraft({
+                          ...moduleDraft,
+                          lorebook: { ...moduleDraft.lorebook, entries },
+                        })
+                      }
+                    } catch {
+                      // ignore
                     }
-                  } catch {
-                    // ignore
-                  }
-                }}
-                rows={6}
-                className="w-full px-3 py-2 bg-[#222] border border-[#444] rounded text-white text-xs font-mono resize-none"
-              />
-            </div>
-            {/* Regex and Assets can be added similarly if needed, but keeping it concise for now as requested */}
+                  }}
+                  rows={14}
+                  className="w-full px-3 py-2 bg-[#222] border border-[#444] rounded text-white text-xs font-mono resize-y min-h-[200px]"
+                />
+              </div>
+            )}
+
+            {activeTab === 'regex' && (
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 space-y-2 h-full">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-sm text-gray-200">정규식 스크립트 데이터 (JSON)</div>
+                  <label className="flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={moduleDraft.regex.enabled}
+                      onChange={() =>
+                        setModuleDraft({
+                          ...moduleDraft,
+                          regex: { ...moduleDraft.regex, enabled: !moduleDraft.regex.enabled },
+                        })
+                      }
+                      className="w-4 h-4"
+                    />
+                    모듈 정규식 사용
+                  </label>
+                </div>
+                <textarea
+                  value={JSON.stringify(moduleDraft.regex.rules ?? [], null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const rules = JSON.parse(e.target.value)
+                      if (Array.isArray(rules)) {
+                        setModuleDraft({
+                          ...moduleDraft,
+                          regex: { ...moduleDraft.regex, rules },
+                        })
+                      }
+                    } catch {}
+                  }}
+                  rows={14}
+                  className="w-full px-3 py-2 bg-[#222] border border-[#444] rounded text-white text-xs font-mono resize-y min-h-[200px]"
+                />
+              </div>
+            )}
+
+            {activeTab === 'assets' && (
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-3 space-y-2 h-full">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold text-sm text-gray-200">추가 에셋 데이터 (JSON)</div>
+                  <label className="flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={moduleDraft.assets.enabled}
+                      onChange={() =>
+                        setModuleDraft({
+                          ...moduleDraft,
+                          assets: { ...moduleDraft.assets, enabled: !moduleDraft.assets.enabled },
+                        })
+                      }
+                      className="w-4 h-4"
+                    />
+                    모듈 에셋 사용
+                  </label>
+                </div>
+                <textarea
+                  value={JSON.stringify(moduleDraft.assets.items ?? [], null, 2)}
+                  onChange={(e) => {
+                    try {
+                      const items = JSON.parse(e.target.value)
+                      if (Array.isArray(items)) {
+                        setModuleDraft({
+                          ...moduleDraft,
+                          assets: { ...moduleDraft.assets, items },
+                        })
+                      }
+                    } catch {}
+                  }}
+                  rows={14}
+                  className="w-full px-3 py-2 bg-[#222] border border-[#444] rounded text-white text-xs font-mono resize-y min-h-[200px]"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -264,6 +372,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
                     <button
                       onClick={() => {
                         setEditingModuleId(b.id)
+                        setActiveTab('basic')
                         setModuleDraft(b)
                       }}
                       className="p-1.5 text-gray-400 hover:text-white transition-colors"
