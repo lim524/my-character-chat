@@ -219,24 +219,56 @@ export function parseExternalPromptBundle(json: unknown, fileName?: string): Pro
 export function parseExternalModuleBundle(json: unknown, fileName?: string): ModuleBundle | null {
   if (!isRecord(json)) return null
 
-  // 캐릭터 북 (entries 배열이 있는 경우)
   const j = json as Record<string, unknown>
+  
+  // 1. 로어북 추출
   const entriesRaw = j.entries || (isRecord(j.character_book) && j.character_book.entries)
-  if (Array.isArray(entriesRaw)) {
-    const entries = bookEntriesToLore(entriesRaw)
-    if (entries.length > 0) {
-      return {
-        id: uuidv4(),
-        name: String(j.name || fileName?.replace(/\.[^/.]+$/, '') || 'Imported Book'),
-        description: String(j.description || '외부 포맷에서 가져온 로어북입니다.'),
-        enabled: true,
-        lorebook: {
-          enabled: true,
-          entries: entries as LoreEntry[],
-        },
-        regex: { enabled: false, rules: [] },
-        assets: { enabled: false, items: [] },
-      }
+  const entries = Array.isArray(entriesRaw) ? bookEntriesToLore(entriesRaw) : []
+
+  // 2. 정규식 추출
+  let rawRegex: any[] = []
+  if (Array.isArray(j.regex_scripts)) rawRegex = j.regex_scripts
+  else if (Array.isArray(j.scripts)) rawRegex = j.scripts
+
+  const regexRules = rawRegex.filter(isRecord).map((r) => ({
+    id: typeof r.id === 'string' ? r.id : uuidv4(),
+    pattern: typeof r.regex === 'string' ? r.regex : typeof r.pattern === 'string' ? r.pattern : '',
+    replace: typeof r.replacement === 'string' ? r.replacement : typeof r.replace === 'string' ? r.replace : '',
+    flags: typeof r.flags === 'string' ? r.flags : 'gm',
+  }))
+
+  // 3. 에셋 추출
+  let rawAssets: any[] = []
+  if (Array.isArray(j.assets)) rawAssets = j.assets
+
+  const assetItems = rawAssets.filter(isRecord).map((a) => ({
+    id: typeof a.id === 'string' ? a.id : uuidv4(),
+    type: a.type === 'audio' ? 'audio' as const : 'image' as const,
+    name: typeof a.name === 'string' ? a.name : 'asset',
+    url: typeof a.url === 'string' ? a.url : typeof a.src === 'string' ? a.src : '',
+  }))
+
+  const hasPrompt = Boolean(j.global_prompt || j.system_prompt || j.jailbreak_prompt)
+
+  // 모듈로 인정할 최소 조건: 로어북, 정규식, 에셋 중 하나라도 있거나, 커스텀 프롬프트가 존재하는 경우
+  if (entries.length > 0 || regexRules.length > 0 || assetItems.length > 0 || hasPrompt) {
+    return {
+      id: uuidv4(),
+      name: String(j.name || fileName?.replace(/\.[^/.]+$/, '') || 'Imported Module'),
+      description: String(j.description || '외부 포맷에서 가져온 모듈입니다.'),
+      enabled: true,
+      lorebook: {
+        enabled: entries.length > 0,
+        entries: entries as LoreEntry[],
+      },
+      regex: { 
+        enabled: regexRules.length > 0, 
+        rules: regexRules 
+      },
+      assets: { 
+        enabled: assetItems.length > 0, 
+        items: assetItems 
+      },
     }
   }
 

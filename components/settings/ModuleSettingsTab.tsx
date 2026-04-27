@@ -86,27 +86,30 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
               const file = files[i]
               const fileName = file.name.toLowerCase()
 
-              if (fileName.endsWith('.zip') || fileName.endsWith('.charx') || fileName.endsWith('.risum')) {
-                try {
-                  const { modules } = await parseZipToBundles(file)
-                  newBundles.push(...modules)
-                } catch (err) {
-                  console.error(`Failed to parse ${file.name} as zip/charx/risum:`, err)
-                }
-                continue
-              }
-
-              if (fileName.endsWith('.json')) {
+              if (fileName.endsWith('.json') || fileName.endsWith('.charx') || fileName.endsWith('.risum')) {
+                let parsedAsJson = false
                 try {
                   const text = await file.text()
                   const json = JSON.parse(text)
+                  parsedAsJson = true
                   const arr = Array.isArray(json) ? json : [json]
                   arr.forEach((x: unknown) => {
                     const m = parseExternalModuleBundle(x, file.name)
                     if (m) newBundles.push(m)
                   })
                 } catch (err) {
-                  console.error(`Failed to parse ${file.name}:`, err)
+                  // Not valid JSON, maybe it's a zip archive
+                }
+                
+                if (parsedAsJson) continue
+              }
+
+              if (fileName.endsWith('.zip') || fileName.endsWith('.charx') || fileName.endsWith('.risum')) {
+                try {
+                  const { modules } = await parseZipToBundles(file)
+                  newBundles.push(...modules)
+                } catch (err) {
+                  console.error(`Failed to parse ${file.name} as zip/charx/risum:`, err)
                 }
               }
             }
