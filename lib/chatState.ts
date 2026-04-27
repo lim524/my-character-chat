@@ -68,6 +68,7 @@ export function deriveChatState(
   assets: AssetRef[],
   characterInfo: LocalCharacter | null
 ): DerivedChatState {
+  const isDev = process.env.NODE_ENV !== 'production'
   let backgroundUrl: string | null = null
   let characterUrls: string[] = []
   let overlayIds: string[] = []
@@ -111,14 +112,17 @@ export function deriveChatState(
     let foundBgInThisMsg: string | null = null
     const foundCharsInThisMsg: string[] = []
     const foundOverlaysInThisMsg: string[] = []
+    let hasCharacterIntentTagInThisMsg = false
 
     for (const tag of parseImageTags(content)) {
       const { ref: assetRef, typeHint } = splitRefAndType(tag.rawRef)
+      if (typeHint === 'character') hasCharacterIntentTagInThisMsg = true
       const asset = resolveAssetByRef(assets, assetRef)
       if (asset && asset.url) {
         if (asset.type === 'background' || typeHint === 'background') {
           foundBgInThisMsg = asset.url
         } else if (asset.type === 'character' || typeHint === 'character') {
+          hasCharacterIntentTagInThisMsg = true
           foundCharsInThisMsg.push(asset.url)
         } else if (asset.type === 'ui' || typeHint === 'etc' || typeHint === 'overlay' || typeHint === 'ui') {
           foundOverlaysInThisMsg.push(asset.id)
@@ -128,8 +132,17 @@ export function deriveChatState(
         if (inferredType === 'background') {
           foundBgInThisMsg = assetRef
         } else if (inferredType === 'character') {
+          hasCharacterIntentTagInThisMsg = true
           foundCharsInThisMsg.push(assetRef)
         }
+      } else if (isDev && (typeHint === 'character' || assetRef.trim())) {
+        // Debug hint: tag existed but could not map to a usable character image.
+        console.debug('[chat-state] unresolved image tag', {
+          messageIndex: i,
+          rawRef: tag.rawRef,
+          parsedRef: assetRef,
+          typeHint,
+        })
       }
     }
 
@@ -138,6 +151,12 @@ export function deriveChatState(
     if (foundCharsInThisMsg.length > 0) {
       // Keep all character tags declared in this message in stable order.
       characterUrls = Array.from(new Set(foundCharsInThisMsg))
+    } else if (isDev && hasCharacterIntentTagInThisMsg) {
+      // Sticky guard: keep previous character state when this turn's character tag was invalid.
+      console.debug('[chat-state] character tag found but no valid sprite resolved; keeping previous state', {
+        messageIndex: i,
+        previousCharacterCount: characterUrls.length,
+      })
     }
 
     // 오버레이 목록은 마지막 선언 유지.
@@ -149,7 +168,9 @@ export function deriveChatState(
     overlayOnlyMode =
       foundOverlaysInThisMsg.length > 0 &&
       foundCharsInThisMsg.length === 0 &&
-      !foundBgInThisMsg
+      !foundBgInThisMsg &&
+      !hasCharacterIntentTagInThisMsg &&
+      characterUrls.length === 0
   }
 
   // 기본 정책: 기타 단독 모드가 아니면 캐릭터 최소 1명 보장
