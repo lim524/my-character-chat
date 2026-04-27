@@ -75,7 +75,7 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
         <input
           ref={moduleImportRef}
           type="file"
-          accept=".json,.zip,.charx"
+          accept=".json,.zip,.charx,.risum"
           className="hidden"
           multiple
           onChange={async (e) => {
@@ -86,12 +86,12 @@ export function ModuleSettingsTab({ moduleBundles, setModuleBundlesState }: Prop
               const file = files[i]
               const fileName = file.name.toLowerCase()
 
-              if (fileName.endsWith('.zip') || fileName.endsWith('.charx')) {
+              if (fileName.endsWith('.zip') || fileName.endsWith('.charx') || fileName.endsWith('.risum')) {
                 try {
                   const { modules } = await parseZipToBundles(file)
                   newBundles.push(...modules)
                 } catch (err) {
-                  console.error(`Failed to parse ${file.name} as zip/charx:`, err)
+                  console.error(`Failed to parse ${file.name} as zip/charx/risum:`, err)
                 }
                 continue
               }

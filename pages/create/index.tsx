@@ -332,7 +332,11 @@ export default function CreatePage() {
     
     for (const file of Array.from(files)) {
       const text = await file.text()
-      if (file.name.toLowerCase().endsWith('.json') || file.name.toLowerCase().endsWith('.risuai')) {
+      if (
+        file.name.toLowerCase().endsWith('.json') ||
+        file.name.toLowerCase().endsWith('.risuai') ||
+        file.name.toLowerCase().endsWith('.risum')
+      ) {
         try {
           const json = JSON.parse(text)
           const entries = parseExternalLoreEntries(json)
@@ -371,7 +375,11 @@ export default function CreatePage() {
 
     for (const file of Array.from(files)) {
       const text = await file.text()
-      if (file.name.toLowerCase().endsWith('.json') || file.name.toLowerCase().endsWith('.risuai')) {
+      if (
+        file.name.toLowerCase().endsWith('.json') ||
+        file.name.toLowerCase().endsWith('.risuai') ||
+        file.name.toLowerCase().endsWith('.risum')
+      ) {
         try {
           const json = JSON.parse(text)
           // Look for regex scripts

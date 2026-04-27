@@ -75,7 +75,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
         <input
           ref={promptImportRef}
           type="file"
-          accept=".json,.txt,.zip,.charx"
+          accept=".json,.txt,.zip,.charx,.risum"
           className="hidden"
           multiple
           onChange={async (e) => {
@@ -86,12 +86,12 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
               const file = files[i]
               const fileName = file.name.toLowerCase()
 
-              if (fileName.endsWith('.zip') || fileName.endsWith('.charx')) {
+              if (fileName.endsWith('.zip') || fileName.endsWith('.charx') || fileName.endsWith('.risum')) {
                 try {
                   const { prompts } = await parseZipToBundles(file)
                   newBundles.push(...prompts)
                 } catch (err) {
-                  console.error(`Failed to parse ${file.name} as zip/charx:`, err)
+                  console.error(`Failed to parse ${file.name} as zip/charx/risum:`, err)
                 }
                 continue
               }

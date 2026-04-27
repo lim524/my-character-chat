@@ -244,7 +244,7 @@ export function parseExternalModuleBundle(json: unknown, fileName?: string): Mod
 }
 
 /**
- * ZIP 또는 .charx 파일을 분석하여 여러 번들(프롬프트 또는 모듈)을 추출 시도.
+ * ZIP / .charx / .risum 파일을 분석하여 여러 번들(프롬프트 또는 모듈)을 추출 시도.
  */
 export async function parseZipToBundles(file: File): Promise<{ prompts: PromptBundle[], modules: ModuleBundle[] }> {
   const prompts: PromptBundle[] = []
@@ -276,7 +276,7 @@ export async function parseZipToBundles(file: File): Promise<{ prompts: PromptBu
       }
     }
   } catch (err) {
-    console.error('Error reading zip/charx file:', err)
+    console.error('Error reading zip/charx/risum file:', err)
   }
   
   return { prompts, modules }
