@@ -6,7 +6,9 @@ import { CreateExtraInterfaceTab } from '@/components/create/CreateExtraInterfac
 import { CreateImagesTab } from '@/components/create/CreateImagesTab'
 import { CreateLorebookTab } from '@/components/create/CreateLorebookTab'
 import { CreateProfileTab } from '@/components/create/CreateProfileTab'
-import { CreateCustomCssTab } from '@/components/create/CreateCustomCssTab'
+import GlobalUiLayersEditor from '@/components/GlobalUiLayersEditor'
+import CreateAiGuideModal from '@/components/create/CreateAiGuideModal'
+import { CreateGameVariablesTab } from '@/components/create/CreateGameVariablesTab'
 import { CreateScreenTab } from '@/components/create/CreateScreenTab'
 import { CreateScriptTab } from '@/components/create/CreateScriptTab'
 import type { SidebarTabId } from '@/components/create/types'
@@ -25,6 +27,12 @@ import { createInitialInterfaceConfig } from '@/lib/interfaceEval'
 import {
   getUserPersona,
 } from '@/lib/appSettings'
+import {
+  dispatchGlobalUiLayersUpdated,
+  getGlobalUiLayers,
+  setGlobalUiLayers as persistGlobalUiLayers,
+  type GlobalUiLayer,
+} from '@/lib/globalUiLayers'
 import { v4 as uuidv4 } from 'uuid'
 import {
   User,
@@ -34,7 +42,8 @@ import {
   MessageCircle,
   Layers,
   FileCode2,
-  Palette,
+  LayoutTemplate,
+  Braces,
 } from 'lucide-react'
 import { saveLocalCharacter, type LocalCharacter } from '@/lib/localStorage'
 import { downloadCharacterCardJson } from '@/lib/characterCardInterop'
@@ -88,7 +97,10 @@ export default function CreatePage() {
   const [expandedRegexScriptId, setExpandedRegexScriptId] = useState<string | null>(null)
   const [expandedScenarioRuleId, setExpandedScenarioRuleId] = useState<string | null>(null)
   const [expandedExtraInterfaceId, setExpandedExtraInterfaceId] = useState<string | null>(null)
+  const [expandedGameVariableId, setExpandedGameVariableId] = useState<string | null>(null)
   const cardImportRef = useRef<HTMLInputElement>(null)
+  const [globalUiLayers, setGlobalUiLayersState] = useState<GlobalUiLayer[]>([])
+  const [aiGuideOpen, setAiGuideOpen] = useState(false)
 
   const previewCharacterLiftPx = useMemo(() => {
     if (!iface) return DEFAULT_CHARACTER_LIFT_PX
@@ -124,6 +136,7 @@ export default function CreatePage() {
       await persistCharacterDraft(draftSynced)
       setIface(baseIface)
     })()
+    void getGlobalUiLayers().then(setGlobalUiLayersState)
   }, [])
 
   const patchDraft = (patch: Partial<CharacterDraft>) => {
@@ -150,6 +163,13 @@ export default function CreatePage() {
 
   const handleSave = async () => {
     if (typeof window === 'undefined' || !iface) return
+    try {
+      await persistGlobalUiLayers(globalUiLayers)
+      dispatchGlobalUiLayersUpdated()
+    } catch (e) {
+      console.error(e)
+      alert('전역 인터페이스 저장에 실패했습니다. IndexedDB 용량 등을 확인해 주세요. 캐릭터 저장은 계속합니다.')
+    }
     const id = draft.id || uuidv4()
     const character: LocalCharacter = {
       id,
@@ -210,7 +230,7 @@ export default function CreatePage() {
       interfaceConfig: iface,
       loreEntries: withLore.loreEntries,
     } as LocalCharacter & { loreEntries?: LoreEntry[] }
-    downloadCharacterCardJson(exportChar)
+    downloadCharacterCardJson(exportChar, { globalUiLayers })
   }
 
   const handleCardImportFile = async (ev: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,7 +238,8 @@ export default function CreatePage() {
     ev.target.value = ''
     if (!file) return
     try {
-      const { character, warnings } = await importCharacterFromFile(file)
+      const { character, warnings, globalUiLayers: importedGlobalLayers } =
+        await importCharacterFromFile(file)
       const ic = character.interfaceConfig ?? createInitialInterfaceConfig()
       const importedLore = character as LocalCharacter & { loreEntries?: LoreEntry[] }
       const nextDraft: CharacterDraft = {
@@ -247,6 +268,15 @@ export default function CreatePage() {
       setDraft(nextDraft)
       setIface(ic)
       await persistCharacterDraft(nextDraft)
+      if (importedGlobalLayers !== undefined) {
+        try {
+          await persistGlobalUiLayers(importedGlobalLayers)
+          setGlobalUiLayersState(importedGlobalLayers)
+          dispatchGlobalUiLayersUpdated()
+        } catch (e) {
+          console.error(e)
+        }
+      }
       if (warnings.length) alert(warnings.join('\n'))
     } catch (err) {
       console.error(err)
@@ -488,7 +518,8 @@ export default function CreatePage() {
                   ['dialogue', '시나리오 및 규칙', MessageCircle],
                   ['script', '스크립트', FileCode2],
                   ['extraInterface', '추가 인터페이스 설정', Layers],
-                  ['customCss', '커스텀 CSS', Palette],
+                  ['globalUi', '전역 UI (HTML/CSS/JS)', LayoutTemplate],
+                  ['gameVariables', '게임 변수', Braces],
                 ] as [SidebarTabId, string, typeof User][]
               ).map(([id, label, Icon]) => (
                 <button
@@ -585,10 +616,21 @@ export default function CreatePage() {
                 />
               )}
 
-              {activeTab === 'customCss' && (
-                <CreateCustomCssTab
+              {activeTab === 'gameVariables' && (
+                <CreateGameVariablesTab
                   iface={iface}
                   patchInterface={patchInterface}
+                  expandedId={expandedGameVariableId}
+                  setExpandedId={setExpandedGameVariableId}
+                />
+              )}
+
+              {activeTab === 'globalUi' && (
+                <GlobalUiLayersEditor
+                  variant="create"
+                  layers={globalUiLayers}
+                  onLayersChange={setGlobalUiLayersState}
+                  showSaveButton={false}
                 />
               )}
             </div>
@@ -631,6 +673,15 @@ export default function CreatePage() {
             </div>
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={() => setAiGuideOpen(true)}
+          className="fixed bottom-5 right-5 z-[55] rounded-full border border-[#444] bg-[#111]/95 px-4 py-2 text-xs font-medium text-gray-200 shadow-lg backdrop-blur-md hover:border-white/35 hover:bg-[#1a1a1a]"
+        >
+          AI 가이드
+        </button>
+        <CreateAiGuideModal open={aiGuideOpen} onClose={() => setAiGuideOpen(false)} />
       </div>
     </div>
   )

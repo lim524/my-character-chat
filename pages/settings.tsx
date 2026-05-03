@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import Image from 'next/image'
 import { kvGet, kvSet } from '@/lib/idbKV'
+import GlobalUiLayersEditor from '@/components/GlobalUiLayersEditor'
 
 const PROFILE_KEY = 'local-profile'
 
@@ -159,6 +160,13 @@ export default function SettingsPage() {
         >
           저장하기
         </button>
+
+        <div className="border-t border-gray-700 pt-6 mt-6 space-y-4">
+          <p className="text-sm text-gray-400">
+            로컬 전용이며, 작성한 코드가 전체 화면에 영향을 줍니다. 캐릭터 생성 화면 사이드바의 같은 이름 탭에서도 편집할 수 있습니다.
+          </p>
+          <GlobalUiLayersEditor variant="settings" />
+        </div>
 
         <div className="border-t border-gray-700 pt-6 mt-6">
           <h2 className="text-lg font-semibold text-white mb-2">API 설정 (로컬 전용)</h2>

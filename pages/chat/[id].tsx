@@ -25,8 +25,16 @@ import {
   setLastActiveRoomId,
   touchChatRoom,
   getMostRecentlyUsedRoomId,
+  getChatRoomGameVariables,
+  setChatRoomGameVariables,
   type ChatRoom,
 } from '@/lib/chatRooms'
+import {
+  dispatchGameVariablesUpdated,
+  extractGameStateFromAssistant,
+  initialGameStateFromDefs,
+  mergeGameVariableValues,
+} from '@/lib/gameVariables'
 import {
   getApiModels,
   getApiProviders,
@@ -355,6 +363,55 @@ export default function ChatPage() {
   const [maxOutputChars, setMaxOutputChars] = useState(4000)
   const [maxInputChars, setMaxInputChars] = useState(4000)
   const regexScripts = characterInfo?.interfaceConfig?.regexScripts
+
+  const gameVariableDefs = characterInfo?.interfaceConfig?.gameVariables ?? []
+  const gameVariableDefsKey = useMemo(
+    () => JSON.stringify(characterInfo?.interfaceConfig?.gameVariables ?? []),
+    [characterInfo?.interfaceConfig?.gameVariables]
+  )
+
+  const syncGameVarsFromAssistantContent = useCallback(
+    async (rawContent: string) => {
+      const normalized = normalizeAssistantImageTags(rawContent)
+      const characterId = typeof id === 'string' ? id : ''
+      const roomId = activeRoomIdRef.current
+      const defs = characterInfo?.interfaceConfig?.gameVariables ?? []
+      if (!defs.length || !characterId || !roomId) {
+        return normalized
+      }
+      const { displayContent, payload } = extractGameStateFromAssistant(normalized)
+      if (!payload) {
+        return displayContent
+      }
+      const prev = await getChatRoomGameVariables(characterId, roomId)
+      const init = initialGameStateFromDefs(defs)
+      const base = { ...init, ...prev }
+      const merged = mergeGameVariableValues(defs, base, payload)
+      await setChatRoomGameVariables(characterId, roomId, merged)
+      dispatchGameVariablesUpdated(merged)
+      return displayContent
+    },
+    [id, characterInfo?.interfaceConfig?.gameVariables, gameVariableDefsKey]
+  )
+
+  useEffect(() => {
+    const characterId = typeof id === 'string' ? id : ''
+    if (!characterId) return
+    if (gameVariableDefs.length === 0) {
+      dispatchGameVariablesUpdated({})
+      return
+    }
+    if (!activeRoomId) {
+      dispatchGameVariablesUpdated(initialGameStateFromDefs(gameVariableDefs))
+      return
+    }
+    void (async () => {
+      const stored = await getChatRoomGameVariables(characterId, activeRoomId)
+      const init = initialGameStateFromDefs(gameVariableDefs)
+      const merged = { ...init, ...stored }
+      dispatchGameVariablesUpdated(merged)
+    })()
+  }, [id, activeRoomId, gameVariableDefsKey, gameVariableDefs.length])
 
   const selectedModelRef = useRef(selectedModel)
   const selectedProviderRef = useRef(selectedProvider)
@@ -826,10 +883,11 @@ export default function ChatPage() {
       ) {
         return
       }
+      const processed = await syncGameVarsFromAssistantContent(reply)
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: normalizeAssistantImageTags(reply),
+        content: processed,
         created_at: new Date().toISOString(),
       }
       setMessages((prev) => {
@@ -846,12 +904,17 @@ export default function ChatPage() {
 
   const handleSaveEdit = () => {
     if (editTargetId === null) return
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === editTargetId ? { ...m, content: editContent } : m
+    const target = messages.find((m) => m.id === editTargetId)
+    void (async () => {
+      let nextContent = editContent
+      if (target?.role === 'assistant') {
+        nextContent = await syncGameVarsFromAssistantContent(editContent)
+      }
+      setMessages((prev) =>
+        prev.map((m) => (m.id === editTargetId ? { ...m, content: nextContent } : m))
       )
-    )
-    setEditTargetId(null)
+      setEditTargetId(null)
+    })()
   }
 
   const handleDeleteMessage = (msgId: string) => {

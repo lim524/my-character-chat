@@ -4,10 +4,13 @@ import type { LoreEntry, InterfaceConfig } from './interfaceConfig'
 import { createInitialInterfaceConfig } from './interfaceEval'
 import { normalizeLoreEntry } from './lorebookActivation'
 import { sanitizeImportedInterfaceConfig } from './interfaceConfigSanitizer'
+import { sanitizeGlobalUiLayer, type GlobalUiLayer } from './globalUiLayers'
 
 export interface ImportCardResult {
   character: LocalCharacter
   warnings: string[]
+  /** `extensions.my_character_chat.globalUiLayers`가 있을 때만 (없으면 기존 앱 전역 설정 유지) */
+  globalUiLayers?: GlobalUiLayer[]
 }
 
 /**
@@ -54,6 +57,21 @@ export function importCardToLocalCharacter(json: unknown): ImportCardResult {
     character.details = { ...character.details, ...(mcc.details as Record<string, unknown>) }
   }
 
+  let globalUiLayers: GlobalUiLayer[] | undefined
+  if (Array.isArray(mcc.globalUiLayers)) {
+    const layers: GlobalUiLayer[] = []
+    for (const item of mcc.globalUiLayers) {
+      const l = sanitizeGlobalUiLayer(item)
+      if (l) layers.push(l)
+    }
+    globalUiLayers = layers
+    if (layers.length > 0) {
+      warnings.push(`카드에서 전역 인터페이스 레이어 ${layers.length}개를 불러왔습니다.`)
+    } else {
+      warnings.push('카드의 전역 인터페이스 목록이 비어 있어 앱 전역 설정을 비웁니다.')
+    }
+  }
+
   // Lore Entries (캐릭터 북)
   const cb = d.character_book as Record<string, unknown> | undefined
   if (cb && Array.isArray(cb.entries)) {
@@ -68,14 +86,30 @@ export function importCardToLocalCharacter(json: unknown): ImportCardResult {
     warnings.push(`로어북(Character Book) 항목 ${entries.length}개를 가져왔습니다.`)
   }
 
-  return { character, warnings }
+  return globalUiLayers !== undefined ? { character, warnings, globalUiLayers } : { character, warnings }
+}
+
+export type DownloadCharacterCardOptions = {
+  /** 포함 시 `extensions.my_character_chat.globalUiLayers`로 저장 */
+  globalUiLayers?: GlobalUiLayer[]
 }
 
 /**
  * 캐릭터를 V2 스펙의 JSON 카드 파일로 내려받기.
  */
-export function downloadCharacterCardJson(character: LocalCharacter & { loreEntries?: LoreEntry[] }): void {
+export function downloadCharacterCardJson(
+  character: LocalCharacter & { loreEntries?: LoreEntry[] },
+  options?: DownloadCharacterCardOptions
+): void {
   if (typeof window === 'undefined') return
+
+  const mccPayload: Record<string, unknown> = {
+    interfaceConfig: character.interfaceConfig,
+    details: character.details,
+  }
+  if (options?.globalUiLayers !== undefined) {
+    mccPayload.globalUiLayers = options.globalUiLayers
+  }
 
   const data = {
     name: character.name,
@@ -95,10 +129,7 @@ export function downloadCharacterCardJson(character: LocalCharacter & { loreEntr
     },
     tags: character.tags || [],
     extensions: {
-      my_character_chat: {
-        interfaceConfig: character.interfaceConfig,
-        details: character.details,
-      }
+      my_character_chat: mccPayload,
     }
   }
 

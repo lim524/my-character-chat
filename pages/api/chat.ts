@@ -2,10 +2,14 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources'
 import { applyRegexScripts } from '@/lib/interfaceRuntime'
-import type { RegexScriptEntry } from '@/lib/interfaceConfig'
+import type {
+  AssetRef,
+  GameVariableDefinition,
+  RegexScriptEntry,
+  StatDefinition,
+} from '@/lib/interfaceConfig'
 import { applyModuleRegexRules } from '@/lib/chatPromptContext'
 import { buildLorebookForChat } from '@/lib/lorebookActivation'
-import type { AssetRef, StatDefinition } from '@/lib/interfaceConfig'
 
 type Role = 'user' | 'assistant' | 'model'
 
@@ -133,6 +137,30 @@ ${assets.map((a: AssetRef) => `- ID: ${a.id} (이름: ${a.label}, 타입: ${a.ty
     return t
   }
 
+  const gameVarsDef = (rawCharacterInfo?.interfaceConfig?.gameVariables || []) as GameVariableDefinition[]
+  let gameVarsSection = ''
+  if (gameVarsDef.length > 0) {
+    const lines = gameVarsDef
+      .map(
+        (v: GameVariableDefinition) =>
+          `- "${v.key}" (${v.type}): ${v.label} — 기본: ${v.defaultValue}`
+      )
+      .join('\n')
+    gameVarsSection = `# 동적 게임 변수 (선택)
+아래 키만 **채팅방 상태**로 저장된다. 값을 갱신할 때 응답 **본문 끝**(대사/묘사 다음)에 다음 블록을 넣는다. 클라이언트가 블록을 파싱한 뒤 대화창에서는 제거한다.
+
+\`\`\`
+[game_state]
+{ "키이름": 값 }
+[/game_state]
+\`\`\`
+
+- JSON은 객체 하나만. 목록에 없는 키는 무시된다. 블록을 생략하면 상태는 이전 값을 유지한다.
+
+[변수 정의]
+${lines}`
+  }
+
   const statsDefinition = rawCharacterInfo?.interfaceConfig?.stats || []
   let statsSection = ''
   if (statsDefinition.length > 0) {
@@ -154,6 +182,7 @@ ${statsDesc}
       ? `# 추가 지시 (사용자 설정)\n${systemPromptAppend.trim()}`
       : '',
     rulesSection,
+    gameVarsSection,
     statsSection,
     tagInstructions.trim(),
   ].filter(Boolean)

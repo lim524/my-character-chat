@@ -6,4 +6,5 @@ export type SidebarTabId =
   | 'dialogue'
   | 'script'
   | 'extraInterface'
-  | 'customCss'
+  | 'globalUi'
+  | 'gameVariables'

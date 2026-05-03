@@ -3,7 +3,7 @@
  * 각 채팅방은 고유 ID, 이름, 생성일자를 가지며,
  * 대화 기록은 채팅방 단위로 저장/불러오기됩니다.
  */
-import { kvGet, kvSet } from './idbKV'
+import { kvGet, kvRemove, kvSet } from './idbKV'
 import type { ChatMessage } from '@/components/chat/types'
 
 export interface ChatRoom {
@@ -21,6 +21,11 @@ function roomsKey(characterId: string) {
 /** 키 형식: chatroom-msg-{characterId}-{roomId} */
 function roomMessagesKey(characterId: string, roomId: string) {
   return `chatroom-msg-${characterId}-${roomId}`
+}
+
+/** 채팅방별 게임 변수 (동적 상태) */
+function roomGameVariablesKey(characterId: string, roomId: string) {
+  return `chatroom-gamevars-${characterId}-${roomId}`
 }
 
 /** 해당 캐릭터의 모든 채팅방 목록 조회 */
@@ -87,6 +92,11 @@ export async function deleteChatRoom(characterId: string, roomId: string): Promi
   // 해당 방의 대화 기록도 삭제
   try {
     await kvSet(roomMessagesKey(characterId, roomId), '')
+  } catch {
+    // ignore
+  }
+  try {
+    await kvRemove(roomGameVariablesKey(characterId, roomId))
   } catch {
     // ignore
   }
@@ -163,4 +173,32 @@ export async function getMostRecentlyUsedRoomId(characterId: string): Promise<st
     return Date.parse(b.createdAt) - Date.parse(a.createdAt)
   })
   return sorted[0]?.id ?? null
+}
+
+export async function getChatRoomGameVariables(
+  characterId: string,
+  roomId: string
+): Promise<Record<string, string | number | boolean>> {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = await kvGet(roomGameVariablesKey(characterId, roomId))
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    const out: Record<string, string | number | boolean> = {}
+    for (const [k, v] of Object.entries(parsed)) {
+      if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out[k] = v
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+export async function setChatRoomGameVariables(
+  characterId: string,
+  roomId: string,
+  state: Record<string, string | number | boolean>
+): Promise<void> {
+  await kvSet(roomGameVariablesKey(characterId, roomId), JSON.stringify(state))
 }

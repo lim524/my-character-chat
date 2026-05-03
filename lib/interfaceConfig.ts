@@ -98,6 +98,17 @@ export interface RegexScriptEntry {
   enabled: boolean
 }
 
+/** 채팅에서 갱신되는 게임 상태 변수 — AI `[game_state]{...}[/game_state]` 와 전역 UI `{{key}}` 연동 */
+export interface GameVariableDefinition {
+  id: string
+  /** 영문 식별자 — AI JSON 키·플레이스홀더에 사용 ([a-zA-Z_][a-zA-Z0-9_]*) */
+  key: string
+  label: string
+  type: 'string' | 'number' | 'boolean'
+  /** 타입에 맞게 문자열로 저장(숫자·불리언도 입력칸은 문자열) */
+  defaultValue: string
+}
+
 /** 시나리오·게임 규칙을 행 단위로 관리 (테이블 UI). 통합 텍스트는 dialogueScript에 동기화 */
 export interface ScenarioRuleEntry {
   id: string
@@ -144,6 +155,8 @@ export interface InterfaceConfig {
   characterSpriteLiftPx?: number
   /** 사용자가 직접 작성한 전역 CSS 코드 (@keyframes 등 포함) */
   customCSS?: string
+  /** 동적 게임 변수 정의 — 채팅방별 값은 IndexedDB에 별도 저장 */
+  gameVariables?: GameVariableDefinition[]
 }
 
 export type CharacterDraft = {

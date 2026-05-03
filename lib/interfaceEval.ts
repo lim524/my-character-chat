@@ -14,6 +14,7 @@ export function createInitialInterfaceConfig(): InterfaceConfig {
     regexScripts: [],
     scenarioRules: [],
     extraInterfaceEntries: [],
+    gameVariables: [],
   }
 }
 
