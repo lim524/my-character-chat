@@ -17,7 +17,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <ThemeProvider>
-      <GlobalUiLayersRuntime />
+      {isChatPage && <GlobalUiLayersRuntime />}
       <SearchProvider>
         {!isChatPage && <TopNav />}
         <Component {...pageProps} />

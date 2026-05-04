@@ -456,9 +456,9 @@ export default function CreatePage() {
         className="relative"
         style={{ marginTop: '56px', height: 'calc(100vh - 56px)' }}
       >
-        {/* 프리뷰: 화면 전체를 거의 채움 */}
-        <div className="absolute inset-0 flex items-center justify-center px-3 md:px-8 py-6">
-          <div className="w-full max-w-4xl h-full">
+        {/* 프리뷰: 채팅방과 동일하게 남는 영역 전체(가로·세로) 사용 */}
+        <div className="absolute inset-0 min-h-0 flex flex-col">
+          <div className="min-h-0 flex-1 w-full">
             {(() => {
               const initialBg = (draft.details as Record<string, unknown>)?.initialBackground as string | undefined
               const initialChar = (draft.details as Record<string, unknown>)?.initialCharacter as string | undefined

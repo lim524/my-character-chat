@@ -116,7 +116,7 @@ export default function DatingSimScreenPreview({
   const displayContent = pages[pageIndex] || fullText
 
   return (
-    <div className="relative w-full h-full min-h-[420px] max-h-[640px] bg-black rounded-xl overflow-hidden">
+    <div className="relative h-full min-h-0 w-full bg-black overflow-hidden">
       <CustomStyleInjector css={customCSS} />
       {/* 배경 */}
       {backgroundUrl ? (
