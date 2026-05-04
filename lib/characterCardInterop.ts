@@ -6,6 +6,36 @@ import { normalizeLoreEntry } from './lorebookActivation'
 import { sanitizeImportedInterfaceConfig } from './interfaceConfigSanitizer'
 import { sanitizeGlobalUiLayer, type GlobalUiLayer } from './globalUiLayers'
 
+/** 카드 JSON에서 표지/프로필 이미지 경로 또는 URL (상대 경로는 CharX에서 assets와 매칭). */
+export function extractCoverImagePathFromCardJson(json: unknown): string {
+  if (!json || typeof json !== 'object') return ''
+  const raw = json as Record<string, unknown>
+  const d = (raw.data && typeof raw.data === 'object' ? raw.data : raw) as Record<string, unknown>
+  const ext = (d.extensions && typeof d.extensions === 'object' ? d.extensions : {}) as Record<string, unknown>
+  const risuRaw = ext.risuai || ext.risu || ext.risuViewer
+  const risu = (risuRaw && typeof risuRaw === 'object' ? risuRaw : {}) as Record<string, unknown>
+  const mcc = (ext.my_character_chat || ext.mcc || {}) as Record<string, unknown>
+
+  const candidates: unknown[] = [
+    d.image,
+    d.avatar,
+    d.cover,
+    d.character_avatar,
+    d.char_avatar,
+    risu.image,
+    risu.cover,
+    risu.avatar,
+    risu.characterImage,
+    mcc.coverImage,
+    mcc.profileImage,
+    mcc.image,
+  ]
+  for (const v of candidates) {
+    if (typeof v === 'string' && v.trim()) return v.trim()
+  }
+  return ''
+}
+
 export interface ImportCardResult {
   character: LocalCharacter
   warnings: string[]
@@ -84,6 +114,12 @@ export function importCardToLocalCharacter(json: unknown): ImportCardResult {
       character.loreEntries = entries
     }
     warnings.push(`로어북(Character Book) 항목 ${entries.length}개를 가져왔습니다.`)
+  }
+
+  const coverPath = extractCoverImagePathFromCardJson(json)
+  if (coverPath) {
+    character.imageUrl = coverPath
+    character.image_url = coverPath
   }
 
   return globalUiLayers !== undefined ? { character, warnings, globalUiLayers } : { character, warnings }

@@ -6,6 +6,7 @@ import {
   parseExternalPromptBundle, 
   parseZipToBundles
 } from '@/lib/externalImportUtils'
+import { useTranslation } from '@/context/LanguageContext'
 
 interface Props {
   promptBundles: PromptBundle[]
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Props) {
+  const { t } = useTranslation()
   const promptImportRef = useRef<HTMLInputElement | null>(null)
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
   const [promptDraft, setPromptDraft] = useState<PromptBundle | null>(null)
@@ -31,9 +33,9 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-xl font-bold">프롬프트 번들</h2>
+        <h2 className="text-xl font-bold">{t('promptsTab.heading')}</h2>
         <p className="text-sm text-gray-400 mt-2">
-          번들을 생성/관리하고 활성화(복수)할 수 있습니다.
+          {t('promptsTab.intro')}
         </p>
       </div>
 
@@ -56,7 +58,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
           className="inline-flex items-center gap-2 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
         >
           <Plus className="w-4 h-4" />
-          생성
+          {t('promptsTab.create')}
         </button>
         <button
           onClick={() => promptImportRef.current?.click()}
@@ -114,7 +116,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
                   newBundles.push({
                     id: uuidv4(),
                     name: file.name.replace('.txt', ''),
-                    description: '텍스트 파일에서 가져온 프롬프트입니다.',
+                    description: t('promptsTab.importHint'),
                     enabled: true,
                     mainPrompt: text,
                     characterPrompt: '',
@@ -137,7 +139,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
       {editingPromptId && promptDraft ? (
         <div className="bg-[#202020] border border-[#333] rounded-lg p-4 space-y-4 text-left">
           <div className="flex items-center justify-between">
-            <div className="font-semibold">번들 편집</div>
+            <div className="font-semibold">{t('promptsTab.editTitle')}</div>
             <button
               className="text-gray-400 hover:text-white"
               onClick={() => {
@@ -150,7 +152,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">이름</label>
+              <label className="block text-sm text-gray-300 mb-1">{t('promptsTab.name')}</label>
               <input
                 value={promptDraft.name}
                 onChange={(e) => setPromptDraft({ ...promptDraft, name: e.target.value })}
@@ -165,7 +167,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
                   onChange={() => setPromptDraft({ ...promptDraft, enabled: !promptDraft.enabled })}
                   className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#e45463]"
                 />
-                활성화
+                {t('promptsTab.enabled')}
               </label>
               <button
                 onClick={() => downloadJson(`prompt-bundle-${promptDraft.id}.json`, promptDraft)}
@@ -176,7 +178,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-300 mb-1">설명</label>
+            <label className="block text-sm text-gray-300 mb-1">{t('promptsTab.description')}</label>
             <textarea
               value={promptDraft.description}
               onChange={(e) => setPromptDraft({ ...promptDraft, description: e.target.value })}
@@ -212,7 +214,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-300 mb-1">추가 시스템 프롬프트</label>
+            <label className="block text-sm text-gray-300 mb-1">{t('promptsTab.systemPrompt')}</label>
             <textarea
               value={promptDraft.systemPromptAppend}
               onChange={(e) => setPromptDraft({ ...promptDraft, systemPromptAppend: e.target.value })}
@@ -234,7 +236,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
               }}
               className="px-6 py-2 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition"
             >
-              저장
+              {t('promptsTab.save')}
             </button>
           </div>
         </div>
@@ -242,7 +244,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
         <div className="space-y-3">
           {promptBundles.length === 0 ? (
             <div className="text-center text-sm text-gray-400 py-10 bg-[#222] rounded-xl border border-dashed border-[#444]">
-              아직 번들이 없습니다. “생성”을 눌러 추가하세요.
+              {t('promptsTab.empty')}
             </div>
           ) : (
             promptBundles.map((b) => (
@@ -250,9 +252,9 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="font-bold truncate text-white group-hover:text-[#e45463] transition-colors">
-                      {b.name || '이름 없음'}
+                      {b.name || t('common.unnamed')}
                     </div>
-                    <div className="text-xs text-gray-500 line-clamp-2 mt-0.5">{b.description || '설명 없음'}</div>
+                    <div className="text-xs text-gray-500 line-clamp-2 mt-0.5">{b.description || t('common.noDescription')}</div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button
@@ -262,7 +264,7 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
                         )
                       }
                       className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                      title={b.enabled ? '비활성화' : '활성화'}
+                      title={b.enabled ? t('promptsTab.toggleOn') : t('promptsTab.toggleOff')}
                     >
                       {b.enabled ? <ToggleRight className="w-6 h-6 text-[#e45463]" /> : <ToggleLeft className="w-6 h-6" />}
                     </button>
@@ -272,24 +274,24 @@ export function PromptSettingsTab({ promptBundles, setPromptBundlesState }: Prop
                         setPromptDraft(b)
                       }}
                       className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                      title="편집"
+                      title={t('promptsTab.titleEdit')}
                     >
                       <Pencil size={18} />
                     </button>
                     <button
                       onClick={() => downloadJson(`prompt-bundle-${b.id}.json`, b)}
                       className="p-1.5 text-gray-400 hover:text-white transition-colors"
-                      title="단일 Export"
+                      title={t('promptsTab.exportTitle')}
                     >
                       <Download size={18} />
                     </button>
                     <button
                       onClick={() => {
-                        if (!confirm('이 번들을 삭제할까요?')) return
+                        if (!confirm(t('promptsTab.confirmDelete'))) return
                         setPromptBundlesState((prev) => prev.filter((x) => x.id !== b.id))
                       }}
                       className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                      title="삭제"
+                      title={t('promptsTab.deleteTitle')}
                     >
                       <Trash2 size={18} />
                     </button>

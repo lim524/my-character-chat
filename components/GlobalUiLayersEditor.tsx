@@ -9,6 +9,7 @@ import {
   getGlobalUiLayers,
   setGlobalUiLayers,
 } from '@/lib/globalUiLayers'
+import { useTranslation } from '@/context/LanguageContext'
 
 type Props = {
   /** `create`: 캐릭터 생성 사이드바용 문구·간격 */
@@ -26,6 +27,7 @@ export default function GlobalUiLayersEditor({
   onLayersChange,
   showSaveButton = true,
 }: Props) {
+  const { t } = useTranslation()
   const [internalLayers, setInternalLayers] = useState<GlobalUiLayer[]>([])
   const [expandedLayerId, setExpandedLayerId] = useState<string | null>(null)
 
@@ -55,22 +57,22 @@ export default function GlobalUiLayersEditor({
     try {
       await setGlobalUiLayers(uiLayers)
       dispatchGlobalUiLayersUpdated()
-      alert(variant === 'create' ? '전역 인터페이스가 저장되었습니다.' : '전역 인터페이스 설정이 저장되었습니다.')
+      alert(variant === 'create' ? t('globalUi.alertSavedCreate') : t('globalUi.alertSavedSettings'))
     } catch (e) {
       console.error(e)
-      alert('전역 인터페이스 설정을 저장하지 못했습니다.')
+      alert(t('globalUi.alertSaveFail'))
     }
   }
 
   const addUiLayer = () => {
     const row = createEmptyGlobalUiLayer()
-    row.name = `레이어 ${uiLayers.length + 1}`
+    row.name = t('globalUi.layerDefault', { n: uiLayers.length + 1 })
     updateLayers((prev) => [...prev, row])
     setExpandedLayerId(row.id)
   }
 
   const removeUiLayer = (id: string) => {
-    if (!confirm('이 항목을 삭제할까요?')) return
+    if (!confirm(t('globalUi.confirmDelete'))) return
     updateLayers((prev) => prev.filter((l) => l.id !== id))
     if (expandedLayerId === id) setExpandedLayerId(null)
   }
@@ -100,9 +102,7 @@ export default function GlobalUiLayersEditor({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className={`font-semibold text-white ${compact ? 'text-sm' : 'text-lg'}`}>
-          전역 인터페이스 (HTML / CSS / JS)
-        </h2>
+        <h2 className={`font-semibold text-white ${compact ? 'text-sm' : 'text-lg'}`}>{t('globalUi.title')}</h2>
         <button
           type="button"
           onClick={addUiLayer}
@@ -112,29 +112,16 @@ export default function GlobalUiLayersEditor({
               : 'border-white/20 bg-white/10 hover:bg-white/20 text-white'
           }`}
         >
-          <Plus size={14} /> 항목 추가
+          <Plus size={14} /> {t('globalUi.addItem')}
         </button>
       </div>
       <p className={`text-gray-400 ${compact ? 'text-[11px] leading-relaxed' : 'text-sm'}`}>
-        {compact ? (
-          <>
-            왼쪽 미리보기와 저장한 캐릭터 채팅에 적용됩니다. 설정은 이 캐릭터 드래프트에만 저장되어, 새로 만들 작업과 이전
-            캐릭터의 전역 UI가 섞이지 않습니다. 위에서부터 순서대로 CSS → HTML → JavaScript입니다.
-          </>
-        ) : (
-          <>앱 전역 설정(설정 페이지·레거시 캐릭터)에 적용됩니다.</>
-        )}{' '}
-        행을 눌러 펼치고, HTML 안의{' '}
-        <code className={compact ? 'text-[10px] bg-[#222] px-1 rounded' : 'bg-[#333] px-1 rounded'}>
-          &lt;script&gt;
-        </code>
-        는 제거되니 스크립트는 JavaScript 칸에 넣어 주세요.
+        {compact ? <>{t('globalUi.descCreate')}</> : <>{t('globalUi.descSettings')}</>}{' '}
+        {t('globalUi.descTail')}
         {isControlled && !showSaveButton ? (
           <>
             {' '}
-            <span className="text-gray-300">
-              캐릭터 저장(Ctrl+S) 시 캐릭터 데이터에 포함되며, 카드 JSON 내보내기·가져오기에도 함께 실립니다.
-            </span>
+            <span className="text-gray-300">{t('globalUi.descSaveHint')}</span>
           </>
         ) : null}
       </p>
@@ -144,8 +131,8 @@ export default function GlobalUiLayersEditor({
           <thead className={`${theadBg} text-gray-400`}>
             <tr>
               <th className="w-8 px-2 py-2 text-left" />
-              <th className="px-2 py-2 text-left min-w-[100px]">이름</th>
-              <th className="w-16 px-2 py-2 text-center">사용</th>
+              <th className="px-2 py-2 text-left min-w-[100px]">{t('globalUi.colName')}</th>
+              <th className="w-16 px-2 py-2 text-center">{t('globalUi.colEnabled')}</th>
               <th className="w-10 px-2 py-2 text-right" />
             </tr>
           </thead>
@@ -153,7 +140,7 @@ export default function GlobalUiLayersEditor({
             {uiLayers.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-3 py-6 text-center text-gray-500">
-                  항목이 없습니다. &quot;항목 추가&quot;로 레이어를 만드세요.
+                  {t('globalUi.empty')}
                 </td>
               </tr>
             ) : (
@@ -175,7 +162,7 @@ export default function GlobalUiLayersEditor({
                           className={`w-full rounded px-2 py-1 border ${
                             compact ? 'bg-[#111] border-[#333]' : 'bg-[#333] border-gray-600 text-white'
                           }`}
-                          placeholder="레이어 이름"
+                          placeholder={t('globalUi.layerPh')}
                         />
                       </td>
                       <td
@@ -195,7 +182,7 @@ export default function GlobalUiLayersEditor({
                           type="button"
                           onClick={() => removeUiLayer(layer.id)}
                           className="p-1 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400"
-                          title="삭제"
+                          title={t('common.delete')}
                         >
                           <Trash2 size={14} />
                         </button>
@@ -205,10 +192,10 @@ export default function GlobalUiLayersEditor({
                       <tr className={`border-t border-[#222] ${detailBg}`}>
                         <td colSpan={4} className="px-3 py-3" onClick={(ev) => ev.stopPropagation()}>
                           <div className="flex flex-wrap items-center gap-2 mb-3">
-                            <span className="text-[10px] text-gray-500">순서</span>
+                            <span className="text-[10px] text-gray-500">{t('globalUi.order')}</span>
                             <button
                               type="button"
-                              title="위로"
+                              title={t('globalUi.up')}
                               disabled={idx === 0}
                               onClick={() => moveUiLayer(idx, -1)}
                               className="px-2 py-0.5 text-[10px] rounded bg-[#333] border border-[#444] disabled:opacity-40 hover:border-gray-500"
@@ -217,7 +204,7 @@ export default function GlobalUiLayersEditor({
                             </button>
                             <button
                               type="button"
-                              title="아래로"
+                              title={t('globalUi.down')}
                               disabled={idx === uiLayers.length - 1}
                               onClick={() => moveUiLayer(idx, 1)}
                               className="px-2 py-0.5 text-[10px] rounded bg-[#333] border border-[#444] disabled:opacity-40 hover:border-gray-500"
@@ -227,7 +214,7 @@ export default function GlobalUiLayersEditor({
                           </div>
                           <div className="space-y-3">
                             <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">CSS</label>
+                              <label className="block text-[10px] text-gray-500 mb-1">{t('globalUi.css')}</label>
                               <textarea
                                 value={layer.css}
                                 onChange={(e) => patchUiLayer(layer.id, { css: e.target.value })}
@@ -238,11 +225,11 @@ export default function GlobalUiLayersEditor({
                                     ? 'bg-[#090909] border-[#333]'
                                     : 'bg-[#111] border-gray-600'
                                 }`}
-                                placeholder="/* 전역 CSS */"
+                                placeholder={t('globalUi.phCss')}
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">HTML</label>
+                              <label className="block text-[10px] text-gray-500 mb-1">{t('globalUi.html')}</label>
                               <textarea
                                 value={layer.html}
                                 onChange={(e) => patchUiLayer(layer.id, { html: e.target.value })}
@@ -253,11 +240,11 @@ export default function GlobalUiLayersEditor({
                                     ? 'bg-[#090909] border-[#333]'
                                     : 'bg-[#111] border-gray-600'
                                 }`}
-                                placeholder="<!-- 오버레이 마크업 -->"
+                                placeholder={t('globalUi.phHtml')}
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">JavaScript</label>
+                              <label className="block text-[10px] text-gray-500 mb-1">{t('globalUi.js')}</label>
                               <textarea
                                 value={layer.javascript}
                                 onChange={(e) =>
@@ -270,7 +257,7 @@ export default function GlobalUiLayersEditor({
                                     ? 'bg-[#090909] border-[#333]'
                                     : 'bg-[#111] border-gray-600'
                                 }`}
-                                placeholder="// 전역 스크립트"
+                                placeholder={t('globalUi.phJs')}
                               />
                             </div>
                           </div>
@@ -291,7 +278,7 @@ export default function GlobalUiLayersEditor({
           onClick={() => void saveUiLayers()}
           className="w-full bg-white/90 text-black font-semibold py-2 rounded text-sm hover:bg-white transition"
         >
-          전역 인터페이스 저장
+          {t('globalUi.saveGlobal')}
         </button>
       ) : null}
     </div>

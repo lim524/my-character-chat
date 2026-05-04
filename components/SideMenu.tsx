@@ -1,6 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { Home, Sparkles, User, List } from 'lucide-react'
+import { useTranslation } from '@/context/LanguageContext'
 import { kvRemove } from '@/lib/idbKV'
 import { CHARACTER_DRAFT_KEY } from '@/lib/interfaceConfig'
 
@@ -10,6 +13,7 @@ type Props = {
 }
 
 export default function SideMenu({ isOpen, onClose }: Props) {
+  const { t } = useTranslation()
   const router = useRouter()
 
   const handleCreate = () => {
@@ -58,7 +62,7 @@ export default function SideMenu({ isOpen, onClose }: Props) {
           onClick={onClose}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          <Home size={18} /> 홈
+          <Home size={18} /> {t('nav.home')}
         </Link>
 
         {/* ✅ 수정된 생성 버튼 */}
@@ -74,7 +78,7 @@ export default function SideMenu({ isOpen, onClose }: Props) {
             cursor: 'pointer',
           }}
         >
-          <Sparkles size={18} /> 생성
+          <Sparkles size={18} /> {t('nav.create')}
         </button>
 
         <Link
@@ -82,7 +86,7 @@ export default function SideMenu({ isOpen, onClose }: Props) {
           onClick={onClose}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          <User size={18} /> 마이페이지
+          <User size={18} /> {t('nav.mypage')}
         </Link>
 
         <Link
@@ -90,7 +94,7 @@ export default function SideMenu({ isOpen, onClose }: Props) {
           onClick={onClose}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          <List size={18} /> 목록
+          <List size={18} /> {t('nav.list')}
         </Link>
       </nav>
     </div>

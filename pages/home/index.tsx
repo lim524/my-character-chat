@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import CharacterProfileModal from '@/components/CharacterProfileModal'
 import { getLocalCharacters, type LocalCharacter } from '@/lib/localStorage'
 import { useSearch } from '@/context/SearchContext'
+import { useTranslation } from '@/context/LanguageContext'
 
 interface Character {
   id: string
@@ -17,7 +18,7 @@ interface Character {
   userName: string
 }
 
-function toDisplayCharacter(c: LocalCharacter): Character {
+function toDisplayCharacter(c: LocalCharacter, anonymousLabel: string): Character {
   const img = c.imageUrl ?? c.image_url
   const firstEmotion = c.emotionImages?.[0] ?? c.emotion_images?.[0]
   const imageUrl =
@@ -33,12 +34,13 @@ function toDisplayCharacter(c: LocalCharacter): Character {
     imageUrl,
     isAdult: c.isAdult ?? c.is_adult ?? false,
     tags: Array.isArray(c.tags) ? c.tags.slice(0, 2) : [],
-    userName: c.userName ?? c.user_name ?? '익명',
+    userName: c.userName ?? c.user_name ?? anonymousLabel,
   }
 }
 
 export default function HomePage() {
   const router = useRouter()
+  const { t, lang } = useTranslation()
   const [characters, setCharacters] = useState<Character[]>([])
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const { searchQuery, setSearchQuery, showSearch } = useSearch()
@@ -47,9 +49,9 @@ export default function HomePage() {
     void (async () => {
       const list = await getLocalCharacters()
       const showPublic = list.filter((c) => c.is_public !== false && c.isPublic !== false)
-      setCharacters(showPublic.map(toDisplayCharacter))
+      setCharacters(showPublic.map((c) => toDisplayCharacter(c, t('home.anonymous'))))
     })()
-  }, [])
+  }, [lang, t])
 
   const goToChat = (id: string) => {
     setSelectedCharacter(null)
@@ -107,7 +109,7 @@ function CharacterCard({ char, eager }: { char: Character; eager: boolean }) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="검색..."
+            placeholder={t('home.searchPlaceholder')}
             className="w-full px-4 py-2 rounded bg-[#1c1c1c] text-white border border-[#444] placeholder-gray-500"
           />
         </div>

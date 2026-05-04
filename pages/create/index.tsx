@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@/context/LanguageContext'
 import dynamic from 'next/dynamic'
 import TopNav from '@/components/TopNav'
 import { CreateDialogueTab } from '@/components/create/CreateDialogueTab'
@@ -73,6 +74,7 @@ const GlobalUiLayersRuntime = dynamic(() => import('@/components/GlobalUiLayersR
 })
 
 export default function CreatePage() {
+  const { t } = useTranslation()
   const [draft, setDraft] = useState<CharacterDraft>({})
   const [iface, setIface] = useState<InterfaceConfig | null>(null)
   const [activeTab, setActiveTab] = useState<SidebarTabId>('profile')
@@ -108,6 +110,22 @@ export default function CreatePage() {
     const layout = parseMergedCharacterLayoutFromExtraEntries(iface.extraInterfaceEntries)
     return effectiveCharacterLiftPx(iface.characterSpriteLiftPx, layout)
   }, [iface])
+
+  const createTabBar = useMemo(
+    () =>
+      [
+        ['profile', 'create.tabProfile', User],
+        ['lorebook', 'create.tabLorebook', BookOpen],
+        ['images', 'create.tabImages', ImageIcon],
+        ['screen', 'create.tabScreen', Monitor],
+        ['dialogue', 'create.tabDialogue', MessageCircle],
+        ['script', 'create.tabScript', FileCode2],
+        ['extraInterface', 'create.tabExtra', Layers],
+        ['globalUi', 'create.tabGlobalUi', LayoutTemplate],
+        ['gameVariables', 'create.tabGameVars', Braces],
+      ] as [SidebarTabId, string, typeof User][],
+    []
+  )
 
   /** 비동기 FileReader 완료 시점의 iface 클로저 오래됨 방지 */
   const ifaceRef = useRef<InterfaceConfig | null>(null)
@@ -473,8 +491,8 @@ export default function CreatePage() {
                 background: initialBg,
                 characters: initialChar ? [{ slot: 'center', assetId: initialChar }] : [],
                 dialogue: {
-                  speakerName: draft.name || '알 수 없음',
-                  text: draft.firstLine || '이곳에 첫 대사가 표시됩니다...'
+                  speakerName: draft.name || t('create.previewUnknown'),
+                  text: draft.firstLine || t('create.previewFirstLine')
                 }
               }
               return (
@@ -502,14 +520,14 @@ export default function CreatePage() {
             sidebarOpen ? 'hidden md:inline-flex' : 'inline-flex'
           } items-center gap-1`}
         >
-          설정
+          {t('create.openSettings')}
         </button>
 
         {/* 사이드바 오버레이 */}
         {sidebarOpen && (
           <div className="absolute inset-y-0 left-0 w-[420px] max-w-[90vw] z-40 bg-[#050508]/95 border-r border-[#222] flex flex-col">
             <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-[#222]">
-              <span className="text-sm font-semibold text-gray-200 tracking-wide">생성 설정</span>
+              <span className="text-sm font-semibold text-gray-200 tracking-wide">{t('create.sidebarTitle')}</span>
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="w-8 h-8 rounded-full bg-[#111] border border-[#333] text-sm flex items-center justify-center hover:bg-[#1a1a1a]"
@@ -519,23 +537,11 @@ export default function CreatePage() {
             </div>
 
             <div className="flex px-4 pt-4 pb-3 gap-2 flex-wrap">
-              {(
-                [
-                  ['profile', '프로필', User],
-                  ['lorebook', '로어북', BookOpen],
-                  ['images', '이미지', ImageIcon],
-                  ['screen', '초기 화면 설정', Monitor],
-                  ['dialogue', '시나리오 및 규칙', MessageCircle],
-                  ['script', '스크립트', FileCode2],
-                  ['extraInterface', '추가 인터페이스 설정', Layers],
-                  ['globalUi', '전역 UI (HTML/CSS/JS)', LayoutTemplate],
-                  ['gameVariables', '게임 변수', Braces],
-                ] as [SidebarTabId, string, typeof User][]
-              ).map(([id, label, Icon]) => (
+              {createTabBar.map(([id, labelKey, Icon]) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
-                  title={label}
+                  title={t(labelKey)}
                   className={`p-2.5 rounded-md border transition-colors ${
                     activeTab === id
                       ? 'bg-white text-black border-white'
@@ -660,14 +666,14 @@ export default function CreatePage() {
                   onClick={() => cardImportRef.current?.click()}
                   className="flex-1 py-2 rounded-xl text-xs font-medium border border-[#444] bg-[#111] hover:bg-[#1a1a1a] text-gray-200"
                 >
-                  카드 가져오기
+                  {t('create.cardImport')}
                 </button>
                 <button
                   type="button"
                   onClick={handleExportCharacterCard}
                   className="flex-1 py-2 rounded-xl text-xs font-medium border border-[#444] bg-[#111] hover:bg-[#1a1a1a] text-gray-200"
                 >
-                  카드 보내기 (JSON)
+                  {t('create.cardExport')}
                 </button>
               </div>
               <button
@@ -678,7 +684,7 @@ export default function CreatePage() {
                     : 'bg-[#e45463] hover:bg-[#d04352] text-white'
                 }`}
               >
-                {saveStatus === 'saved' ? '✓ 저장되었습니다!' : '캐릭터 저장 (Ctrl+S)'}
+                {saveStatus === 'saved' ? t('create.savedCharacter') : t('create.saveCharacter')}
               </button>
             </div>
           </div>
@@ -689,7 +695,7 @@ export default function CreatePage() {
           onClick={() => setAiGuideOpen(true)}
           className="fixed bottom-5 right-5 z-[55] rounded-full border border-[#444] bg-[#111]/95 px-4 py-2 text-xs font-medium text-gray-200 shadow-lg backdrop-blur-md hover:border-white/35 hover:bg-[#1a1a1a]"
         >
-          AI 가이드
+          {t('create.aiGuide')}
         </button>
         <CreateAiGuideModal open={aiGuideOpen} onClose={() => setAiGuideOpen(false)} />
       </div>

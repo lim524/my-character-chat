@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Copy, Check } from 'lucide-react'
+import { useTranslation } from '@/context/LanguageContext'
 
 const GUIDE_URL = '/ai-configuration-prompt-pack.md'
 
@@ -40,6 +41,7 @@ export default function CreateAiGuideModal({
   open: boolean
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const [text, setText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -56,7 +58,7 @@ export default function CreateAiGuideModal({
         copiedTimerRef.current = null
       }, 3500)
     } else {
-      alert('클립보드에 복사하지 못했습니다. 주소가 https 또는 localhost인지 확인하거나, 텍스트를 직접 선택해 복사해 주세요.')
+      alert(t('aiGuide.copyFail'))
     }
   }
 
@@ -75,8 +77,8 @@ export default function CreateAiGuideModal({
         return r.text()
       })
       .then(setText)
-      .catch((e) => setError(e instanceof Error ? e.message : '불러오기 실패'))
-  }, [open])
+      .catch((e) => setError(e instanceof Error ? e.message : t('aiGuide.loadError')))
+  }, [open, t])
 
   useEffect(() => {
     if (!open) return
@@ -105,12 +107,12 @@ export default function CreateAiGuideModal({
       >
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#222] bg-[#0a0a0c] px-4 py-3">
           <h2 id="ai-guide-title" className="min-w-0 flex-1 text-sm font-semibold text-gray-100">
-            AI 가이드 (설정·Regex·전역 UI 복붙용)
+            {t('aiGuide.title')}
           </h2>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {copied ? (
               <span role="status" aria-live="polite" className="text-xs font-medium text-emerald-400">
-                클립보드에 복사했습니다
+                {t('aiGuide.copiedStatus')}
               </span>
             ) : null}
             <button
@@ -124,21 +126,21 @@ export default function CreateAiGuideModal({
               } disabled:cursor-not-allowed disabled:opacity-50`}
             >
               {copied ? <Check size={15} strokeWidth={2.5} className="text-emerald-400" /> : <Copy size={15} />}
-              {copied ? '복사됨' : text === null ? '불러오는 중…' : '복사하기'}
+              {copied ? t('aiGuide.copied') : text === null ? t('aiGuide.copying') : t('aiGuide.copyBtn')}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="rounded-lg border border-[#555] bg-[#151518] px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-[#1e1e24]"
             >
-              닫기
+              {t('aiGuide.close')}
             </button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
           {!error && text === null ? (
-            <p className="text-sm text-gray-500">불러오는 중…</p>
+            <p className="text-sm text-gray-500">{t('aiGuide.loading')}</p>
           ) : null}
           {text !== null ? (
             <pre className="whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-gray-300">

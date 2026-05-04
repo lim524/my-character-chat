@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import Image from 'next/image'
 import { kvGet, kvSet } from '@/lib/idbKV'
 import GlobalUiLayersEditor from '@/components/GlobalUiLayersEditor'
+import { useTranslation } from '@/context/LanguageContext'
 
 const PROFILE_KEY = 'local-profile'
 
@@ -14,6 +15,7 @@ interface LocalProfile {
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -67,7 +69,7 @@ export default function SettingsPage() {
 
   const saveProfile = async () => {
     if (!nickname.trim()) {
-      alert('닉네임을 입력해 주세요.')
+      alert(t('settings.alertNickname'))
       return
     }
     const profile: LocalProfile = {
@@ -81,10 +83,10 @@ export default function SettingsPage() {
       await kvSet('profile-nickname', profile.nickname)
     } catch (e) {
       console.error(e)
-      alert('프로필을 저장하지 못했습니다.')
+      alert(t('settings.alertSaveFail'))
       return
     }
-    alert('프로필이 저장되었습니다.')
+    alert(t('settings.alertSaved'))
     router.push('/mypage')
   }
 
@@ -94,7 +96,7 @@ export default function SettingsPage() {
         <div className="relative w-24 h-24 mx-auto cursor-pointer" onClick={handleImageClick}>
           <Image
             src={image?.trim() ? image : '/default-profile.png'}
-            alt="프로필"
+            alt={t('settings.profileAlt')}
             fill
             className="rounded-full object-cover"
             unoptimized={image.startsWith('data:')}
@@ -109,30 +111,30 @@ export default function SettingsPage() {
         </div>
 
         <div>
-          <label className="block mb-1 text-sm">이메일 (로컬용 표시)</label>
+          <label className="block mb-1 text-sm">{t('settings.email')}</label>
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="선택 입력"
+            placeholder={t('settings.emailPh')}
             className="w-full px-4 py-2 bg-[#333] rounded text-white outline-none"
           />
         </div>
 
         <div>
-          <label className="block mb-1 text-sm">성별</label>
+          <label className="block mb-1 text-sm">{t('settings.gender')}</label>
           <select
             value={gender}
             onChange={(e) => setGender(e.target.value)}
             className="w-full px-4 py-2 bg-[#333] rounded text-white"
           >
-            <option>남성</option>
-            <option>여성</option>
-            <option>기타</option>
+            <option value="남성">{t('settings.genderMale')}</option>
+            <option value="여성">{t('settings.genderFemale')}</option>
+            <option value="기타">{t('settings.genderOther')}</option>
           </select>
         </div>
 
         <div>
-          <label className="block mb-1 text-sm">닉네임</label>
+          <label className="block mb-1 text-sm">{t('settings.nickname')}</label>
           <div className="flex gap-2">
             <input
               value={nickname}
@@ -148,7 +150,7 @@ export default function SettingsPage() {
               }}
               className="px-3 py-2 bg-white text-black text-sm rounded hover:bg-gray-300"
             >
-              랜덤 생성
+              {t('settings.randomNickname')}
             </button>
           </div>
           {nicknameError && <p className="text-sm text-red-500 mt-1">{nicknameError}</p>}
@@ -158,13 +160,11 @@ export default function SettingsPage() {
           onClick={saveProfile}
           className="w-full bg-white text-black font-semibold py-2 rounded hover:bg-gray-300 transition"
         >
-          저장하기
+          {t('settings.saveProfile')}
         </button>
 
         <div className="border-t border-gray-700 pt-6 mt-6 space-y-4">
-          <p className="text-sm text-gray-400">
-            로컬 전용이며, 작성한 코드가 전체 화면에 영향을 줍니다. 캐릭터 생성 화면 사이드바의 같은 이름 탭에서도 편집할 수 있습니다.
-          </p>
+          <p className="text-sm text-gray-400">{t('settings.globalUiNote')}</p>
           <GlobalUiLayersEditor variant="settings" />
         </div>
 
@@ -183,9 +183,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 # Google (Gemini)
 NEXT_PUBLIC_GEMINI_API_KEY=...`}
           </pre>
-          <p className="text-sm text-gray-400 mt-3">
-            Temperature·Max tokens는 채팅 화면에서 「모델 선택」 버튼으로 설정할 수 있으며, 로컬에 저장됩니다.
-          </p>
+          <p className="text-sm text-gray-400 mt-3">{t('settings.apiFootnote')}</p>
         </div>
       </div>
     </div>

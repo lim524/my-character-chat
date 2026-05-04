@@ -5,6 +5,7 @@ import TopNav from '../components/TopNav'
 import '../styles/globals.css'
 import { SearchProvider } from '@/context/SearchContext'
 import { ThemeProvider } from '@/context/ThemeContext'
+import { LanguageProvider } from '@/context/LanguageContext'
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter()
@@ -12,11 +13,13 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <ThemeProvider>
+      <LanguageProvider>
       <SearchProvider>
         {!isChatPage && <TopNav />}
         <Component {...pageProps} />
         {!isChatPage && <BottomNav />}
       </SearchProvider>
+      </LanguageProvider>
     </ThemeProvider>
   )
 }

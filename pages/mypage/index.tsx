@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/router'
 import {
   Bot,
@@ -42,22 +42,11 @@ import {
 } from '@/lib/appSettings'
 import { PromptSettingsTab } from '@/components/settings/PromptSettingsTab'
 import { ModuleSettingsTab } from '@/components/settings/ModuleSettingsTab'
+import { useTranslation } from '@/context/LanguageContext'
+import { APP_LANGUAGE_CHANGED_EVENT } from '@/lib/i18n/translate'
 
 type MenuId = 'chatbot' | 'persona' | 'language'
 type ChatbotTabId = 'api' | 'parameters' | 'prompts' | 'modules'
-
-const MENU_ITEMS: { id: MenuId; label: string; icon: React.ReactNode }[] = [
-  { id: 'chatbot', label: '채팅 봇', icon: <Bot className="w-5 h-5" /> },
-  { id: 'persona', label: '유저 페르소나', icon: <User className="w-5 h-5" /> },
-  { id: 'language', label: '언어', icon: <Languages className="w-5 h-5" /> },
-]
-
-const CHATBOT_TABS: { id: ChatbotTabId; label: string; icon: React.ReactNode }[] = [
-  { id: 'api', label: 'API', icon: <KeyRound className="w-4 h-4" /> },
-  { id: 'parameters', label: '파라미터', icon: <Sliders className="w-4 h-4" /> },
-  { id: 'prompts', label: '프롬프트', icon: <FileText className="w-4 h-4" /> },
-  { id: 'modules', label: '모듈', icon: <Boxes className="w-4 h-4" /> },
-]
 
 const PROVIDER_LABEL: Record<ProviderId, string> = {
   openai: 'OpenAI (GPT)',
@@ -68,9 +57,31 @@ const PROVIDER_LABEL: Record<ProviderId, string> = {
 
 
 export default function MyPage() {
+  const { t } = useTranslation()
   const router = useRouter()
   const [activeMenu, setActiveMenu] = useState<MenuId>('chatbot')
   const [activeChatbotTab, setActiveChatbotTab] = useState<ChatbotTabId>('api')
+
+  const MENU_ITEMS = useMemo(
+    () =>
+      [
+        { id: 'chatbot' as const, label: t('mypage.menuChatbot'), icon: <Bot className="w-5 h-5" /> },
+        { id: 'persona' as const, label: t('mypage.menuPersona'), icon: <User className="w-5 h-5" /> },
+        { id: 'language' as const, label: t('mypage.menuLanguage'), icon: <Languages className="w-5 h-5" /> },
+      ] satisfies { id: MenuId; label: string; icon: ReactNode }[],
+    [t]
+  )
+
+  const CHATBOT_TABS = useMemo(
+    () =>
+      [
+        { id: 'api' as const, label: t('mypage.tabApi'), icon: <KeyRound className="w-4 h-4" /> },
+        { id: 'parameters' as const, label: t('mypage.tabParameters'), icon: <Sliders className="w-4 h-4" /> },
+        { id: 'prompts' as const, label: t('mypage.tabPrompts'), icon: <FileText className="w-4 h-4" /> },
+        { id: 'modules' as const, label: t('mypage.tabModules'), icon: <Boxes className="w-4 h-4" /> },
+      ] satisfies { id: ChatbotTabId; label: string; icon: ReactNode }[],
+    [t]
+  )
 
   const [language, setLanguage] = useState<AppLanguage>('ko')
   const [providers, setProvidersState] = useState<ApiProviders>(DEFAULT_API_PROVIDERS)
@@ -118,11 +129,10 @@ export default function MyPage() {
       await setUserPersona(userPersona)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
+      window.dispatchEvent(new Event(APP_LANGUAGE_CHANGED_EVENT))
     } catch (e) {
       console.error('[mypage] 설정 저장 실패', e)
-      alert(
-        '저장에 실패했습니다. 브라우저가 IndexedDB를 허용하는지, 사이트 데이터가 차단되지 않았는지 확인해 주세요.'
-      )
+      alert(t('mypage.alertSaveFail'))
     }
   }
 
@@ -151,7 +161,7 @@ export default function MyPage() {
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-left text-gray-400 hover:bg-[#2a2a2a] hover:text-gray-200 transition"
           >
             <FolderOpen className="w-5 h-5" />
-            <span className="text-sm font-medium">캐릭터 관리</span>
+            <span className="text-sm font-medium">{t('mypage.characterManage')}</span>
           </button>
         </div>
       </aside>
@@ -160,30 +170,33 @@ export default function MyPage() {
         {activeMenu === 'persona' && (
           <div className="max-w-2xl mx-auto space-y-8">
             <div className="text-center">
-              <h2 className="text-2xl font-bold">유저 페르소나</h2>
+              <h2 className="text-2xl font-bold">{t('mypage.personaTitle')}</h2>
               <p className="text-sm text-gray-400 mt-2">
-                모든 채팅방에서 기본으로 사용될 당신의 정보를 입력하세요.<br/>
-                캐릭터별로 별도의 유저 설정이 있다면 해당 설정이 우선 적용됩니다.
+                {t('mypage.personaIntro1')}
+                <br />
+                {t('mypage.personaIntro2')}
               </p>
             </div>
 
             <div className="bg-[#202020] border border-[#333] rounded-xl p-6 space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">이름</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">{t('mypage.name')}</label>
                 <input
                   value={userPersona.name}
                   onChange={(e) => setUserPersonaState({ ...userPersona, name: e.target.value })}
-                  placeholder="사용자"
+                  placeholder={t('mypage.namePlaceholder')}
                   className="w-full px-4 py-2.5 bg-[#2a2a2a] border border-[#444] rounded-lg text-white focus:border-white/30 focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">설명 (페르소나)</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  {t('mypage.personaDescLabel')}
+                </label>
                 <textarea
                   value={userPersona.description}
                   onChange={(e) => setUserPersonaState({ ...userPersona, description: e.target.value })}
-                  placeholder="당신의 성격, 외모, 캐릭터와의 관계 등을 자유롭게 적어보세요."
+                  placeholder={t('mypage.personaDescPlaceholder')}
                   rows={8}
                   className="w-full px-4 py-3 bg-[#2a2a2a] border border-[#444] rounded-lg text-white focus:border-white/30 focus:outline-none transition-colors resize-none"
                 />
@@ -196,7 +209,7 @@ export default function MyPage() {
           <div className="max-w-5xl mx-auto">
             <div className="flex items-start gap-6">
               <div className="w-44 flex-shrink-0">
-                <div className="text-sm text-gray-400 mb-2">채팅 봇</div>
+                <div className="text-sm text-gray-400 mb-2">{t('mypage.chatbotSidebar')}</div>
                 <div className="flex flex-col gap-1">
                   {CHATBOT_TABS.map((tab) => (
                     <button
@@ -220,13 +233,10 @@ export default function MyPage() {
                   {activeChatbotTab === 'api' && (
                     <div className="space-y-4">
                       <div className="text-center">
-                        <h2 className="text-xl font-bold">API</h2>
-                        <p className="text-sm text-gray-400 mt-2">
-                          로컬 전용입니다. 여기서 API 키와 사용할 모델 목록을 입력하세요.
-                        </p>
+                        <h2 className="text-xl font-bold">{t('mypage.apiHeading')}</h2>
+                        <p className="text-sm text-gray-400 mt-2">{t('mypage.apiLead')}</p>
                         <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
-                          <b>모델</b>은 <b>＋ 추가 / 삭제 시마다 IndexedDB에 바로 저장</b>됩니다. API 키·프롬프트 번들 등
-                          나머지는 하단 <b>「설정 저장」</b>을 눌러야 반영됩니다.
+                          {t('mypage.apiWarn')}
                         </p>
                       </div>
 
@@ -241,7 +251,7 @@ export default function MyPage() {
                               <button
                                 className="text-gray-400 hover:text-white"
                                 onClick={() => setShowKey((prev) => ({ ...prev, [pid]: !prev[pid] }))}
-                                title={showKey[pid] ? '숨기기' : '보기'}
+                                title={showKey[pid] ? t('mypage.hide') : t('mypage.show')}
                               >
                                 {showKey[pid] ? (
                                   <EyeOff className="w-4 h-4" />
@@ -252,7 +262,7 @@ export default function MyPage() {
                             </div>
 
                             <div>
-                              <label className="block text-sm text-gray-300 mb-1">API Key</label>
+                              <label className="block text-sm text-gray-300 mb-1">{t('mypage.labelApiKey')}</label>
                               <input
                                 type={showKey[pid] ? 'text' : 'password'}
                                 value={providers[pid].apiKey}
@@ -262,18 +272,20 @@ export default function MyPage() {
                                     [pid]: { apiKey: e.target.value },
                                   }))
                                 }
-                                placeholder="IndexedDB에 평문 저장"
+                                placeholder={t('mypage.phIndexedDb')}
                                 className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-sm text-gray-300 mb-1">Models</label>
+                              <label className="block text-sm text-gray-300 mb-1">{t('mypage.labelModels')}</label>
                               <div className="flex gap-2">
                                 <input
                                   value={newModel[pid]}
                                   onChange={(e) => setNewModel((prev) => ({ ...prev, [pid]: e.target.value }))}
-                                  placeholder={pid === 'openrouter' ? '예: openrouter/anthropic/claude-3.5-sonnet' : '예: gpt-4o'}
+                                  placeholder={
+                                    pid === 'openrouter' ? t('mypage.phModelOr') : t('mypage.phModelGpt')
+                                  }
                                   className="flex-1 px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white"
                                 />
                                 <button
@@ -287,16 +299,14 @@ export default function MyPage() {
                                       }
                                       void setApiModels(next).catch((err) => {
                                         console.error(err)
-                                        alert(
-                                          '모델 목록 저장에 실패했습니다. IndexedDB(사이트 데이터)를 확인해 주세요.'
-                                        )
+                                        alert(t('mypage.alertModelFail'))
                                       })
                                       return next
                                     })
                                     setNewModel((prev) => ({ ...prev, [pid]: '' }))
                                   }}
                                   className="px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded hover:bg-[#333] transition"
-                                  title="추가"
+                                  title={t('mypage.titleAdd')}
                                 >
                                   <Plus className="w-4 h-4" />
                                 </button>
@@ -317,15 +327,13 @@ export default function MyPage() {
                                           }
                                           void setApiModels(next).catch((err) => {
                                             console.error(err)
-                                            alert(
-                                              '모델 목록 저장에 실패했습니다. IndexedDB(사이트 데이터)를 확인해 주세요.'
-                                            )
+                                            alert(t('mypage.alertModelFail'))
                                           })
                                           return next
                                         })
                                       }
                                       className="text-gray-400 hover:text-white"
-                                      title="삭제"
+                                      title={t('mypage.titleRemove')}
                                     >
                                       <X className="w-3 h-3" />
                                     </button>
@@ -342,14 +350,12 @@ export default function MyPage() {
                   {activeChatbotTab === 'parameters' && (
                     <div className="space-y-6">
                       <div className="text-center">
-                        <h2 className="text-xl font-bold">파라미터</h2>
-                        <p className="text-sm text-gray-400 mt-2">
-                          입력/출력 길이 제한과 temperature를 설정합니다.
-                        </p>
+                        <h2 className="text-xl font-bold">{t('mypage.paramsHeading')}</h2>
+                        <p className="text-sm text-gray-400 mt-2">{t('mypage.paramsLead')}</p>
                       </div>
                       <div className="space-y-4 text-left">
                         <div>
-                          <label className="block text-sm text-gray-300 mb-1">Temperature (0~2)</label>
+                          <label className="block text-sm text-gray-300 mb-1">{t('mypage.tempLabel')}</label>
                           <input
                             type="number"
                             min={0}
@@ -367,7 +373,7 @@ export default function MyPage() {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm text-gray-300 mb-1">최대 Input 길이 (chars)</label>
+                            <label className="block text-sm text-gray-300 mb-1">{t('mypage.maxInLabel')}</label>
                             <input
                               type="number"
                               min={100}
@@ -383,7 +389,7 @@ export default function MyPage() {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm text-gray-300 mb-1">최대 Output 길이 (chars)</label>
+                            <label className="block text-sm text-gray-300 mb-1">{t('mypage.maxOutLabel')}</label>
                             <input
                               type="number"
                               min={100}
@@ -427,19 +433,19 @@ export default function MyPage() {
         {activeMenu === 'language' && (
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="text-center">
-              <h2 className="text-xl font-bold">언어</h2>
-              <p className="text-sm text-gray-400 mt-2">앱 표시 언어를 설정합니다.</p>
+              <h2 className="text-xl font-bold">{t('mypage.langHeading')}</h2>
+              <p className="text-sm text-gray-400 mt-2">{t('mypage.langLead')}</p>
             </div>
             <div className="text-left flex justify-center">
               <div className="w-full max-w-sm">
-                <label className="block text-sm text-gray-300 mb-2">앱 표시 언어</label>
+                <label className="block text-sm text-gray-300 mb-2">{t('mypage.langLabel')}</label>
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value as AppLanguage)}
                   className="w-full px-3 py-2 bg-[#2a2a2a] border border-[#444] rounded text-white"
                 >
-                  <option value="ko">한국어</option>
-                  <option value="en">English</option>
+                  <option value="ko">{t('mypage.langKo')}</option>
+                  <option value="en">{t('mypage.langEn')}</option>
                 </select>
               </div>
             </div>
@@ -452,7 +458,7 @@ export default function MyPage() {
               onClick={handleSave}
               className="px-6 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition"
             >
-              {saved ? '저장됨' : '설정 저장'}
+              {saved ? t('mypage.savedBtn') : t('mypage.saveBtn')}
             </button>
           </div>
         </div>
