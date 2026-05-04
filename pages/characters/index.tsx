@@ -96,6 +96,8 @@ export default function CharacterList() {
       interfaceConfig,
       /** 로어북 등 draft 전용 필드(저장 시 spread 되어 있을 수 있음) */
       loreEntries: (char as LocalCharacter & { loreEntries?: unknown }).loreEntries,
+      /** 저장된 캐릭터 전용 전역 UI — 없으면 생성 화면에서 앱 전역·빈 목록과 혼동되지 않게 키 생략 */
+      globalUiLayers: char.globalUiLayers,
     }
     try {
       await kvSet(CHARACTER_DRAFT_KEY, JSON.stringify(draft))

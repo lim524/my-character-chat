@@ -345,6 +345,11 @@ export default function ChatPage() {
   assistantPageIndexRef.current = assistantDialogPageIndex
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuOpenRef = useRef(false)
+  menuOpenRef.current = menuOpen
+  const [topBarVisible, setTopBarVisible] = useState(false)
+  const headerBarRef = useRef<HTMLDivElement | null>(null)
+  const hideHeaderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isAssetPickerOpen, setIsAssetPickerOpen] = useState(false)
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
@@ -505,6 +510,51 @@ export default function ChatPage() {
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = 'auto'
+    }
+  }, [])
+
+  useEffect(() => {
+    if (menuOpen) {
+      if (hideHeaderTimerRef.current) {
+        clearTimeout(hideHeaderTimerRef.current)
+        hideHeaderTimerRef.current = null
+      }
+      setTopBarVisible(true)
+    }
+  }, [menuOpen])
+
+  useEffect(() => {
+    const HOT_ZONE_PX = 56
+    const HIDE_DELAY_MS = 650
+
+    const clearHideTimer = () => {
+      if (hideHeaderTimerRef.current) {
+        clearTimeout(hideHeaderTimerRef.current)
+        hideHeaderTimerRef.current = null
+      }
+    }
+
+    const onMove = (e: MouseEvent) => {
+      if (menuOpenRef.current) return
+      if (e.clientY < HOT_ZONE_PX) {
+        clearHideTimer()
+        setTopBarVisible(true)
+        return
+      }
+      if (headerBarRef.current?.contains(e.target as Node)) {
+        clearHideTimer()
+        return
+      }
+      clearHideTimer()
+      hideHeaderTimerRef.current = setTimeout(() => {
+        setTopBarVisible(false)
+      }, HIDE_DELAY_MS)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      clearHideTimer()
     }
   }, [])
 
@@ -1153,17 +1203,48 @@ export default function ChatPage() {
       )}
 
       {characterInfo && (
-        <ChatHeaderBar
-          characterInfo={characterInfo as ChatCharacterSummary}
-          onBack={() => {
-            void (async () => {
-              await flushPersistCurrentRoom()
-              await router.push('/')
-            })()
-          }}
-          onToggleMenu={() => setMenuOpen(!menuOpen)}
-          isDataUrl={isDataUrl}
-        />
+        <>
+          {!topBarVisible && !menuOpen && (
+            <div
+              className="fixed top-0 left-0 right-0 z-[51] h-14 touch-manipulation"
+              aria-hidden
+              onMouseEnter={() => {
+                if (hideHeaderTimerRef.current) {
+                  clearTimeout(hideHeaderTimerRef.current)
+                  hideHeaderTimerRef.current = null
+                }
+                setTopBarVisible(true)
+              }}
+              onTouchStart={() => {
+                if (hideHeaderTimerRef.current) {
+                  clearTimeout(hideHeaderTimerRef.current)
+                  hideHeaderTimerRef.current = null
+                }
+                setTopBarVisible(true)
+              }}
+            />
+          )}
+          <div
+            ref={headerBarRef}
+            className={`fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ease-out will-change-transform ${
+              topBarVisible || menuOpen
+                ? 'translate-y-0 pointer-events-auto'
+                : '-translate-y-full pointer-events-none'
+            }`}
+          >
+            <ChatHeaderBar
+              characterInfo={characterInfo as ChatCharacterSummary}
+              onBack={() => {
+                void (async () => {
+                  await flushPersistCurrentRoom()
+                  await router.push('/')
+                })()
+              }}
+              onToggleMenu={() => setMenuOpen(!menuOpen)}
+              isDataUrl={isDataUrl}
+            />
+          </div>
+        </>
       )}
 
       {characterInfo?.interfaceConfig?.stats && characterInfo.interfaceConfig.stats.length > 0 && (

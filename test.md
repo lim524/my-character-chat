@@ -1,138 +1,226 @@
-# 전역 인터페이스 × Regex 조합 예시 (참고용)
+# 예시: 상태창 전역 인터페이스 (HTML / CSS / JavaScript) + 게임 변수
 
-이 문서는 **앱 코드를 바꾸지 않고**, 현재 제공되는 기능만으로 시도할 수 있는 **설정 예시 모음**입니다.  
-실제 동작은 브라우저·렌더 순서·이스케이프에 따라 달라질 수 있으니, 항상 소량으로 테스트하세요.
-
----
-
-## 1. 역할 정리
-
-| 구분 | 위치 | 하는 일 (요약) |
-|------|------|------------------|
-| **Regex Script** | 캐릭터 생성 → **스크립트** 탭, `interfaceConfig.regexScripts` | 단계(`scriptType`)마다 문자열에 정규식 치환 적용 |
-| **전역 인터페이스** | 설정 또는 생성 → **전역 UI (HTML/CSS/JS)** | 앱 전체에 CSS 주입, 고정 HTML 레이어, (선택) JavaScript |
-| **채팅 본문 표시** | `MessageParser` | `modify_display` 단계는 **`normalizeImageControlTags` 안에서** 적용된 뒤, `**`/`*` 마크다운 등으로 렌더 |
-
-Regex 타입(앱 라벨 기준):
-
-- `modify_input` — 사용자 입력
-- `modify_output` — 모델이 방금 만든 **어시스턴트 한 턴**의 텍스트(전송/저장에도 영향이 갈 수 있음)
-- `modify_request` — API로 보내는 요청 본문
-- `modify_display` — **화면에만** 쓰는 표시용 문자열(이미지 태그 정규화 직전에도 동일 phase가 사용됨)
-
-**전역 인터페이스 JS**는 채팅 state와 **기본 연결되어 있지 않습니다**. 아래 예시 중 “DOM 감시” 류는 가능은 하지만 깨지기 쉬운 **우회**입니다.
+채팅 **게임 변수** 탭에 아래 키들을 정의하고, 응답 끝에 `[game_state]{ "키": 값 }[/game_state]` 로 갱신하면 `{{키}}` 가 치환됩니다.  
+전역 UI(앱 설정 또는 캐릭터 `globalUiLayers`)에 **HTML / CSS / JavaScript** 필드에 각각 붙여 넣으면 됩니다.  
+(HTML 안에는 `<script>` 를 쓰지 말고, 스크립트는 **JavaScript** 필드만 사용합니다.)
 
 ---
 
-## 2. 조합 패턴 A — Regex만으로 “깔끔한 대사창”
+## 1. 게임 변수 정의 (복사용)
 
-**목표:** 모델이 자주 쓰는 쓰레기 토큰, 중복 태그, OOC 메모를 대화창에서만 지운다.
+| key | type | label (표시용) | defaultValue |
+|-----|------|----------------|--------------|
+| `hp` | number | HP | 100 |
+| `mp` | number | MP | 50 |
+| `max_hp` | number | 최대 HP | 100 |
+| `max_mp` | number | 최대 MP | 50 |
+| `gold` | number | 골드 | 0 |
+| `location` | string | 위치 | 알 수 없는 곳 |
 
-| 이름 | scriptType | pattern (예시) | replacement |
-|------|----------------|----------------|-------------|
-| OOC 제거 | `modify_display` | `\s*\[OOC\][\s\S]*?\[/OOC\]\s*` | (빈 문자열) |
-| 연속 빈 줄 축소 | `modify_display` | `\n{3,}` | `\n\n` |
+백그라운드 임베딩/시나리오에 **한 번** 넣을 문장 예:
 
-**포인트:** `modify_display`는 표시 경로에만 타므로, **저장된 원문을 건드리지 않게** 하려면 정책을 통일하는 게 좋습니다(앱 버전에 따라 저장 타이밍이 다를 수 있음).
+```text
+매 턴 대사/묘사가 끝난 뒤, 응답 맨 끝에만 아래 형식으로 방 상태를 갱신한다. 키는 캐릭터에 정의된 것만 사용한다.
+[game_state]
+{ "hp": 100, "mp": 40, "max_hp": 100, "max_mp": 50, "gold": 120, "location": "엘프 숲 입구" }
+[/game_state]
+```
 
 ---
 
-## 3. 조합 패턴 B — Regex + 전역 CSS (대화창 “게임 톤”)
+## 2. HTML (전역 UI — `html` 필드)
 
-**목표:** 모델에게 `**중요대사**`, `*나레이션*` 형식을 쓰게 유도하고, 전역 CSS로 색·글자 크기를 덮어쓴다.
+```html
+<div class="mcc-status-hud" data-mcc-hud>
+  <div class="mcc-status-hud__title">상태</div>
+  <div class="mcc-status-hud__row">
+    <span class="mcc-status-hud__label">위치</span>
+    <span class="mcc-status-hud__value mcc-status-hud__value--wide">{{location}}</span>
+  </div>
+  <div class="mcc-status-hud__row">
+    <span class="mcc-status-hud__label">HP</span>
+    <div class="mcc-status-hud__bar">
+      <div class="mcc-status-hud__fill mcc-status-hud__fill--hp" style="width: calc(100% * ({{hp}}) / max(1, {{max_hp}}))"></div>
+    </div>
+    <span class="mcc-status-hud__nums">{{hp}} / {{max_hp}}</span>
+  </div>
+  <div class="mcc-status-hud__row">
+    <span class="mcc-status-hud__label">MP</span>
+    <div class="mcc-status-hud__bar">
+      <div class="mcc-status-hud__fill mcc-status-hud__fill--mp" style="width: calc(100% * ({{mp}}) / max(1, {{max_mp}}))"></div>
+    </div>
+    <span class="mcc-status-hud__nums">{{mp}} / {{max_mp}}</span>
+  </div>
+  <div class="mcc-status-hud__row">
+    <span class="mcc-status-hud__label">골드</span>
+    <span class="mcc-status-hud__value">{{gold}} G</span>
+  </div>
+</div>
+```
 
-`MessageParser`는 `**텍스트**` → `<strong class="font-bold text-blue-400">`, `*텍스트*` → `<em class="opacity-65 not-italic">` 로 렌더합니다.
+- `{{location}}` 등은 서버/클라이언트가 **이스케이프된 문자열**로 넣으므로, 위치에 특수문자가 있어도 안전합니다.
+- 막대 비율은 `style` 안의 `{{hp}}` / `{{max_hp}}` 치환으로 계산됩니다. 값은 숫자형 변수를 권장합니다.
 
-**전역 인터페이스 → CSS 예시:**
+---
+
+## 3. CSS (전역 UI — `css` 필드)
 
 ```css
-/* 어시스턴트 말풍선 안 강조 — 선택자는 실제 DOM에 맞게 조정 */
-.font-bold.text-blue-400 {
-  color: #fde68a !important;
-  text-shadow: 0 0 12px rgba(250, 204, 21, 0.35);
+.mcc-status-hud {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 50;
+  min-width: 220px;
+  max-width: min(92vw, 320px);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(20, 24, 32, 0.92), rgba(12, 16, 24, 0.88));
+  border: 1px solid rgba(120, 180, 255, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: rgba(235, 240, 255, 0.95);
+  pointer-events: auto;
 }
 
-em.opacity-65 {
-  color: #94a3b8 !important;
-  font-size: 0.95em;
-  letter-spacing: 0.02em;
+.mcc-status-hud__title {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: rgba(160, 190, 255, 0.85);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mcc-status-hud__row {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 8px;
+}
+.mcc-status-hud__row:last-child {
+  margin-bottom: 0;
+}
+
+.mcc-status-hud__label {
+  font-size: 11px;
+  color: rgba(200, 210, 230, 0.7);
+}
+
+.mcc-status-hud__value {
+  grid-column: 2 / -1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.mcc-status-hud__value--wide {
+  grid-column: 2 / -1;
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(220, 230, 255, 0.95);
+}
+
+.mcc-status-hud__bar {
+  grid-column: 2;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.mcc-status-hud__fill {
+  height: 100%;
+  border-radius: 999px;
+  max-width: 100%;
+  transition: width 0.35s ease, background 0.3s ease;
+}
+.mcc-status-hud__fill--hp {
+  background: linear-gradient(90deg, #2d7a4a, #4ade80);
+}
+.mcc-status-hud__fill--mp {
+  background: linear-gradient(90deg, #1d4e8f, #60a5fa);
+}
+
+.mcc-status-hud__nums {
+  grid-column: 3;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(200, 210, 230, 0.9);
+  white-space: nowrap;
+}
+
+/* JavaScript가 HP 낮을 때 붙이는 클래스 */
+.mcc-status-hud--danger {
+  border-color: rgba(248, 113, 113, 0.55);
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.2), 0 8px 32px rgba(0, 0, 0, 0.45);
+  animation: mcc-hud-pulse 1.2s ease-in-out infinite;
+}
+.mcc-status-hud--danger .mcc-status-hud__fill--hp {
+  background: linear-gradient(90deg, #7f1d1d, #f87171);
+}
+
+@keyframes mcc-hud-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
 }
 ```
 
-**Regex 예시(유도):** 모델이 자꾸 한 줄로만 쓸 때, `modify_display`로 문단 앞에 빈 줄을 넣는 등(프로젝트·모델에 따라 조정).
-
 ---
 
-## 4. 조합 패턴 C — `modify_output`으로 태그·각오 문구 고정
+## 4. JavaScript (전역 UI — `javascript` 필드)
 
-**목표:** 매 턴 끝에 배경·캐릭터 태그가 빠지지 않게, **출력 문자열에만** 안전하게 덧붙이기(과하면 부자연스러우니 시나리오와 함께 조절).
-
-| 이름 | scriptType | pattern | replacement (개념) |
-|------|------------|---------|---------------------|
-| 문단 끝 태그 보강 | `modify_output` | `$(?!.)` 또는 마지막 줄만 타게 하는 패턴 | 원문 + `\n<img=배경ID:background>\n<img=캐릭터ID>` |
-
-**주의:** `$`는 다줄 문자열에서 “문서 끝” 한 번만 매칭됩니다. 에셋 ID는 실제 등록 ID와 일치해야 합니다.
-
----
-
-## 5. 조합 패턴 D — 전역 HTML/CSS로 “고정 HUD”, Regex로 본문 정리
-
-**목표:** 상단·하단에 항상 보이는 프레임(HP 바 자리, 로고 자리 등)은 **전역 인터페이스 HTML**로 깔고, 대사 중 노이즈만 Regex로 제거.
-
-- **전역 인터페이스 HTML:** 빈 `div` 래퍼 + 고정 `position` 레이아웃만 두고, 텍스트는 비워 둔 채 CSS로 테두리·그라데이션만 연출.
-- **Regex:** `modify_display`로 시스템 프롬프트 누설 패턴 삭제 등.
-
-이 패턴은 **“AI 한 줄이 HUD 텍스트를 직접 갱신”**하지는 않습니다. 텍스트 HUD까지 쓰려면 나중에 앱에서 채팅 이벤트와 연결하는 편이 안전합니다.
-
----
-
-## 6. 조합 패턴 E — 전역 JS (실험적): DOM에서 마지막 어시스턴트 블록만 감시
-
-**목표:** “대화창에 나온 특정 패턴을 복사해 상단 배너에 붙인다” 같은 **비공식** 연동.
-
-개념 예시(실제 선택자는 개발자 도구로 확인 필요):
+`GlobalUiLayersRuntime` 는 이 코드를 `new Function` 으로 실행합니다. **정리 함수**를 반환하면 레이어가 바뀔 때 호출됩니다.
 
 ```javascript
-(function () {
-  const banner = document.getElementById('custom-global-banner')
-  if (!banner) return function () {}
+return (function () {
+  var LOW_HP = 20
 
-  const observer = new MutationObserver(() => {
-    const last = document.querySelector('[data-role="assistant-last"]') /* 예시: 실제 구조 없음 */
-    if (!last) return
-    const m = last.textContent?.match(/\[나레이션\]\s*([\s\S]+?)\s*\[\/나레이션\]/)
-    if (m) banner.textContent = m[1].trim()
-  })
+  function onGameVars(e) {
+    var d = e.detail || {}
+    var hp = Number(d.hp)
+    if (!Number.isFinite(hp)) return
+    var root = document.querySelector('[data-mcc-hud]')
+    if (!root) return
+    root.classList.toggle('mcc-status-hud--danger', hp > 0 && hp < LOW_HP)
+  }
 
-  observer.observe(document.body, { childList: true, subtree: true })
-  return () => observer.disconnect()
+  window.addEventListener('game-variables-updated', onGameVars)
+
+  return function () {
+    window.removeEventListener('game-variables-updated', onGameVars)
+  }
 })()
 ```
 
-**한계:** 채팅 마크업 클래스가 바뀌면 깨집니다. 위 `data-role` 같은 속성은 **현재 앱에 없을 수 있음** — 반드시 실제 DOM에 맞춰 수정해야 합니다.
+- 앱이 `game-variables-updated` 이벤트에 **현재 맵 전체**를 `detail` 로 넣으므로, 위 스크립트는 HP만 보고 위험 스타일을 토글합니다.
 
 ---
 
-## 7. 트레일링 JSON (앱 자체 동작 참고)
+## 5. AI 출력 예시 (`[game_state]`)
 
-`MessageParser`는 메시지 **맨 끝**에 단일 JSON 객체 `{ ... }` 가 오면 표시에서 잘라 냅니다.  
-게임 수치용으로 모델에게 JSON을 붙이게 했다면, Regex로 포맷을 맞추거나 `modify_display`로 아예 사용자에게 안 보이게 정리할 수 있습니다.
+```text
+엘프 병사가 활시위를 당긴다. 숲 사이로 바람이 스친다.
 
----
+[game_state]
+{
+  "hp": 72,
+  "mp": 33,
+  "max_hp": 100,
+  "max_mp": 50,
+  "gold": 145,
+  "location": "숲길 — 매복 지점"
+}
+[/game_state]
+```
 
-## 8. 체크리스트 (설정만으로 할 때)
-
-1. Regex는 **JavaScript 정규식** 문법 — 백슬래시 이스케이프 주의 (`\\d` 등).
-2. `modify_display` ↔ `modify_output` 구분: 저장·재생 일관성을 위해 용도를 나누기.
-3. 전역 CSS는 `sanitizeCustomCss` 길이 제한이 있음 — 길면 잘림.
-4. 전역 HTML의 `<script>`는 저장 시 제거되므로 **스크립트는 JavaScript 칸**에 작성.
-
----
-
-## 9. 정리
-
-- **안정적인 연동:** 에셋 ID + `<img=` 규칙 + 시나리오/로어 + Regex(`modify_display`/`modify_output`).
-- **전역 인터페이스:** 레이아웃·테마·실험적 DOM 스크립트.
-- **“조건 나오면 전역 레이어 문구 갱신”**까지 **설정만**으로 완성하기는 어렵고, 패턴 E는 예시 수준의 우회입니다.
-
-이 파일(`test.md`)은 예시 모음이며, 빌드·런타임에 자동으로 읽히지 않습니다.
+이 블록은 클라이언트에서 파싱된 뒤 **대화창 텍스트에서는 제거**되고, 정의된 키만 방(채팅방) 상태에 저장된 뒤 `{{...}}` 치환에 사용됩니다.

@@ -22,16 +22,29 @@ export type GlobalUiLayersRuntimeProps = {
   layers?: GlobalUiLayer[]
   /** embedded: 미리보기 등 부모 `relative` 안에서만 덮음 */
   layout?: LayoutMode
+  /**
+   * 생성 화면 미리보기 등: `{{키}}` 치환에 쓸 초기 맵. 지정되면 이 값이 바뀔 때마다 맵이 갱신됩니다.
+   * 채팅 화면에서는 지정하지 않고 `game-variables-updated` 이벤트만 사용합니다.
+   */
+  initialGameVariableValues?: Record<string, string | number | boolean>
 }
 
 /** 설정에 저장된 전역 레이어를 순서대로 적용합니다 (CSS → HTML 오버레이 → JS). */
 export default function GlobalUiLayersRuntime({
   layers: controlledLayers,
   layout = 'viewport',
+  initialGameVariableValues,
 }: GlobalUiLayersRuntimeProps) {
   const controlled = controlledLayers !== undefined
   const [idbLayers, setIdbLayers] = useState<GlobalUiLayer[]>([])
-  const [gameVarMap, setGameVarMap] = useState<Record<string, string | number | boolean>>({})
+  const [gameVarMap, setGameVarMap] = useState<Record<string, string | number | boolean>>(() =>
+    initialGameVariableValues !== undefined ? { ...initialGameVariableValues } : {}
+  )
+
+  useEffect(() => {
+    if (initialGameVariableValues === undefined) return
+    setGameVarMap({ ...initialGameVariableValues })
+  }, [initialGameVariableValues])
 
   useEffect(() => {
     if (controlled) return
@@ -45,12 +58,13 @@ export default function GlobalUiLayersRuntime({
 
   useEffect(() => {
     const onVars = (e: Event) => {
+      if (initialGameVariableValues !== undefined) return
       const d = (e as CustomEvent<Record<string, string | number | boolean>>).detail
       if (d && typeof d === 'object') setGameVarMap({ ...d })
     }
     window.addEventListener(GAME_VARIABLES_UPDATED_EVENT, onVars as EventListener)
     return () => window.removeEventListener(GAME_VARIABLES_UPDATED_EVENT, onVars as EventListener)
-  }, [])
+  }, [initialGameVariableValues])
 
   const layers = controlled ? controlledLayers! : idbLayers
   const active = useMemo(() => layers.filter((l) => l.enabled), [layers])

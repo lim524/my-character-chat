@@ -49,6 +49,7 @@ import {
   effectiveCharacterLiftPx,
   parseMergedCharacterLayoutFromExtraEntries,
 } from '@/lib/interfaceRuntime'
+import { initialGameStateFromDefs } from '@/lib/gameVariables'
 import {
   parseExternalLoreEntries,
   parseTextToLoreEntries,
@@ -109,6 +110,11 @@ export default function CreatePage() {
     if (!iface) return DEFAULT_CHARACTER_LIFT_PX
     const layout = parseMergedCharacterLayoutFromExtraEntries(iface.extraInterfaceEntries)
     return effectiveCharacterLiftPx(iface.characterSpriteLiftPx, layout)
+  }, [iface])
+
+  const previewGameVariableValues = useMemo(() => {
+    if (!iface) return {}
+    return initialGameStateFromDefs(iface.gameVariables ?? [])
   }, [iface])
 
   const createTabBar = useMemo(
@@ -506,7 +512,11 @@ export default function CreatePage() {
                     characterSpriteLiftPx={previewCharacterLiftPx}
                     customCSS={iface.customCSS}
                   />
-                  <GlobalUiLayersRuntime layers={globalUiLayers} layout="embedded" />
+                  <GlobalUiLayersRuntime
+                    layers={globalUiLayers}
+                    layout="embedded"
+                    initialGameVariableValues={previewGameVariableValues}
+                  />
                 </>
               )
             })()}

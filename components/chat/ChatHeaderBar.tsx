@@ -14,7 +14,7 @@ export function ChatHeaderBar({
   isDataUrl: (s: string) => boolean
 }) {
   return (
-    <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] sticky top-0 z-50 flex-wrap sm:flex-nowrap">
+    <div className="flex items-center gap-3 w-full px-4 py-3 border-b border-[#333] bg-[#111] flex-wrap sm:flex-nowrap">
       <button
         onClick={onBack}
         className="text-white text-xl font-bold mr-2 hover:text-gray-300"
