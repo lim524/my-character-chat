@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Copy, Check } from 'lucide-react'
 
 const GUIDE_URL = '/ai-configuration-prompt-pack.md'
 
@@ -13,9 +14,22 @@ export default function CreateAiGuideModal({
 }) {
   const [text, setText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const copyFullDocument = async () => {
+    if (!text?.length) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      alert('클립보드 복사에 실패했습니다. 브라우저 권한을 확인해 주세요.')
+    }
+  }
 
   useEffect(() => {
     if (!open) return
+    setCopied(false)
     setError(null)
     setText(null)
     void fetch(GUIDE_URL)
@@ -52,17 +66,28 @@ export default function CreateAiGuideModal({
         className="flex max-h-[88vh] w-full max-w-3xl flex-col rounded-xl border border-[#333] bg-[#0a0a0c] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#222] px-4 py-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#222] px-4 py-3">
           <h2 id="ai-guide-title" className="text-sm font-semibold text-gray-100">
             AI 가이드 (설정·Regex·전역 UI 복붙용)
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-[#444] px-3 py-1 text-xs text-gray-300 hover:bg-[#222]"
-          >
-            닫기
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={text === null || !!error}
+              onClick={() => void copyFullDocument()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#444] px-3 py-1 text-xs text-gray-300 hover:bg-[#222] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              {copied ? '복사됨' : '문서 전체 복사'}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-[#444] px-3 py-1 text-xs text-gray-300 hover:bg-[#222]"
+            >
+              닫기
+            </button>
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           {error ? <p className="text-sm text-red-400">{error}</p> : null}

@@ -5,6 +5,7 @@
 export const LOCAL_CHARACTERS_KEY = 'local-characters'
 
 import { type InterfaceConfig, type LoreEntry } from './interfaceConfig'
+import type { GlobalUiLayer } from './globalUiLayers'
 import type { ChatMessage } from '@/components/chat/types'
 import {
   characterHasInlineDataUrls,
@@ -48,6 +49,8 @@ export interface LocalCharacter {
   interfaceConfig?: InterfaceConfig
   /** 캐릭터 로어북 (저장 시 draft와 함께 보관) */
   loreEntries?: LoreEntry[]
+  /** 채팅 전역 UI 레이어 — 저장된 경우 채팅에서 앱 전역 설정보다 우선 */
+  globalUiLayers?: GlobalUiLayer[]
   protagonist?: { name: string; description: string }[]
   supporting?: { name: string; description: string }[]
   created_at?: string

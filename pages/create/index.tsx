@@ -27,12 +27,7 @@ import { createInitialInterfaceConfig } from '@/lib/interfaceEval'
 import {
   getUserPersona,
 } from '@/lib/appSettings'
-import {
-  dispatchGlobalUiLayersUpdated,
-  getGlobalUiLayers,
-  setGlobalUiLayers as persistGlobalUiLayers,
-  type GlobalUiLayer,
-} from '@/lib/globalUiLayers'
+import type { GlobalUiLayer } from '@/lib/globalUiLayers'
 import { v4 as uuidv4 } from 'uuid'
 import {
   User,
@@ -73,6 +68,10 @@ const DatingSimScreenPreview = dynamic(
   }
 )
 
+const GlobalUiLayersRuntime = dynamic(() => import('@/components/GlobalUiLayersRuntime'), {
+  ssr: false,
+})
+
 export default function CreatePage() {
   const [draft, setDraft] = useState<CharacterDraft>({})
   const [iface, setIface] = useState<InterfaceConfig | null>(null)
@@ -100,6 +99,8 @@ export default function CreatePage() {
   const [expandedGameVariableId, setExpandedGameVariableId] = useState<string | null>(null)
   const cardImportRef = useRef<HTMLInputElement>(null)
   const [globalUiLayers, setGlobalUiLayersState] = useState<GlobalUiLayer[]>([])
+  /** 드래프트 비동기 로드 전에 빈 배열로 persistCharacterDraft 하는 것 방지 */
+  const [globalUiDraftHydrated, setGlobalUiDraftHydrated] = useState(false)
   const [aiGuideOpen, setAiGuideOpen] = useState(false)
 
   const previewCharacterLiftPx = useMemo(() => {
@@ -126,18 +127,35 @@ export default function CreatePage() {
       }
       
       const globalPersona = await getUserPersona()
-      const draftSynced = { 
-        ...loaded, 
+      const draftLayers: GlobalUiLayer[] = Array.isArray(loaded.globalUiLayers)
+        ? loaded.globalUiLayers
+        : []
+      const draftSynced = {
+        ...loaded,
         interfaceConfig: baseIface,
+        globalUiLayers: draftLayers,
         userName: loaded.userName || globalPersona.name,
         userDescription: loaded.userDescription || globalPersona.description,
       }
       setDraft(draftSynced)
       await persistCharacterDraft(draftSynced)
       setIface(baseIface)
+      setGlobalUiLayersState(draftLayers)
+      setGlobalUiDraftHydrated(true)
     })()
-    void getGlobalUiLayers().then(setGlobalUiLayersState)
   }, [])
+
+  useEffect(() => {
+    if (!globalUiDraftHydrated) return
+    setDraft((prev) => {
+      const same =
+        JSON.stringify(prev.globalUiLayers ?? []) === JSON.stringify(globalUiLayers)
+      if (same) return prev
+      const next = { ...prev, globalUiLayers }
+      void persistCharacterDraft(next)
+      return next
+    })
+  }, [globalUiLayers, globalUiDraftHydrated])
 
   const patchDraft = (patch: Partial<CharacterDraft>) => {
     setDraft((prev) => {
@@ -163,13 +181,6 @@ export default function CreatePage() {
 
   const handleSave = async () => {
     if (typeof window === 'undefined' || !iface) return
-    try {
-      await persistGlobalUiLayers(globalUiLayers)
-      dispatchGlobalUiLayersUpdated()
-    } catch (e) {
-      console.error(e)
-      alert('전역 인터페이스 저장에 실패했습니다. IndexedDB 용량 등을 확인해 주세요. 캐릭터 저장은 계속합니다.')
-    }
     const id = draft.id || uuidv4()
     const character: LocalCharacter = {
       id,
@@ -191,6 +202,7 @@ export default function CreatePage() {
       emotionImages: draft.emotionImages ?? draft.emotion_images ?? [],
       details: (draft.details as Record<string, unknown>) ?? {},
       interfaceConfig: iface,
+      globalUiLayers,
     }
 
     const result = await saveLocalCharacter(character)
@@ -242,7 +254,7 @@ export default function CreatePage() {
         await importCharacterFromFile(file)
       const ic = character.interfaceConfig ?? createInitialInterfaceConfig()
       const importedLore = character as LocalCharacter & { loreEntries?: LoreEntry[] }
-      const nextDraft: CharacterDraft = {
+      let nextDraft: CharacterDraft = {
         ...draft,
         id: character.id,
         name: character.name,
@@ -265,18 +277,13 @@ export default function CreatePage() {
         loreEntries: importedLore.loreEntries,
         interfaceConfig: ic,
       }
+      if (importedGlobalLayers !== undefined) {
+        nextDraft = { ...nextDraft, globalUiLayers: importedGlobalLayers }
+        setGlobalUiLayersState(importedGlobalLayers)
+      }
       setDraft(nextDraft)
       setIface(ic)
       await persistCharacterDraft(nextDraft)
-      if (importedGlobalLayers !== undefined) {
-        try {
-          await persistGlobalUiLayers(importedGlobalLayers)
-          setGlobalUiLayersState(importedGlobalLayers)
-          dispatchGlobalUiLayersUpdated()
-        } catch (e) {
-          console.error(e)
-        }
-      }
       if (warnings.length) alert(warnings.join('\n'))
     } catch (err) {
       console.error(err)
@@ -458,7 +465,7 @@ export default function CreatePage() {
       >
         {/* 프리뷰: 채팅방과 동일하게 남는 영역 전체(가로·세로) 사용 */}
         <div className="absolute inset-0 min-h-0 flex flex-col">
-          <div className="min-h-0 flex-1 w-full">
+          <div className="relative min-h-0 flex-1 w-full">
             {(() => {
               const initialBg = (draft.details as Record<string, unknown>)?.initialBackground as string | undefined
               const initialChar = (draft.details as Record<string, unknown>)?.initialCharacter as string | undefined
@@ -471,15 +478,18 @@ export default function CreatePage() {
                 }
               }
               return (
-                <DatingSimScreenPreview
-                  screen={previewConfig}
-                  assets={iface.assets}
-                  uiTheme={iface.uiTheme}
-                  extraInterfaceEntries={iface.extraInterfaceEntries}
-                  regexScripts={iface.regexScripts}
-                  characterSpriteLiftPx={previewCharacterLiftPx}
-                  customCSS={iface.customCSS}
-                />
+                <>
+                  <DatingSimScreenPreview
+                    screen={previewConfig}
+                    assets={iface.assets}
+                    uiTheme={iface.uiTheme}
+                    extraInterfaceEntries={iface.extraInterfaceEntries}
+                    regexScripts={iface.regexScripts}
+                    characterSpriteLiftPx={previewCharacterLiftPx}
+                    customCSS={iface.customCSS}
+                  />
+                  <GlobalUiLayersRuntime layers={globalUiLayers} layout="embedded" />
+                </>
               )
             })()}
           </div>

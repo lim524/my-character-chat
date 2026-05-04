@@ -12,19 +12,36 @@ import {
 } from '@/lib/gameVariables'
 import { sanitizeCustomCss } from '@/lib/interfaceConfigSanitizer'
 
+type LayoutMode = 'viewport' | 'embedded'
+
+export type GlobalUiLayersRuntimeProps = {
+  /**
+   * 넘기면 IndexedDB 대신 이 배열만 사용 (미리보기·캐릭터별 레이어).
+   * `undefined`면 앱 설정(global-ui-layers)을 로드한다.
+   */
+  layers?: GlobalUiLayer[]
+  /** embedded: 미리보기 등 부모 `relative` 안에서만 덮음 */
+  layout?: LayoutMode
+}
+
 /** 설정에 저장된 전역 레이어를 순서대로 적용합니다 (CSS → HTML 오버레이 → JS). */
-export default function GlobalUiLayersRuntime() {
-  const [layers, setLayers] = useState<GlobalUiLayer[]>([])
+export default function GlobalUiLayersRuntime({
+  layers: controlledLayers,
+  layout = 'viewport',
+}: GlobalUiLayersRuntimeProps) {
+  const controlled = controlledLayers !== undefined
+  const [idbLayers, setIdbLayers] = useState<GlobalUiLayer[]>([])
   const [gameVarMap, setGameVarMap] = useState<Record<string, string | number | boolean>>({})
 
   useEffect(() => {
-    void getGlobalUiLayers().then(setLayers)
+    if (controlled) return
+    void getGlobalUiLayers().then(setIdbLayers)
     const onUpdate = () => {
-      void getGlobalUiLayers().then(setLayers)
+      void getGlobalUiLayers().then(setIdbLayers)
     }
     window.addEventListener(GLOBAL_UI_LAYERS_UPDATED_EVENT, onUpdate)
     return () => window.removeEventListener(GLOBAL_UI_LAYERS_UPDATED_EVENT, onUpdate)
-  }, [])
+  }, [controlled])
 
   useEffect(() => {
     const onVars = (e: Event) => {
@@ -35,6 +52,7 @@ export default function GlobalUiLayersRuntime() {
     return () => window.removeEventListener(GAME_VARIABLES_UPDATED_EVENT, onVars as EventListener)
   }, [])
 
+  const layers = controlled ? controlledLayers! : idbLayers
   const active = useMemo(() => layers.filter((l) => l.enabled), [layers])
 
   useEffect(() => {
@@ -61,6 +79,11 @@ export default function GlobalUiLayersRuntime() {
     }
   }, [active])
 
+  const rootPositionClass =
+    layout === 'embedded'
+      ? 'pointer-events-none absolute inset-0 z-[25]'
+      : 'pointer-events-none fixed inset-0 z-40'
+
   return (
     <>
       {active.map((layer) => {
@@ -75,9 +98,10 @@ export default function GlobalUiLayersRuntime() {
         )
       })}
       <div
-        className="pointer-events-none fixed inset-0 z-40"
+        className={rootPositionClass}
         aria-hidden
         data-global-ui-root
+        data-global-ui-layout={layout}
       >
         {active.map((layer) => {
           const html = layer.html.trim()

@@ -116,7 +116,15 @@ export default function GlobalUiLayersEditor({
         </button>
       </div>
       <p className={`text-gray-400 ${compact ? 'text-[11px] leading-relaxed' : 'text-sm'}`}>
-        앱 전체에 적용됩니다. 위에서부터 순서대로 CSS → HTML → JavaScript가 반영됩니다. 행을 눌러 펼치고, HTML 안의{' '}
+        {compact ? (
+          <>
+            왼쪽 미리보기와 저장한 캐릭터 채팅에 적용됩니다. 설정은 이 캐릭터 드래프트에만 저장되어, 새로 만들 작업과 이전
+            캐릭터의 전역 UI가 섞이지 않습니다. 위에서부터 순서대로 CSS → HTML → JavaScript입니다.
+          </>
+        ) : (
+          <>앱 전역 설정(설정 페이지·레거시 캐릭터)에 적용됩니다.</>
+        )}{' '}
+        행을 눌러 펼치고, HTML 안의{' '}
         <code className={compact ? 'text-[10px] bg-[#222] px-1 rounded' : 'bg-[#333] px-1 rounded'}>
           &lt;script&gt;
         </code>
@@ -125,7 +133,7 @@ export default function GlobalUiLayersEditor({
           <>
             {' '}
             <span className="text-gray-300">
-              캐릭터 저장(Ctrl+S) 시 앱에 반영되며, 카드 JSON 내보내기·가져오기에도 포함됩니다.
+              캐릭터 저장(Ctrl+S) 시 캐릭터 데이터에 포함되며, 카드 JSON 내보내기·가져오기에도 함께 실립니다.
             </span>
           </>
         ) : null}

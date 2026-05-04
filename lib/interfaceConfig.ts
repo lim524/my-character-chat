@@ -1,5 +1,6 @@
 import { kvGet, kvSet } from './idbKV'
 import type { EmotionImageItem } from './localStorage'
+import type { GlobalUiLayer } from './globalUiLayers'
 
 export type AssetType = 'background' | 'character' | 'ui'
 
@@ -188,6 +189,8 @@ export type CharacterDraft = {
   world_setting?: string
   details?: unknown
   interfaceConfig?: InterfaceConfig
+  /** 생성 화면 전용 — IndexedDB 앱 전역 설정과 별도로 드래프트에만 보관 (새 캐릭터 시 이전 인터페이스 유물 방지) */
+  globalUiLayers?: GlobalUiLayer[]
   [key: string]: unknown
 }
 

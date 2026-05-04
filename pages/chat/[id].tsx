@@ -65,7 +65,13 @@ import {
 import { shouldApplyAssistantReply } from '@/lib/chatConcurrency'
 import { buildScanContext } from '@/lib/lorebookActivation'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { Sparkles, Zap, Feather, Gem } from 'lucide-react'
+import type { GlobalUiLayer } from '@/lib/globalUiLayers'
+
+const GlobalUiLayersRuntime = dynamic(() => import('@/components/GlobalUiLayersRuntime'), {
+  ssr: false,
+})
 
 type EmotionImage = {
   label: string
@@ -92,6 +98,8 @@ type Character = {
   tags?: string[]
   isAdult?: boolean
   isPublic?: boolean
+  /** 저장된 경우 채팅에서 설정 앱 전역 레이어보다 우선 */
+  globalUiLayers?: GlobalUiLayer[]
 }
 
 function providerIcon(provider: ProviderId) {
@@ -364,6 +372,16 @@ export default function ChatPage() {
   const [maxInputChars, setMaxInputChars] = useState(4000)
   const regexScripts = characterInfo?.interfaceConfig?.regexScripts
 
+  /** 키가 없으면(undefined) 앱 설정 IndexedDB 레이어 사용, 있으면 캐릭터 저장분(빈 배열 포함) */
+  const globalUiLayersForRuntime = useMemo((): GlobalUiLayer[] | undefined => {
+    const c = characterInfo
+    if (!c) return undefined
+    if (Object.prototype.hasOwnProperty.call(c, 'globalUiLayers')) {
+      return c.globalUiLayers ?? []
+    }
+    return undefined
+  }, [characterInfo])
+
   const gameVariableDefs = characterInfo?.interfaceConfig?.gameVariables ?? []
   const gameVariableDefsKey = useMemo(
     () => JSON.stringify(characterInfo?.interfaceConfig?.gameVariables ?? []),
@@ -526,6 +544,7 @@ export default function ChatPage() {
         tags: formattedCharRaw.tags,
         isAdult: formattedCharRaw.isAdult ?? formattedCharRaw.is_adult,
         isPublic: formattedCharRaw.isPublic ?? formattedCharRaw.is_public,
+        globalUiLayers: formattedCharRaw.globalUiLayers,
       }
       setCharacterInfo(formattedCharacter)
 
@@ -1120,6 +1139,7 @@ export default function ChatPage() {
   return (
     <div className="bg-[#0d0d0d] text-white h-screen flex flex-col overflow-hidden relative">
       <CustomStyleInjector css={characterInfo?.interfaceConfig?.customCSS} />
+      <GlobalUiLayersRuntime layers={globalUiLayersForRuntime} />
       {displayedImage && (
         <div className="sm:hidden absolute inset-0 z-0">
           <Image
